@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, LineChart, Table as TableIcon, Settings, ReceiptText } from "lucide-react"
+import { Home, LineChart, Table as TableIcon, Settings, ReceiptText, HandCoins, Banknote } from "lucide-react"
 import Link from "next/link"
 import {
   Sidebar,
@@ -47,6 +47,38 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Cadastro de Despesas">
+                  <Link href="/dashboard/cadastro-despesas">
+                    <Banknote />
+                    <span>Cadastro de Despesas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Cadastro de Receitas">
+                  <Link href="/dashboard/cadastro-receitas">
+                    <HandCoins />
+                    <span>Cadastro de Receitas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Contas a Pagar">
+                  <Link href="/dashboard/contas-a-pagar">
+                    <Banknote />
+                    <span>Contas a Pagar</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Contas a Receber">
+                  <Link href="/dashboard/contas-a-receber">
+                    <HandCoins />
+                    <span>Contas a Receber</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Relatórios">
                   <Link href="/dashboard/relatorios">
                     <LineChart />
@@ -82,4 +114,3 @@ export function AppSidebar() {
     </Sidebar>
   )
 }
-
