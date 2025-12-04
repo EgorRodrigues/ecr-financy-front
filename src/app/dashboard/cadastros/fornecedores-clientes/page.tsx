@@ -39,6 +39,43 @@ export default function CadastroFornecedoresClientesPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  function formatCPF(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 11)
+    const p1 = digits.slice(0, 3)
+    const p2 = digits.slice(3, 6)
+    const p3 = digits.slice(6, 9)
+    const p4 = digits.slice(9, 11)
+    if (digits.length <= 3) return p1
+    if (digits.length <= 6) return `${p1}.${p2}`
+    if (digits.length <= 9) return `${p1}.${p2}.${p3}`
+    return `${p1}.${p2}.${p3}-${p4}`
+  }
+
+  function formatCNPJ(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 14)
+    const p1 = digits.slice(0, 2)
+    const p2 = digits.slice(2, 5)
+    const p3 = digits.slice(5, 8)
+    const p4 = digits.slice(8, 12)
+    const p5 = digits.slice(12, 14)
+    if (digits.length <= 2) return p1
+    if (digits.length <= 5) return `${p1}.${p2}`
+    if (digits.length <= 8) return `${p1}.${p2}.${p3}`
+    if (digits.length <= 12) return `${p1}.${p2}.${p3}/${p4}`
+    return `${p1}.${p2}.${p3}/${p4}-${p5}`
+  }
+
+  function formatPhone(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 11)
+    const ddd = digits.slice(0, 2)
+    const pivot = digits.length >= 11 ? 7 : 6
+    const part1 = digits.slice(2, Math.min(pivot, digits.length))
+    const part2 = digits.slice(pivot)
+    if (!ddd) return digits
+    if (!part2) return `(${ddd}) ${part1}`
+    return `(${ddd}) ${part1}-${part2}`
+  }
+
   function salvar() {
     if (!form.nome || !form.nome.trim()) {
       setMensagem("Informe o nome")
@@ -119,14 +156,22 @@ export default function CadastroFornecedoresClientesPage() {
           {form.pessoa === "fisica" && (
             <div>
               <label className="text-xs">CPF</label>
-              <Input value={form.cpf ?? ""} onChange={(e) => update("cpf", e.target.value)} />
+              <Input
+                inputMode="numeric"
+                value={form.cpf ?? ""}
+                onChange={(e) => update("cpf", formatCPF(e.target.value))}
+              />
             </div>
           )}
 
           {form.pessoa === "juridica" && (
             <div>
               <label className="text-xs">CNPJ</label>
-              <Input value={form.cnpj ?? ""} onChange={(e) => update("cnpj", e.target.value)} />
+              <Input
+                inputMode="numeric"
+                value={form.cnpj ?? ""}
+                onChange={(e) => update("cnpj", formatCNPJ(e.target.value))}
+              />
             </div>
           )}
 
@@ -137,7 +182,7 @@ export default function CadastroFornecedoresClientesPage() {
 
           <div>
             <label className="text-xs">Telefone</label>
-            <Input value={form.telefone ?? ""} onChange={(e) => update("telefone", e.target.value)} />
+            <Input inputMode="tel" value={form.telefone ?? ""} onChange={(e) => update("telefone", formatPhone(e.target.value))} />
           </div>
 
           <div className="md:col-span-2">
@@ -158,4 +203,3 @@ export default function CadastroFornecedoresClientesPage() {
     </div>
   )
 }
-
