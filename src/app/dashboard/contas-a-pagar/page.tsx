@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,23 +11,43 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getExpenses } from "@/lib/api"
 
-type Payable = {
+type ExpenseItem = {
   id: string
   fornecedor: string
   vencimento: string
   valor: number
-  status: "pendente" | "pago" | "atrasado"
+  status: "pendente" | "pago" | "atrasado" | "cancelado"
 }
 
-const dados: Payable[] = [
-  { id: "p1", fornecedor: "Fornecedor A", vencimento: "2025-12-05", valor: 520.3, status: "pendente" },
-  { id: "p2", fornecedor: "Fornecedor B", vencimento: "2025-12-08", valor: 1290.0, status: "pago" },
-  { id: "p3", fornecedor: "Fornecedor C", vencimento: "2025-12-01", valor: 210.99, status: "atrasado" },
-]
+type BackendExpense = {
+  id: string
+  contact_name?: string
+  contact_id?: string
+  due_date?: string
+  amount?: number
+  status?: string
+}
 
 export default function ContasAPagarPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela")
+  const [dados, setDados] = useState<ExpenseItem[]>([])
+
+  useEffect(() => {
+    getExpenses()
+      .then((list) => startTransition(() => {
+        const mapped: ExpenseItem[] = (list as BackendExpense[]).map((i) => ({
+          id: i.id,
+          fornecedor: i.contact_name || i.contact_id || "",
+          vencimento: i.due_date || "",
+          valor: typeof i.amount === "number" ? i.amount : 0,
+          status: (i.status as ExpenseItem["status"]) || "pendente",
+        }))
+        setDados(mapped)
+      }))
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -87,4 +107,3 @@ export default function ContasAPagarPage() {
     </div>
   )
 }
-

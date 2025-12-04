@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,23 +11,43 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getIncomes } from "@/lib/api"
 
 type Receivable = {
   id: string
   cliente: string
   vencimento: string
   valor: number
-  status: "pendente" | "recebido" | "atrasado"
+  status: "pendente" | "recebido" | "atrasado" | "cancelado"
 }
 
-const dados: Receivable[] = [
-  { id: "r1", cliente: "Cliente X", vencimento: "2025-12-06", valor: 899.9, status: "pendente" },
-  { id: "r2", cliente: "Cliente Y", vencimento: "2025-12-02", valor: 299.0, status: "recebido" },
-  { id: "r3", cliente: "Cliente Z", vencimento: "2025-12-01", valor: 149.99, status: "atrasado" },
-]
+type BackendIncome = {
+  id: string
+  contact_name?: string
+  contact_id?: string
+  due_date?: string
+  amount?: number
+  status?: string
+}
 
 export default function ContasAReceberPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela")
+  const [dados, setDados] = useState<Receivable[]>([])
+
+  useEffect(() => {
+    getIncomes()
+      .then((list) => startTransition(() => {
+        const mapped: Receivable[] = (list as BackendIncome[]).map((i) => ({
+          id: i.id,
+          cliente: i.contact_name || i.contact_id || "",
+          vencimento: i.due_date || "",
+          valor: typeof i.amount === "number" ? i.amount : 0,
+          status: (i.status as Receivable["status"]) || "pendente",
+        }))
+        setDados(mapped)
+      }))
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-4">
@@ -87,4 +107,3 @@ export default function ContasAReceberPage() {
     </div>
   )
 }
-

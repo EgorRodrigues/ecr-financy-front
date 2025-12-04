@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createContact } from "@/lib/api"
+import { createContact, getContacts } from "@/lib/api"
 
 type Party = {
   id: string
@@ -30,11 +30,27 @@ export default function CadastroFornecedoresClientesPage() {
   })
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
+  const [items, setItems] = useState<Array<{
+    id: string
+    type: "supplier" | "customer"
+    person_type: "individual" | "company"
+    name: string
+    document?: string
+    email?: string
+    phone_local?: string
+    active: boolean
+  }>>([])
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
     return () => clearTimeout(t)
   }, [mensagem])
+
+  useEffect(() => {
+    getContacts()
+      .then((list) => setItems(list))
+      .catch(() => {})
+  }, [])
 
   function update<K extends keyof Party>(key: K, value: Party[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -130,6 +146,10 @@ export default function CadastroFornecedoresClientesPage() {
         })
         setMensagem("Cadastro salvo")
         setForm({ id: "", tipo: form.tipo, pessoa: form.pessoa, nome: "", ativo: true })
+        try {
+          const list = await getContacts()
+          setItems(list)
+        } catch {}
       } catch {
         setMensagem("Falha ao salvar")
       } finally {
@@ -238,6 +258,41 @@ export default function CadastroFornecedoresClientesPage() {
             />
           </div>
         </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="mb-2 text-sm font-medium">Contatos cadastrados</div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="p-2 text-left">Tipo</th>
+              <th className="p-2 text-left">Pessoa</th>
+              <th className="p-2 text-left">Nome</th>
+              <th className="p-2 text-left">Documento</th>
+              <th className="p-2 text-left">Telefone</th>
+              <th className="p-2 text-left">E-mail</th>
+              <th className="p-2 text-left">Ativo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((i) => (
+              <tr key={i.id} className="border-b">
+                <td className="p-2">{i.type === "supplier" ? "Fornecedor" : "Cliente"}</td>
+                <td className="p-2">{i.person_type === "individual" ? "Física" : "Jurídica"}</td>
+                <td className="p-2">{i.name}</td>
+                <td className="p-2">{i.document || "-"}</td>
+                <td className="p-2">{i.phone_local || "-"}</td>
+                <td className="p-2">{i.email || "-"}</td>
+                <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+              </tr>
+            ))}
+            {items.length === 0 && (
+              <tr>
+                <td className="p-2 text-center text-muted-foreground" colSpan={7}>Nenhum contato cadastrado</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </Card>
     </div>
   )

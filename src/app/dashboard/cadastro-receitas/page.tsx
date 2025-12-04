@@ -4,7 +4,7 @@ import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getCategories, getSubcategories, getCostCenters } from "@/lib/api"
+import { getCategories, getSubcategories, getCostCenters, getContacts, createExpense, createIncome } from "@/lib/api"
 
 type Income = {
   id: string
@@ -19,6 +19,7 @@ type Income = {
   centroCusto?: string
   centroCustoId?: string
   fornecedorCliente?: string
+  fornecedorClienteId?: string
   descricao?: string
   documento?: string
   formaRecebimento?: string
@@ -48,6 +49,7 @@ export default function CadastroReceitasPage() {
   const [categorias, setCategorias] = useState<Array<{ id: string; name: string }>>([])
   const [subcategorias, setSubcategorias] = useState<Array<{ id: string; name: string }>>([])
   const [centros, setCentros] = useState<Array<{ id: string; name: string; code?: string }>>([])
+  const [contacts, setContacts] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
@@ -60,6 +62,9 @@ export default function CadastroReceitasPage() {
       .catch(() => {})
     getCostCenters()
       .then((list) => startTransition(() => setCentros(list)))
+      .catch(() => {})
+    getContacts()
+      .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })))) )
       .catch(() => {})
   }, [])
 
@@ -81,17 +86,37 @@ export default function CadastroReceitasPage() {
     update("valor", value)
   }
 
-  function salvar() {
+  async function salvar() {
     setSalvando(true)
     try {
-      const raw = localStorage.getItem("financy_expenses")
-      const list: Income[] = raw ? JSON.parse(raw) : []
-      const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-      const next = [{ ...form, id }, ...list]
-      localStorage.setItem("financy_expenses", JSON.stringify(next))
-      setMensagem("Receita salva. Acesse Relatórios para exportar.")
+      const payload = {
+        amount: form.valor,
+        status: form.status,
+        issue_date: form.dataEmissao,
+        due_date: form.dataVencimento,
+        payment_date: form.dataRecebimento,
+        category_id: form.categoriaId,
+        subcategory_id: form.subcategoriaId,
+        cost_center_id: form.centroCustoId,
+        contact_id: form.fornecedorClienteId,
+        description: form.descricao,
+        document: form.documento,
+        payment_method: form.formaRecebimento,
+        account: form.conta,
+        recurrence: !!form.recorrencia,
+        competence: form.competencia,
+        project: form.projeto,
+        tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
+        notes: form.observacoes,
+        active: true,
+      }
+      if (form.tipo === "receita") {
+        await createIncome(payload)
+        setMensagem("Receita salva no backend")
+      } else {
+        await createExpense(payload)
+        setMensagem("Despesa salva no backend")
+      }
       setForm({ id: "", tipo: form.tipo, valor: 0, status: "pendente" })
       setValorText(new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0))
     } catch {
@@ -221,7 +246,21 @@ export default function CadastroReceitasPage() {
 
           <div>
             <label className="text-xs">Cliente/Fornecedor</label>
-            <Input value={form.fornecedorCliente ?? ""} onChange={(e) => update("fornecedorCliente", e.target.value)} />
+            <select
+              className="bg-background h-10 w-full rounded-md border px-2"
+              value={form.fornecedorClienteId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value
+                const selected = contacts.find((c) => c.id === id)
+                update("fornecedorClienteId", id)
+                update("fornecedorCliente", selected?.name || "")
+              }}
+            >
+              <option value="">Selecione</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <div>

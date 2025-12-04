@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://0.0.0.0:8000"
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -35,7 +35,7 @@ export type ContactInput = {
 
 export type Contact = ContactInput & { id: string }
 
-export async function getCategories(): Promise<Array<{ id: string; name: string }>> {
+export async function getCategories(): Promise<Array<{ id: string; name: string; description?: string; active?: boolean }>> {
   return apiFetch(`/categories/`, { method: "GET" })
 }
 
@@ -45,6 +45,10 @@ export async function createCategory(input: CategoryInput) {
 
 export async function createSubcategory(input: SubcategoryInput) {
   return apiFetch(`/subcategories/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function getAllSubcategories(): Promise<Array<{ id: string; name: string; description?: string; active?: boolean; category_id?: string }>> {
+  return apiFetch(`/subcategories/`, { method: "GET" })
 }
 
 export async function createCostCenter(input: CostCenterInput) {
@@ -65,4 +69,45 @@ export async function createContact(input: ContactInput) {
 
 export async function getContacts(): Promise<Array<Contact>> {
   return apiFetch(`/contacts`, { method: "GET" })
+}
+
+export type TransactionInput = {
+  amount: number
+  status: "pendente" | "pago" | "cancelado" | "recebido"
+  issue_date?: string
+  due_date?: string
+  payment_date?: string
+  category_id?: string
+  subcategory_id?: string
+  cost_center_id?: string
+  contact_id?: string
+  description?: string
+  document?: string
+  payment_method?: string
+  account?: string
+  recurrence?: boolean
+  competence?: string
+  project?: string
+  tags?: string[]
+  notes?: string
+  active?: boolean
+}
+
+export type ExpenseRecord = TransactionInput & { id: string }
+export type IncomeRecord = TransactionInput & { id: string }
+
+export async function createExpense(input: TransactionInput) {
+  return apiFetch(`/expenses/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function createIncome(input: TransactionInput) {
+  return apiFetch(`/incomes/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function getExpenses(): Promise<Array<ExpenseRecord>> {
+  return apiFetch(`/expenses/`, { method: "GET" })
+}
+
+export async function getIncomes(): Promise<Array<IncomeRecord>> {
+  return apiFetch(`/incomes/`, { method: "GET" })
 }

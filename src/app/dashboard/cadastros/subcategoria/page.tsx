@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createSubcategory, getCategories } from "@/lib/api"
+import { createSubcategory, getCategories, getAllSubcategories } from "@/lib/api"
 
 type Category = { id: string; name: string }
 type Subcategory = {
@@ -19,10 +19,14 @@ export default function CadastroSubcategoriaPage() {
   const [form, setForm] = useState<Subcategory>({ id: "", nome: "", categoriaId: "", descricao: "", ativo: true })
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [categorias, setCategorias] = useState<Category[]>([])
+  const [items, setItems] = useState<Array<{ id: string; name: string; active?: boolean; category_id?: string }>>([])
 
   useEffect(() => {
     getCategories()
       .then((list) => startTransition(() => setCategorias(list)))
+      .catch(() => {})
+    getAllSubcategories()
+      .then((list) => startTransition(() => setItems(list)))
       .catch(() => {})
   }, [])
 
@@ -45,6 +49,10 @@ export default function CadastroSubcategoriaPage() {
       })
       setMensagem("Subcategoria salva")
       setForm({ id: "", nome: "", categoriaId: "", descricao: "", ativo: true })
+      try {
+        const list = await getAllSubcategories()
+        setItems(list)
+      } catch {}
     } catch {
       setMensagem("Falha ao salvar")
     }
@@ -102,6 +110,36 @@ export default function CadastroSubcategoriaPage() {
             />
           </div>
         </div>
+      </Card>
+
+      <Card className="p-4">
+        <div className="mb-2 text-sm font-medium">Subcategorias cadastradas</div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="p-2 text-left">Nome</th>
+              <th className="p-2 text-left">Categoria</th>
+              <th className="p-2 text-left">Ativo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((i) => {
+              const cat = categorias.find((c) => c.id === i.category_id)
+              return (
+                <tr key={i.id} className="border-b">
+                  <td className="p-2">{i.name}</td>
+                  <td className="p-2">{cat?.name || "-"}</td>
+                  <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                </tr>
+              )
+            })}
+            {items.length === 0 && (
+              <tr>
+                <td className="p-2 text-center text-muted-foreground" colSpan={3}>Nenhuma subcategoria cadastrada</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </Card>
     </div>
   )
