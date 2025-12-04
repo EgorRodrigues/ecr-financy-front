@@ -120,6 +120,14 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Fornecedores/Clientes">
+                  <Link href="/dashboard/cadastros/fornecedores-clientes">
+                    <TableIcon />
+                    <span>Fornecedores/Clientes</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
