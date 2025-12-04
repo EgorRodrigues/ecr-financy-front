@@ -93,6 +93,40 @@ export function AppSidebar() {
         <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Cadastros</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Categoria">
+                  <Link href="/dashboard/cadastros/categoria">
+                    <TableIcon />
+                    <span>Categoria</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Subcategoria">
+                  <Link href="/dashboard/cadastros/subcategoria">
+                    <TableIcon />
+                    <span>Subcategoria</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Centro de Custos">
+                  <Link href="/dashboard/cadastros/centro-de-custos">
+                    <TableIcon />
+                    <span>Centro de Custos</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
           <SidebarGroupLabel>Configurações</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

@@ -35,6 +35,9 @@ export default function CadastroDespesasPage() {
     valor: 0,
     status: "pendente",
   })
+  const [valorText, setValorText] = useState(
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0)
+  )
 
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
@@ -46,6 +49,20 @@ export default function CadastroDespesasPage() {
 
   function update<K extends keyof Expense>(key: K, value: Expense[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value
+    const negative = raw.includes("-")
+    const digits = raw.replace(/\D/g, "")
+    const cents = digits ? parseInt(digits, 10) : 0
+    const value = (cents / 100) * (negative ? -1 : 1)
+    const formatted = new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value)
+    setValorText(formatted)
+    update("valor", value)
   }
 
   function salvar() {
@@ -60,6 +77,7 @@ export default function CadastroDespesasPage() {
       localStorage.setItem("financy_expenses", JSON.stringify(next))
       setMensagem("Despesa salva. Acesse Relatórios para exportar.")
       setForm({ id: "", tipo: form.tipo, valor: 0, status: "pendente" })
+      setValorText(new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0))
     } catch {
       setMensagem("Falha ao salvar")
     } finally {
@@ -98,10 +116,10 @@ export default function CadastroDespesasPage() {
           <div>
             <label className="text-xs">Valor</label>
             <Input
-              type="number"
-              step="0.01"
-              value={form.valor}
-              onChange={(e) => update("valor", Number(e.target.value))}
+              type="text"
+              inputMode="decimal"
+              value={valorText}
+              onChange={handleValorChange}
             />
           </div>
 
