@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { createSubcategory, getCategories } from "@/lib/api"
 
-type Category = { id: string; nome: string }
+type Category = { id: string; name: string }
 type Subcategory = {
   id: string
   nome: string
@@ -20,11 +21,9 @@ export default function CadastroSubcategoriaPage() {
   const [categorias, setCategorias] = useState<Category[]>([])
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("financy_categories")
-      const list: Category[] = raw ? JSON.parse(raw) : []
-      startTransition(() => setCategorias(list.map((c) => ({ id: c.id, nome: c.nome }))))
-    } catch {}
+    getCategories()
+      .then((list) => startTransition(() => setCategorias(list)))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -36,15 +35,14 @@ export default function CadastroSubcategoriaPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function salvar() {
+  async function salvar() {
     try {
-      const raw = localStorage.getItem("financy_subcategories")
-      const list: Subcategory[] = raw ? JSON.parse(raw) : []
-      const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-      const next = [{ ...form, id }, ...list]
-      localStorage.setItem("financy_subcategories", JSON.stringify(next))
+      await createSubcategory({
+        name: form.nome,
+        description: form.descricao,
+        active: form.ativo,
+        category_id: form.categoriaId,
+      })
       setMensagem("Subcategoria salva")
       setForm({ id: "", nome: "", categoriaId: "", descricao: "", ativo: true })
     } catch {
@@ -80,7 +78,7 @@ export default function CadastroSubcategoriaPage() {
             >
               <option value="">Selecione</option>
               {categoriasOptions.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>

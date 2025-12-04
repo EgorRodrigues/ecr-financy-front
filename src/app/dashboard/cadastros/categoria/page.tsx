@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { createCategory } from "@/lib/api"
 
 type Category = {
   id: string
@@ -25,15 +26,9 @@ export default function CadastroCategoriaPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function salvar() {
+  async function salvar() {
     try {
-      const raw = localStorage.getItem("financy_categories")
-      const list: Category[] = raw ? JSON.parse(raw) : []
-      const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-      const next = [{ ...form, id }, ...list]
-      localStorage.setItem("financy_categories", JSON.stringify(next))
+      await createCategory({ name: form.nome, description: form.descricao, active: form.ativo })
       setMensagem("Categoria salva")
       setForm({ id: "", nome: "", descricao: "", ativo: true })
     } catch {
@@ -82,4 +77,3 @@ export default function CadastroCategoriaPage() {
     </div>
   )
 }
-
