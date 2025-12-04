@@ -20,6 +20,20 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export type CategoryInput = { name: string; description?: string; active: boolean }
 export type SubcategoryInput = { name: string; description?: string; active: boolean; category_id: string }
 export type CostCenterInput = { code?: string; name: string; description?: string; active: boolean }
+export type ContactInput = {
+  type: "supplier" | "customer"
+  person_type: "individual" | "company"
+  name: string
+  document?: string
+  email?: string
+  phone_e164?: string
+  phone_local?: string
+  address?: string
+  notes?: string
+  active: boolean
+}
+
+export type Contact = ContactInput & { id: string }
 
 export async function getCategories(): Promise<Array<{ id: string; name: string }>> {
   return apiFetch(`/categories/`, { method: "GET" })
@@ -43,4 +57,12 @@ export async function getSubcategories(categoryId: string): Promise<Array<{ id: 
 
 export async function getCostCenters(): Promise<Array<{ id: string; name: string; code?: string }>> {
   return apiFetch(`/cost-centers/`, { method: "GET" })
+}
+
+export async function createContact(input: ContactInput) {
+  return apiFetch(`/contacts`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function getContacts(): Promise<Array<Contact>> {
+  return apiFetch(`/contacts`, { method: "GET" })
 }

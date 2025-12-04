@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { createContact } from "@/lib/api"
 
 type Party = {
   id: string
@@ -66,14 +67,39 @@ export default function CadastroFornecedoresClientesPage() {
   }
 
   function formatPhone(value: string) {
-    const digits = value.replace(/\D/g, "").slice(0, 11)
-    const ddd = digits.slice(0, 2)
-    const pivot = digits.length >= 11 ? 7 : 6
-    const part1 = digits.slice(2, Math.min(pivot, digits.length))
-    const part2 = digits.slice(pivot)
-    if (!ddd) return digits
-    if (!part2) return `(${ddd}) ${part1}`
-    return `(${ddd}) ${part1}-${part2}`
+    const raw = value.replace(/\s+/g, "")
+    const hasPlus = raw.startsWith("+")
+    const digits = raw.replace(/\D/g, "").slice(0, 15)
+
+    if (!digits) return hasPlus ? "+" : ""
+
+    if (!hasPlus) {
+      const ddd = digits.slice(0, 2)
+      const pivot = digits.length >= 11 ? 7 : 6
+      const part1 = digits.slice(2, Math.min(pivot, digits.length))
+      const part2 = digits.slice(pivot)
+      if (!ddd) return digits
+      if (!part2) return `(${ddd}) ${part1}`
+      return `(${ddd}) ${part1}-${part2}`
+    }
+
+    if (digits.length <= 3) {
+      return `+${digits}`
+    }
+
+    const maxNational = digits.length >= 13 ? 11 : 10
+    const ccLen = Math.min(Math.max(digits.length - maxNational, 1), 3)
+    const cc = digits.slice(0, ccLen)
+    const rest = digits.slice(ccLen)
+
+    const area = rest.slice(0, 2)
+    const pivot = rest.length >= 11 ? 7 : 6
+    const part1 = rest.slice(2, Math.min(pivot, rest.length))
+    const part2 = rest.slice(pivot)
+
+    if (rest.length <= 2) return `+${cc} (${area}`.replace(/\($/, "(")
+    if (!part2) return `+${cc} (${area}) ${part1}`
+    return `+${cc} (${area}) ${part1}-${part2}`
   }
 
   function salvar() {
@@ -82,21 +108,34 @@ export default function CadastroFornecedoresClientesPage() {
       return
     }
     setSalvando(true)
-    try {
-      const raw = localStorage.getItem("financy_parties")
-      const list: Party[] = raw ? JSON.parse(raw) : []
-      const id = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
-      const next = [{ ...form, id }, ...list]
-      localStorage.setItem("financy_parties", JSON.stringify(next))
-      setMensagem("Cadastro salvo")
-      setForm({ id: "", tipo: form.tipo, pessoa: form.pessoa, nome: "", ativo: true })
-    } catch {
-      setMensagem("Falha ao salvar")
-    } finally {
-      setSalvando(false)
-    }
+    ;(async () => {
+      try {
+        const onlyDigits = (s?: string) => (s || "").replace(/\D/g, "")
+        const type = form.tipo === "fornecedor" ? "supplier" : "customer"
+        const person_type = form.pessoa === "fisica" ? "individual" : "company"
+        const document = form.pessoa === "fisica" ? onlyDigits(form.cpf) : onlyDigits(form.cnpj)
+        const phoneLocal = form.telefone || ""
+        const phoneE164 = phoneLocal.startsWith("+") ? `+${onlyDigits(phoneLocal)}` : undefined
+        await createContact({
+          type,
+          person_type,
+          name: form.nome.trim(),
+          document: document || undefined,
+          email: form.email || undefined,
+          phone_e164: phoneE164,
+          phone_local: phoneLocal || undefined,
+          address: form.endereco || undefined,
+          notes: form.observacoes || undefined,
+          active: form.ativo,
+        })
+        setMensagem("Cadastro salvo")
+        setForm({ id: "", tipo: form.tipo, pessoa: form.pessoa, nome: "", ativo: true })
+      } catch {
+        setMensagem("Falha ao salvar")
+      } finally {
+        setSalvando(false)
+      }
+    })()
   }
 
   return (
