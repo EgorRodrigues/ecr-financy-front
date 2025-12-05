@@ -111,3 +111,19 @@ export async function getExpenses(): Promise<Array<ExpenseRecord>> {
 export async function getIncomes(): Promise<Array<IncomeRecord>> {
   return apiFetch(`/incomes/`, { method: "GET" })
 }
+
+export async function updateExpense(id: string, input: TransactionInput) {
+  return apiFetch(`/expenses/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteExpense(id: string) {
+  return apiFetch(`/expenses/${id}/`, { method: "DELETE" })
+}
+
+export async function updateIncome(id: string, input: TransactionInput) {
+  return apiFetch(`/incomes/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteIncome(id: string) {
+  return apiFetch(`/incomes/${id}/`, { method: "DELETE" })
+}
