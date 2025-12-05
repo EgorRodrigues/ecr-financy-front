@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createSubcategory, getCategories, getAllSubcategories } from "@/lib/api"
+import { createSubcategory, getCategories, getAllSubcategories, updateSubcategory, deleteSubcategory, type SubcategoryInput } from "@/lib/api"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 
 type Category = { id: string; name: string }
 type Subcategory = {
@@ -20,6 +21,9 @@ export default function CadastroSubcategoriaPage() {
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [categorias, setCategorias] = useState<Category[]>([])
   const [items, setItems] = useState<Array<{ id: string; name: string; active?: boolean; category_id?: string }>>([])
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState<{ id: string; name: string; description?: string; active?: boolean; category_id?: string } | null>(null)
+  const [edit, setEdit] = useState<SubcategoryInput | null>(null)
 
   useEffect(() => {
     getCategories()
@@ -56,6 +60,35 @@ export default function CadastroSubcategoriaPage() {
     } catch {
       setMensagem("Falha ao salvar")
     }
+  }
+
+  function openEdit(id: string) {
+    const rec = items.find((i) => i.id === id) || null
+    setSelected(rec ?? null)
+    setEdit(rec ? { name: rec.name, description: rec.description, active: rec.active ?? true, category_id: rec.category_id || "" } : null)
+    setOpen(true)
+  }
+
+  async function saveEdit() {
+    if (!selected || !edit) return
+    await updateSubcategory(selected.id, edit)
+    setOpen(false)
+    setSelected(null)
+    setEdit(null)
+    try {
+      const list = await getAllSubcategories()
+      startTransition(() => setItems(list))
+    } catch {}
+  }
+
+  async function remove(id: string) {
+    const ok = typeof window !== "undefined" ? window.confirm("Excluir?") : true
+    if (!ok) return
+    await deleteSubcategory(id)
+    try {
+      const list = await getAllSubcategories()
+      startTransition(() => setItems(list))
+    } catch {}
   }
 
   const categoriasOptions = useMemo(() => categorias, [categorias])
@@ -120,6 +153,7 @@ export default function CadastroSubcategoriaPage() {
               <th className="p-2 text-left">Nome</th>
               <th className="p-2 text-left">Categoria</th>
               <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -130,17 +164,65 @@ export default function CadastroSubcategoriaPage() {
                   <td className="p-2">{i.name}</td>
                   <td className="p-2">{cat?.name || "-"}</td>
                   <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                  <td className="p-2">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>
+                      <Button variant="destructive" size="sm" onClick={() => remove(i.id)}>Excluir</Button>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
             {items.length === 0 && (
               <tr>
-                <td className="p-2 text-center text-muted-foreground" colSpan={3}>Nenhuma subcategoria cadastrada</td>
+                <td className="p-2 text-center text-muted-foreground" colSpan={4}>Nenhuma subcategoria cadastrada</td>
               </tr>
             )}
           </tbody>
         </table>
       </Card>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="max-w-xl h-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Subcategoria</SheetTitle>
+          </SheetHeader>
+          {edit && (
+            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Nome</div>
+                <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Categoria</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.category_id} onChange={(e) => setEdit({ ...edit, category_id: e.target.value })}>
+                  <option value="">Selecione</option>
+                  {categorias.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Descrição</div>
+                <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Ativo</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+          )}
+          <SheetFooter>
+            <div className="flex gap-2">
+              <Button onClick={saveEdit}>Salvar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

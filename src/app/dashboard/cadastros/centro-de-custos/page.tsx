@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createCostCenter, getCostCenters } from "@/lib/api"
+import { createCostCenter, getCostCenters, updateCostCenter, deleteCostCenter, type CostCenterInput } from "@/lib/api"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 
 type CostCenter = {
   id: string
@@ -18,6 +19,9 @@ export default function CadastroCentroCustosPage() {
   const [form, setForm] = useState<CostCenter>({ id: "", codigo: "", nome: "", descricao: "", ativo: true })
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [items, setItems] = useState<Array<{ id: string; name: string; code?: string; active?: boolean }>>([])
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState<{ id: string; name: string; code?: string; description?: string; active?: boolean } | null>(null)
+  const [edit, setEdit] = useState<CostCenterInput | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
@@ -46,6 +50,35 @@ export default function CadastroCentroCustosPage() {
     } catch {
       setMensagem("Falha ao salvar")
     }
+  }
+
+  function openEdit(id: string) {
+    const rec = items.find((i) => i.id === id) || null
+    setSelected(rec ? { id: rec.id, name: rec.name, code: rec.code, active: rec.active } : null)
+    setEdit(rec ? { name: rec.name, code: rec.code, description: undefined, active: rec.active ?? true } : null)
+    setOpen(true)
+  }
+
+  async function saveEdit() {
+    if (!selected || !edit) return
+    await updateCostCenter(selected.id, edit)
+    setOpen(false)
+    setSelected(null)
+    setEdit(null)
+    try {
+      const list = await getCostCenters()
+      setItems(list)
+    } catch {}
+  }
+
+  async function remove(id: string) {
+    const ok = typeof window !== "undefined" ? window.confirm("Excluir?") : true
+    if (!ok) return
+    await deleteCostCenter(id)
+    try {
+      const list = await getCostCenters()
+      setItems(list)
+    } catch {}
   }
 
   return (
@@ -99,6 +132,7 @@ export default function CadastroCentroCustosPage() {
               <th className="p-2 text-left">Código</th>
               <th className="p-2 text-left">Nome</th>
               <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -107,16 +141,59 @@ export default function CadastroCentroCustosPage() {
                 <td className="p-2">{i.code || "-"}</td>
                 <td className="p-2">{i.name}</td>
                 <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                <td className="p-2">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>
+                    <Button variant="destructive" size="sm" onClick={() => remove(i.id)}>Excluir</Button>
+                  </div>
+                </td>
               </tr>
             ))}
             {items.length === 0 && (
               <tr>
-                <td className="p-2 text-center text-muted-foreground" colSpan={3}>Nenhum centro de custos cadastrado</td>
+                <td className="p-2 text-center text-muted-foreground" colSpan={4}>Nenhum centro de custos cadastrado</td>
               </tr>
             )}
           </tbody>
         </table>
       </Card>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="max-w-xl h-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Centro de Custos</SheetTitle>
+          </SheetHeader>
+          {edit && (
+            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div>
+                <div className="text-muted-foreground">Código</div>
+                <Input value={edit.code || ""} onChange={(e) => setEdit({ ...edit, code: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Nome</div>
+                <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Descrição</div>
+                <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Ativo</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+          )}
+          <SheetFooter>
+            <div className="flex gap-2">
+              <Button onClick={saveEdit}>Salvar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

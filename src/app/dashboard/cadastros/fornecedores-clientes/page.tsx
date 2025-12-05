@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { createContact, getContacts } from "@/lib/api"
+import { createContact, getContacts, updateContact, deleteContact, type ContactInput, type Contact } from "@/lib/api"
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 
 type Party = {
   id: string
@@ -40,6 +41,9 @@ export default function CadastroFornecedoresClientesPage() {
     phone_local?: string
     active: boolean
   }>>([])
+  const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState<Contact | null>(null)
+  const [edit, setEdit] = useState<ContactInput | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
@@ -158,6 +162,46 @@ export default function CadastroFornecedoresClientesPage() {
     })()
   }
 
+  function openEdit(id: string) {
+    const rec = (items as Contact[]).find((i) => i.id === id) || null
+    setSelected(rec)
+    setEdit(rec ? {
+      type: rec.type,
+      person_type: rec.person_type,
+      name: rec.name,
+      document: rec.document,
+      email: rec.email,
+      phone_e164: rec.phone_e164,
+      phone_local: rec.phone_local,
+      address: rec.address,
+      notes: rec.notes,
+      active: rec.active,
+    } : null)
+    setOpen(true)
+  }
+
+  async function saveEdit() {
+    if (!selected || !edit) return
+    await updateContact(selected.id, edit)
+    setOpen(false)
+    setSelected(null)
+    setEdit(null)
+    try {
+      const list = await getContacts()
+      setItems(list)
+    } catch {}
+  }
+
+  async function remove(id: string) {
+    const ok = typeof window !== "undefined" ? window.confirm("Excluir?") : true
+    if (!ok) return
+    await deleteContact(id)
+    try {
+      const list = await getContacts()
+      setItems(list)
+    } catch {}
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -272,6 +316,7 @@ export default function CadastroFornecedoresClientesPage() {
               <th className="p-2 text-left">Telefone</th>
               <th className="p-2 text-left">E-mail</th>
               <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -284,16 +329,85 @@ export default function CadastroFornecedoresClientesPage() {
                 <td className="p-2">{i.phone_local || "-"}</td>
                 <td className="p-2">{i.email || "-"}</td>
                 <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                <td className="p-2">
+                  <div className="flex justify-end gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>
+                    <Button variant="destructive" size="sm" onClick={() => remove(i.id)}>Excluir</Button>
+                  </div>
+                </td>
               </tr>
             ))}
             {items.length === 0 && (
               <tr>
-                <td className="p-2 text-center text-muted-foreground" colSpan={7}>Nenhum contato cadastrado</td>
+                <td className="p-2 text-center text-muted-foreground" colSpan={8}>Nenhum contato cadastrado</td>
               </tr>
             )}
           </tbody>
         </table>
       </Card>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="max-w-xl h-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Editar Contato</SheetTitle>
+          </SheetHeader>
+          {edit && (
+            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div>
+                <div className="text-muted-foreground">Tipo</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value as ContactInput["type"] })}>
+                  <option value="supplier">Fornecedor</option>
+                  <option value="customer">Cliente</option>
+                </select>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Pessoa</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.person_type} onChange={(e) => setEdit({ ...edit, person_type: e.target.value as ContactInput["person_type"] })}>
+                  <option value="individual">Física</option>
+                  <option value="company">Jurídica</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Nome</div>
+                <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Documento</div>
+                <Input value={edit.document || ""} onChange={(e) => setEdit({ ...edit, document: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">E-mail</div>
+                <Input type="email" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Telefone</div>
+                <Input value={edit.phone_local || ""} onChange={(e) => setEdit({ ...edit, phone_local: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Endereço</div>
+                <Input value={edit.address || ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Observações</div>
+                <Input value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Ativo</div>
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+          )}
+          <SheetFooter>
+            <div className="flex gap-2">
+              <Button onClick={saveEdit}>Salvar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+            </div>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

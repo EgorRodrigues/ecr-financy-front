@@ -43,8 +43,24 @@ export async function createCategory(input: CategoryInput) {
   return apiFetch(`/categories/`, { method: "POST", body: JSON.stringify(input) })
 }
 
+export async function updateCategory(id: string, input: CategoryInput) {
+  return apiFetch(`/categories/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteCategory(id: string) {
+  return apiFetch(`/categories/${id}/`, { method: "DELETE" })
+}
+
 export async function createSubcategory(input: SubcategoryInput) {
   return apiFetch(`/subcategories/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function updateSubcategory(id: string, input: SubcategoryInput) {
+  return apiFetch(`/subcategories/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteSubcategory(id: string) {
+  return apiFetch(`/subcategories/${id}/`, { method: "DELETE" })
 }
 
 export async function getAllSubcategories(): Promise<Array<{ id: string; name: string; description?: string; active?: boolean; category_id?: string }>> {
@@ -53,6 +69,14 @@ export async function getAllSubcategories(): Promise<Array<{ id: string; name: s
 
 export async function createCostCenter(input: CostCenterInput) {
   return apiFetch(`/cost-centers/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function updateCostCenter(id: string, input: CostCenterInput) {
+  return apiFetch(`/cost-centers/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteCostCenter(id: string) {
+  return apiFetch(`/cost-centers/${id}/`, { method: "DELETE" })
 }
 
 export async function getSubcategories(categoryId: string): Promise<Array<{ id: string; name: string }>> {
@@ -65,6 +89,14 @@ export async function getCostCenters(): Promise<Array<{ id: string; name: string
 
 export async function createContact(input: ContactInput) {
   return apiFetch(`/contacts`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function updateContact(id: string, input: ContactInput) {
+  return apiFetch(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteContact(id: string) {
+  return apiFetch(`/contacts/${id}`, { method: "DELETE" })
 }
 
 export async function getContacts(): Promise<Array<Contact>> {
