@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,7 @@ type Category = {
 export default function CadastroCategoriaPage() {
   const [form, setForm] = useState<Category>({ id: "", nome: "", descricao: "", ativo: true })
   const [mensagem, setMensagem] = useState<string | null>(null)
-  const [items, setItems] = useState<Array<{ id: string; name: string; active?: boolean }>>([])
+  const [items, setItems] = useState<Array<{ id: string; name: string; description?: string; active?: boolean }>>([])
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<{ id: string; name: string; description?: string; active?: boolean } | null>(null)
   const [edit, setEdit] = useState<CategoryInput | null>(null)
@@ -29,7 +29,7 @@ export default function CadastroCategoriaPage() {
 
   useEffect(() => {
     getCategories()
-      .then((list) => setItems(list.map((c) => ({ id: c.id, name: c.name, active: c.active }))))
+      .then((list) => startTransition(() => setItems(list.map((c) => ({ id: c.id, name: c.name, description: c.description, active: c.active })))) )
       .catch(() => {})
   }, [])
 
@@ -44,7 +44,7 @@ export default function CadastroCategoriaPage() {
       setForm({ id: "", nome: "", descricao: "", ativo: true })
       try {
         const list = await getCategories()
-        setItems(list.map((c) => ({ id: c.id, name: c.name, active: c.active })))
+        startTransition(() => setItems(list.map((c) => ({ id: c.id, name: c.name, description: c.description, active: c.active }))))
       } catch {}
     } catch {
       setMensagem("Falha ao salvar")
@@ -53,8 +53,8 @@ export default function CadastroCategoriaPage() {
 
   function openEdit(id: string) {
     const rec = items.find((i) => i.id === id) || null
-    setSelected(rec ? { id: rec.id, name: rec.name, description: undefined, active: rec.active } : null)
-    setEdit(rec ? { name: rec.name, description: undefined, active: rec.active ?? true } : null)
+    setSelected(rec ? { id: rec.id, name: rec.name, description: rec.description, active: rec.active } : null)
+    setEdit(rec ? { name: rec.name, description: rec.description, active: rec.active ?? true } : null)
     setOpen(true)
   }
 
@@ -66,7 +66,7 @@ export default function CadastroCategoriaPage() {
     setEdit(null)
     try {
       const list = await getCategories()
-      setItems(list.map((c) => ({ id: c.id, name: c.name, active: c.active })))
+      startTransition(() => setItems(list.map((c) => ({ id: c.id, name: c.name, description: c.description, active: c.active }))))
     } catch {}
   }
 
@@ -76,7 +76,7 @@ export default function CadastroCategoriaPage() {
     await deleteCategory(id)
     try {
       const list = await getCategories()
-      setItems(list.map((c) => ({ id: c.id, name: c.name, active: c.active })))
+      startTransition(() => setItems(list.map((c) => ({ id: c.id, name: c.name, description: c.description, active: c.active }))))
     } catch {}
   }
 
@@ -109,7 +109,7 @@ export default function CadastroCategoriaPage() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="text-xs">Descrição</label>
+            <label className="text-xs">Observações</label>
             <textarea
               className="bg-background h-24 w-full rounded-md border px-2 py-2 text-sm"
               value={form.descricao}
@@ -125,6 +125,7 @@ export default function CadastroCategoriaPage() {
           <thead>
             <tr className="border-b">
               <th className="p-2 text-left">Nome</th>
+              <th className="p-2 text-left">Observações</th>
               <th className="p-2 text-left">Ativo</th>
               <th className="p-2 text-right">Ações</th>
             </tr>
@@ -133,6 +134,7 @@ export default function CadastroCategoriaPage() {
             {items.map((i) => (
               <tr key={i.id} className="border-b">
                 <td className="p-2">{i.name}</td>
+                <td className="p-2">{i.description || "-"}</td>
                 <td className="p-2">{i.active === false ? "Não" : "Sim"}</td>
                 <td className="p-2">
                   <div className="flex justify-end gap-2">
@@ -144,7 +146,7 @@ export default function CadastroCategoriaPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td className="p-2 text-center text-muted-foreground" colSpan={3}>Nenhuma categoria cadastrada</td>
+                <td className="p-2 text-center text-muted-foreground" colSpan={4}>Nenhuma categoria cadastrada</td>
               </tr>
             )}
           </tbody>
@@ -163,7 +165,7 @@ export default function CadastroCategoriaPage() {
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
               <div className="col-span-2">
-                <div className="text-muted-foreground">Descrição</div>
+                <div className="text-muted-foreground">Observações</div>
                 <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
               </div>
               <div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,7 +52,7 @@ export default function CadastroFornecedoresClientesPage() {
 
   useEffect(() => {
     getContacts()
-      .then((list) => setItems(list))
+      .then((list) => startTransition(() => setItems(list)))
       .catch(() => {})
   }, [])
 
@@ -152,7 +152,7 @@ export default function CadastroFornecedoresClientesPage() {
         setForm({ id: "", tipo: form.tipo, pessoa: form.pessoa, nome: "", ativo: true })
         try {
           const list = await getContacts()
-          setItems(list)
+          startTransition(() => setItems(list))
         } catch {}
       } catch {
         setMensagem("Falha ao salvar")
@@ -188,7 +188,7 @@ export default function CadastroFornecedoresClientesPage() {
     setEdit(null)
     try {
       const list = await getContacts()
-      setItems(list)
+      startTransition(() => setItems(list))
     } catch {}
   }
 
@@ -198,7 +198,7 @@ export default function CadastroFornecedoresClientesPage() {
     await deleteContact(id)
     try {
       const list = await getContacts()
-      setItems(list)
+      startTransition(() => setItems(list))
     } catch {}
   }
 

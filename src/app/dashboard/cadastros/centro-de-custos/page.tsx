@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,7 +30,7 @@ export default function CadastroCentroCustosPage() {
 
   useEffect(() => {
     getCostCenters()
-      .then((list) => setItems(list))
+      .then((list) => startTransition(() => setItems(list)))
       .catch(() => {})
   }, [])
 
@@ -45,7 +45,7 @@ export default function CadastroCentroCustosPage() {
       setForm({ id: "", codigo: "", nome: "", descricao: "", ativo: true })
       try {
         const list = await getCostCenters()
-        setItems(list)
+        startTransition(() => setItems(list))
       } catch {}
     } catch {
       setMensagem("Falha ao salvar")
@@ -67,7 +67,7 @@ export default function CadastroCentroCustosPage() {
     setEdit(null)
     try {
       const list = await getCostCenters()
-      setItems(list)
+      startTransition(() => setItems(list))
     } catch {}
   }
 

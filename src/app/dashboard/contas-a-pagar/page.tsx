@@ -12,12 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { getExpenses, updateExpense, deleteExpense, type ExpenseRecord, type TransactionInput } from "@/lib/api"
+import { getExpenses, updateExpense, deleteExpense, getContacts, type ExpenseRecord, type TransactionInput, type Contact } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 
 type ExpenseItem = {
   id: string
   fornecedor: string
+  contactId?: string
   vencimento: string
   valor: number
   status: "pendente" | "pago" | "atrasado" | "cancelado"
@@ -27,6 +28,7 @@ export default function ContasAPagarPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela")
   const [dados, setDados] = useState<ExpenseItem[]>([])
   const [records, setRecords] = useState<ExpenseRecord[]>([])
+  const [contactMap, setContactMap] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
   const [mode, setMode] = useState<"view" | "edit">("view")
   const [selected, setSelected] = useState<ExpenseRecord | null>(null)
@@ -39,6 +41,7 @@ export default function ContasAPagarPage() {
         const mapped: ExpenseItem[] = (list as BackendExpenseRecord[]).map((i) => ({
           id: i.id,
           fornecedor: i.contact_name || i.contact_id || "",
+          contactId: i.contact_id,
           vencimento: i.due_date || "",
           valor: typeof i.amount === "number" ? i.amount : 0,
           status: (i.status as ExpenseItem["status"]) || "pendente",
@@ -50,6 +53,16 @@ export default function ContasAPagarPage() {
 
   useEffect(() => {
     load()
+  }, [])
+
+  useEffect(() => {
+    getContacts()
+      .then((list) => startTransition(() => {
+        const map: Record<string, string> = {}
+        ;(list as Contact[]).forEach((c) => { map[c.id] = c.name })
+        setContactMap(map)
+      }))
+      .catch(() => {})
   }, [])
 
   type BackendExpenseRecord = ExpenseRecord & { contact_name?: string }
@@ -130,7 +143,7 @@ export default function ContasAPagarPage() {
             <TableBody>
               {dados.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell>{d.fornecedor}</TableCell>
+                  <TableCell>{contactMap[d.contactId || ""] || d.fornecedor}</TableCell>
                   <TableCell>{d.vencimento}</TableCell>
                   <TableCell className="text-right">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
                   <TableCell>
@@ -155,7 +168,7 @@ export default function ContasAPagarPage() {
           {dados.map((d) => (
             <Card key={d.id} className="p-4">
               <div className="text-xs text-muted-foreground">Fornecedor</div>
-              <div className="text-sm font-medium">{d.fornecedor}</div>
+              <div className="text-sm font-medium">{contactMap[d.contactId || ""] || d.fornecedor}</div>
               <div className="mt-2 text-xs text-muted-foreground">Vencimento</div>
               <div className="text-sm">{d.vencimento}</div>
               <div className="mt-2 text-xs text-muted-foreground">Valor</div>
@@ -181,6 +194,10 @@ export default function ContasAPagarPage() {
           </SheetHeader>
           {mode === "view" && selected && (
             <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Fornecedor</div>
+                <div>{contactMap[selected.contact_id || ""] || selected.contact_id || ""}</div>
+              </div>
               <div>
                 <div className="text-muted-foreground">Valor</div>
                 <div>{(selected.amount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
@@ -237,6 +254,10 @@ export default function ContasAPagarPage() {
           )}
           {mode === "edit" && edit && (
             <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-2">
+                <div className="text-muted-foreground">Fornecedor</div>
+                <div>{contactMap[edit.contact_id || ""] || edit.contact_id || ""}</div>
+              </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Valor</div>
                 <Input type="number" value={edit.amount ?? 0} onChange={(e) => setEdit({ ...edit, amount: Number(e.target.value) })} />

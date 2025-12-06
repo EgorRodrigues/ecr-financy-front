@@ -55,7 +55,7 @@ export default function CadastroSubcategoriaPage() {
       setForm({ id: "", nome: "", categoriaId: "", descricao: "", ativo: true })
       try {
         const list = await getAllSubcategories()
-        setItems(list)
+        startTransition(() => setItems(list))
       } catch {}
     } catch {
       setMensagem("Falha ao salvar")
@@ -71,7 +71,8 @@ export default function CadastroSubcategoriaPage() {
 
   async function saveEdit() {
     if (!selected || !edit) return
-    await updateSubcategory(selected.id, edit)
+    const catId = edit.category_id || selected.category_id || ""
+    await updateSubcategory(catId, selected.id, edit)
     setOpen(false)
     setSelected(null)
     setEdit(null)
@@ -84,7 +85,9 @@ export default function CadastroSubcategoriaPage() {
   async function remove(id: string) {
     const ok = typeof window !== "undefined" ? window.confirm("Excluir?") : true
     if (!ok) return
-    await deleteSubcategory(id)
+    const rec = items.find((i) => i.id === id)
+    const catId = rec?.category_id || ""
+    await deleteSubcategory(catId, id)
     try {
       const list = await getAllSubcategories()
       startTransition(() => setItems(list))

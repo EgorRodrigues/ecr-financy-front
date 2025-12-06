@@ -55,12 +55,12 @@ export async function createSubcategory(input: SubcategoryInput) {
   return apiFetch(`/subcategories/`, { method: "POST", body: JSON.stringify(input) })
 }
 
-export async function updateSubcategory(id: string, input: SubcategoryInput) {
-  return apiFetch(`/subcategories/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+export async function updateSubcategory(categoryId: string, id: string, input: SubcategoryInput) {
+  return apiFetch(`/subcategories/${categoryId}/${id}`, { method: "PUT", body: JSON.stringify(input) })
 }
 
-export async function deleteSubcategory(id: string) {
-  return apiFetch(`/subcategories/${id}/`, { method: "DELETE" })
+export async function deleteSubcategory(categoryId: string, id: string) {
+  return apiFetch(`/subcategories/${categoryId}/${id}`, { method: "DELETE" })
 }
 
 export async function getAllSubcategories(): Promise<Array<{ id: string; name: string; description?: string; active?: boolean; category_id?: string }>> {
