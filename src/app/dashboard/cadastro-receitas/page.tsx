@@ -4,7 +4,7 @@ import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { getCategories, getSubcategories, getCostCenters, getContacts, createExpense, createIncome } from "@/lib/api"
+import { getCategories, getSubcategories, getCostCenters, getContacts, getAccounts, createExpense, createIncome } from "@/lib/api"
 
 type Income = {
   id: string
@@ -23,6 +23,7 @@ type Income = {
   documento?: string
   formaRecebimento?: string
   conta?: string
+  contaId?: string
   valor: number
   status: "pendente" | "recebido" | "cancelado"
   recorrencia?: boolean
@@ -49,6 +50,7 @@ export default function CadastroReceitasPage() {
   const [subcategorias, setSubcategorias] = useState<Array<{ id: string; name: string }>>([])
   const [centros, setCentros] = useState<Array<{ id: string; name: string; code?: string }>>([])
   const [contacts, setContacts] = useState<Array<{ id: string; name: string }>>([])
+  const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
@@ -64,6 +66,9 @@ export default function CadastroReceitasPage() {
       .catch(() => {})
     getContacts()
       .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })))) )
+      .catch(() => {})
+    getAccounts()
+      .then((list) => startTransition(() => setAccounts(list.map((a) => ({ id: a.id, name: a.name })))) )
       .catch(() => {})
   }, [])
 
@@ -100,7 +105,7 @@ export default function CadastroReceitasPage() {
         description: form.descricao,
         document: form.documento,
         payment_method: form.formaRecebimento,
-        account: form.conta,
+        account: form.contaId,
         recurrence: !!form.recorrencia,
         competence: form.competencia,
         project: form.projeto,
@@ -284,7 +289,21 @@ export default function CadastroReceitasPage() {
 
           <div>
             <label className="text-xs">Conta</label>
-            <Input value={form.conta ?? ""} onChange={(e) => update("conta", e.target.value)} />
+            <select
+              className="bg-background h-10 w-full rounded-md border px-2"
+              value={form.contaId ?? ""}
+              onChange={(e) => {
+                const id = e.target.value
+                const selected = accounts.find((a) => a.id === id)
+                update("contaId", id)
+                update("conta", selected?.name || "")
+              }}
+            >
+              <option value="">Selecione</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
           </div>
 
           <div>

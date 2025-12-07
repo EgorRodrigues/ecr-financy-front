@@ -43,6 +43,11 @@ export default function CadastroContasPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  function formatCard(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 19)
+    return digits.replace(/(.{4})/g, "$1 ").trim()
+  }
+
   async function salvar() {
     if (!form.nome || !form.nome.trim()) {
       setMensagem("Informe o nome")
@@ -56,7 +61,7 @@ export default function CadastroContasPage() {
         type: tipoApi,
         agency: form.agencia || undefined,
         account: form.conta || undefined,
-        card_number: form.numeroCartao || undefined,
+        card_number: (form.numeroCartao || "").replace(/\D/g, "") || undefined,
         initial_balance: form.saldoInicial,
         available_limit: form.limiteDisponivel,
         active: form.ativo,
@@ -176,7 +181,8 @@ export default function CadastroContasPage() {
             <>
               <div>
                 <label className="text-xs">Número do cartão</label>
-                <Input value={form.numeroCartao ?? ""} onChange={(e) => update("numeroCartao", e.target.value)} />
+                <Input value={formatCard(form.numeroCartao ?? "")}
+                  onChange={(e) => update("numeroCartao", formatCard(e.target.value))} />
               </div>
               <div>
                 <label className="text-xs">Limite disponível</label>
@@ -271,7 +277,7 @@ export default function CadastroContasPage() {
               </div>
               <div>
                 <div className="text-muted-foreground">Número do cartão</div>
-                <Input value={edit.card_number || ""} onChange={(e) => setEdit({ ...edit, card_number: e.target.value })} />
+                <Input value={formatCard(edit.card_number || "")} onChange={(e) => setEdit({ ...edit, card_number: e.target.value.replace(/\D/g, "") })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Saldo inicial</div>
@@ -301,4 +307,3 @@ export default function CadastroContasPage() {
     </div>
   )
 }
-
