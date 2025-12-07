@@ -3,7 +3,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/layout/app-sidebar"
 
 export const metadata: Metadata = {
-  title: "Financy | Dashboard",
+  title: "Financy | Financeiro",
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,11 +13,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <SidebarInset>
         <div className="flex h-14 items-center gap-2 border-b px-4">
           <SidebarTrigger />
-          <span className="text-sm font-medium">Dashboard</span>
+          <span className="text-sm font-medium">Financeiro</span>
         </div>
         <div className="p-4 space-y-4">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   )
 }
-

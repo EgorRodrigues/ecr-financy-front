@@ -31,16 +31,16 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Dashboard" isActive>
-                  <Link href="/dashboard">
+                <SidebarMenuButton asChild tooltip="Financeiro" isActive>
+                  <Link href="/financeiro">
                     <Home />
-                    <span>Dashboard</span>
+                    <span>Financeiro</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Transações">
-                  <Link href="/dashboard/transacoes">
+                  <Link href="/financeiro/transacoes">
                     <TableIcon />
                     <span>Transações</span>
                   </Link>
@@ -48,7 +48,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Cadastro de Despesas">
-                  <Link href="/dashboard/cadastro-despesas">
+                  <Link href="/financeiro/cadastro-despesas">
                     <Banknote />
                     <span>Cadastro de Despesas</span>
                   </Link>
@@ -56,7 +56,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Cadastro de Receitas">
-                  <Link href="/dashboard/cadastro-receitas">
+                  <Link href="/financeiro/cadastro-receitas">
                     <HandCoins />
                     <span>Cadastro de Receitas</span>
                   </Link>
@@ -64,7 +64,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas a Pagar">
-                  <Link href="/dashboard/contas-a-pagar">
+                  <Link href="/financeiro/contas-a-pagar">
                     <Banknote />
                     <span>Contas a Pagar</span>
                   </Link>
@@ -72,7 +72,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas a Receber">
-                  <Link href="/dashboard/contas-a-receber">
+                  <Link href="/financeiro/contas-a-receber">
                     <HandCoins />
                     <span>Contas a Receber</span>
                   </Link>
@@ -80,7 +80,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Relatórios">
-                  <Link href="/dashboard/relatorios">
+                  <Link href="/financeiro/relatorios">
                     <LineChart />
                     <span>Relatórios</span>
                   </Link>
@@ -98,7 +98,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Categoria">
-                  <Link href="/dashboard/cadastros/categoria">
+                  <Link href="/financeiro/cadastros/categoria">
                     <TableIcon />
                     <span>Categoria</span>
                   </Link>
@@ -106,7 +106,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Subcategoria">
-                  <Link href="/dashboard/cadastros/subcategoria">
+                  <Link href="/financeiro/cadastros/subcategoria">
                     <TableIcon />
                     <span>Subcategoria</span>
                   </Link>
@@ -114,7 +114,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Centro de Custos">
-                  <Link href="/dashboard/cadastros/centro-de-custos">
+                  <Link href="/financeiro/cadastros/centro-de-custos">
                     <TableIcon />
                     <span>Centro de Custos</span>
                   </Link>
@@ -122,7 +122,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Fornecedores/Clientes">
-                  <Link href="/dashboard/cadastros/fornecedores-clientes">
+                  <Link href="/financeiro/cadastros/fornecedores-clientes">
                     <TableIcon />
                     <span>Fornecedores/Clientes</span>
                   </Link>
@@ -130,7 +130,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas">
-                  <Link href="/dashboard/cadastros/contas">
+                  <Link href="/financeiro/cadastros/contas">
                     <TableIcon />
                     <span>Contas</span>
                   </Link>
@@ -148,7 +148,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Configurações">
-                  <Link href="/dashboard/configuracoes">
+                  <Link href="/financeiro/configuracoes">
                     <Settings />
                     <span>Configurações</span>
                   </Link>
