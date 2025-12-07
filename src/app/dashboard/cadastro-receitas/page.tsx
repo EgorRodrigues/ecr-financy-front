@@ -11,7 +11,6 @@ type Income = {
   tipo: "despesa" | "receita"
   dataEmissao?: string
   dataVencimento?: string
-  dataRecebimento?: string
   categoria?: string
   categoriaId?: string
   subcategoria?: string
@@ -92,10 +91,9 @@ export default function CadastroReceitasPage() {
       const payload = {
         amount: form.valor,
         status: form.status,
-        issue_date: form.dataEmissao,
-        due_date: form.dataVencimento,
-        payment_date: form.dataRecebimento,
-        category_id: form.categoriaId,
+      issue_date: form.dataEmissao,
+      due_date: form.dataVencimento,
+      category_id: form.categoriaId,
         subcategory_id: form.subcategoriaId,
         cost_center_id: form.centroCustoId,
         contact_id: form.fornecedorClienteId,
@@ -308,14 +306,10 @@ export default function CadastroReceitasPage() {
             <label className="text-xs">Data de Emissão</label>
             <Input type="date" value={form.dataEmissao ?? ""} onChange={(e) => update("dataEmissao", e.target.value)} />
           </div>
-          <div>
-            <label className="text-xs">Data de Vencimento</label>
-            <Input type="date" value={form.dataVencimento ?? ""} onChange={(e) => update("dataVencimento", e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs">Data de Recebimento</label>
-            <Input type="date" value={form.dataRecebimento ?? ""} onChange={(e) => update("dataRecebimento", e.target.value)} />
-          </div>
+        <div>
+          <label className="text-xs">Data de Vencimento</label>
+          <Input type="date" value={form.dataVencimento ?? ""} onChange={(e) => update("dataVencimento", e.target.value)} />
+        </div>
 
           <div className="md:col-span-2">
             <label className="text-xs">Descrição</label>

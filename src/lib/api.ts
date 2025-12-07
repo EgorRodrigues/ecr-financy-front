@@ -103,12 +103,62 @@ export async function getContacts(): Promise<Array<Contact>> {
   return apiFetch(`/contacts`, { method: "GET" })
 }
 
+export type AccountInput = {
+  name: string
+  type: "bank" | "credit_card" | "wallet"
+  agency?: string
+  account?: string
+  card_number?: string
+  initial_balance?: number
+  available_limit?: number
+  active?: boolean
+}
+
+export type Account = {
+  id: string
+  name: string
+  type: "bank" | "credit_card" | "wallet"
+  agency?: string | null
+  account?: string | null
+  card_number?: string | null
+  initial_balance?: number | null
+  available_limit?: number | null
+  created_at: string
+  updated_at: string
+  active: boolean
+}
+
+export async function createAccount(input: AccountInput) {
+  return apiFetch(`/accounts`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function getAccounts(limit?: number): Promise<Array<Account>> {
+  const q = typeof limit === "number" ? `?limit=${limit}` : ""
+  return apiFetch(`/accounts${q}`, { method: "GET" })
+}
+
+export async function getAccount(id: string): Promise<Account> {
+  return apiFetch(`/accounts/${id}`, { method: "GET" })
+}
+
+export async function updateAccount(id: string, input: AccountInput) {
+  return apiFetch(`/accounts/${id}`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteAccount(id: string) {
+  return apiFetch(`/accounts/${id}`, { method: "DELETE" })
+}
+
 export type TransactionInput = {
   amount: number
   status: "pendente" | "pago" | "cancelado" | "recebido"
   issue_date?: string
   due_date?: string
   payment_date?: string
+  interest?: number
+  fine?: number
+  discount?: number
+  total_paid?: number
   category_id?: string
   subcategory_id?: string
   cost_center_id?: string

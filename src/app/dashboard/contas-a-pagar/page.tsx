@@ -4,6 +4,7 @@ import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { CurrencyInput } from "@/components/ui/currency-input"
 import {
   Table,
   TableBody,
@@ -30,9 +31,18 @@ export default function ContasAPagarPage() {
   const [records, setRecords] = useState<ExpenseRecord[]>([])
   const [contactMap, setContactMap] = useState<Record<string, string>>({})
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<"view" | "edit">("view")
+  const [mode, setMode] = useState<"view" | "edit" | "pay">("view")
   const [selected, setSelected] = useState<ExpenseRecord | null>(null)
   const [edit, setEdit] = useState<TransactionInput | null>(null)
+  const [pay, setPay] = useState<{
+    payment_date?: string
+    amount?: number
+    interest?: number
+    fine?: number
+    discount?: number
+    total_paid?: number
+    status: TransactionInput["status"]
+  } | null>(null)
 
   const load = () => {
     getExpenses()
@@ -82,7 +92,6 @@ export default function ContasAPagarPage() {
       status: rec.status as TransactionInput["status"],
       issue_date: rec.issue_date,
       due_date: rec.due_date,
-      payment_date: rec.payment_date,
       category_id: rec.category_id,
       subcategory_id: rec.subcategory_id,
       cost_center_id: rec.cost_center_id,
@@ -100,6 +109,63 @@ export default function ContasAPagarPage() {
     } : null)
     setMode("edit")
     setOpen(true)
+  }
+
+  function openPay(id: string) {
+    const rec = records.find((r) => r.id === id) || null
+    setSelected(rec || null)
+    const today = new Date().toISOString().slice(0, 10)
+    const base = rec?.amount ?? 0
+    const interest = 0
+    const fine = 0
+    const discount = 0
+    const total = base + interest + fine - discount
+    setPay({
+      payment_date: today,
+      amount: base,
+      interest,
+      fine,
+      discount,
+      total_paid: total,
+      status: "pago",
+    })
+    setMode("pay")
+    setOpen(true)
+  }
+
+  async function savePay() {
+    if (!selected || !pay) return
+    const input: TransactionInput = {
+      amount: (pay.amount ?? selected.amount ?? 0),
+      status: "pago",
+      issue_date: selected.issue_date,
+      due_date: selected.due_date,
+      payment_date: pay.payment_date,
+      category_id: selected.category_id,
+      subcategory_id: selected.subcategory_id,
+      cost_center_id: selected.cost_center_id,
+      contact_id: selected.contact_id,
+      description: selected.description,
+      document: selected.document,
+      payment_method: selected.payment_method,
+      account: selected.account,
+      recurrence: selected.recurrence,
+      competence: selected.competence,
+      project: selected.project,
+      tags: selected.tags,
+      notes: selected.notes,
+      active: selected.active,
+      interest: pay.interest,
+      fine: pay.fine,
+      discount: pay.discount,
+      total_paid: pay.total_paid,
+    }
+    await updateExpense(selected.id, input)
+    setOpen(false)
+    setSelected(null)
+    setEdit(null)
+    setPay(null)
+    load()
   }
 
   async function saveEdit() {
@@ -154,6 +220,9 @@ export default function ContasAPagarPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="outline" size="sm" onClick={() => openView(d.id)}>Ver</Button>
+                      {d.status !== "pago" && d.status !== "cancelado" && (
+                        <Button size="sm" onClick={() => openPay(d.id)}>Pagar</Button>
+                      )}
                       <Button variant="secondary" size="sm" onClick={() => openEdit(d.id)}>Editar</Button>
                       <Button variant="destructive" size="sm" onClick={() => remove(d.id)}>Excluir</Button>
                     </div>
@@ -179,6 +248,9 @@ export default function ContasAPagarPage() {
               }>{d.status}</div>
               <div className="mt-4 flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => openView(d.id)}>Ver</Button>
+                {d.status !== "pago" && d.status !== "cancelado" && (
+                  <Button size="sm" onClick={() => openPay(d.id)}>Pagar</Button>
+                )}
                 <Button variant="secondary" size="sm" onClick={() => openEdit(d.id)}>Editar</Button>
                 <Button variant="destructive" size="sm" onClick={() => remove(d.id)}>Excluir</Button>
               </div>
@@ -190,7 +262,7 @@ export default function ContasAPagarPage() {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="max-w-xl h-full overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{mode === "view" ? "Visualizar" : "Editar"}</SheetTitle>
+            <SheetTitle>{mode === "view" ? "Visualizar" : mode === "edit" ? "Editar" : "Pagar"}</SheetTitle>
           </SheetHeader>
           {mode === "view" && selected && (
             <div className="grid grid-cols-2 gap-3 p-4 text-sm">
@@ -217,6 +289,26 @@ export default function ContasAPagarPage() {
               <div>
                 <div className="text-muted-foreground">Pagamento</div>
                 <div>{selected.payment_date || ""}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Valor</div>
+                <div>{(selected.amount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Juros</div>
+                <div>{(selected.interest ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Multa</div>
+                <div>{(selected.fine ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Desconto</div>
+                <div>{(selected.discount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Total Pago</div>
+                <div>{(selected.total_paid ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
@@ -260,7 +352,7 @@ export default function ContasAPagarPage() {
               </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Valor</div>
-                <Input type="number" value={edit.amount ?? 0} onChange={(e) => setEdit({ ...edit, amount: Number(e.target.value) })} />
+                <CurrencyInput value={edit.amount ?? 0} onValueChange={(v) => setEdit({ ...edit, amount: v })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Status</div>
@@ -278,10 +370,7 @@ export default function ContasAPagarPage() {
                 <div className="text-muted-foreground">Vencimento</div>
                 <Input type="date" value={edit.due_date || ""} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} />
               </div>
-              <div>
-                <div className="text-muted-foreground">Pagamento</div>
-                <Input type="date" value={edit.payment_date || ""} onChange={(e) => setEdit({ ...edit, payment_date: e.target.value })} />
-              </div>
+              
               <div className="col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
                 <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
@@ -323,13 +412,60 @@ export default function ContasAPagarPage() {
               </div>
             </div>
           )}
+          {mode === "pay" && pay && (
+            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+              <div>
+                <div className="text-muted-foreground">Data do Pagamento</div>
+                <Input type="date" value={pay.payment_date || ""} onChange={(e) => setPay({ ...(pay || {}), payment_date: e.target.value })} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Valor</div>
+                <CurrencyInput value={pay.amount ?? 0} onValueChange={(v) => {
+                  const total = v + (pay?.interest ?? 0) + (pay?.fine ?? 0) - (pay?.discount ?? 0)
+                  setPay({ ...(pay || {}), amount: v, total_paid: total })
+                }} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Juros</div>
+                <CurrencyInput value={pay.interest ?? 0} onValueChange={(v) => {
+                  const total = (pay?.amount ?? 0) + v + (pay?.fine ?? 0) - (pay?.discount ?? 0)
+                  setPay({ ...(pay || {}), interest: v, total_paid: total })
+                }} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Multa</div>
+                <CurrencyInput value={pay.fine ?? 0} onValueChange={(v) => {
+                  const total = (pay?.amount ?? 0) + (pay?.interest ?? 0) + v - (pay?.discount ?? 0)
+                  setPay({ ...(pay || {}), fine: v, total_paid: total })
+                }} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Desconto</div>
+                <CurrencyInput value={pay.discount ?? 0} onValueChange={(v) => {
+                  const total = (pay?.amount ?? 0) + (pay?.interest ?? 0) + (pay?.fine ?? 0) - v
+                  setPay({ ...(pay || {}), discount: v, total_paid: total })
+                }} />
+              </div>
+              <div>
+                <div className="text-muted-foreground">Valor Total Pago</div>
+                <CurrencyInput value={pay.total_paid ?? 0} onValueChange={(v) => setPay({ ...(pay || {}), total_paid: v })} />
+              </div>
+            </div>
+          )}
           <SheetFooter>
-            {mode === "edit" ? (
+            {mode === "edit" && (
               <div className="flex gap-2">
                 <Button onClick={saveEdit}>Salvar</Button>
                 <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
               </div>
-            ) : (
+            )}
+            {mode === "pay" && (
+              <div className="flex gap-2">
+                <Button onClick={savePay}>Confirmar Pagamento</Button>
+                <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
+              </div>
+            )}
+            {mode === "view" && (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
               </div>
