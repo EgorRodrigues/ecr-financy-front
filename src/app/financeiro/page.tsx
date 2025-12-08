@@ -1,3 +1,5 @@
+"use client"
+import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import {
   Table,
@@ -29,10 +31,10 @@ type MonthlyAgg = {
   saidas: number
 }
 
-function buildMonthlyAggregates(ts: Transaction[]): MonthlyAgg[] {
+function buildMonthlyAggregates(ts: Transaction[], monthsCount: number): MonthlyAgg[] {
   const now = new Date()
   const months: { key: string; label: string }[] = []
-  for (let i = 11; i >= 0; i--) {
+  for (let i = monthsCount - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
     const label = d.toLocaleString("pt-BR", { month: "short" })
@@ -111,11 +113,12 @@ function MonthlyBarChart({ data }: { data: MonthlyAgg[] }) {
 }
 
 export default function DashboardPage() {
+  const [monthsCount, setMonthsCount] = useState<number>(12)
   const total = transactions.reduce((acc, t) => acc + t.amount, 0)
   const aprovados = transactions.filter((t) => t.status === "aprovado").length
   const pendentes = transactions.filter((t) => t.status === "pendente").length
   const falhou = transactions.filter((t) => t.status === "falhou").length
-  const monthly = buildMonthlyAggregates(transactions)
+  const monthly = useMemo(() => buildMonthlyAggregates(transactions, monthsCount), [monthsCount])
 
   return (
     <div className="space-y-4">
@@ -139,7 +142,22 @@ export default function DashboardPage() {
       </div>
 
       <Card className="p-4">
-        <div className="mb-3 text-sm font-medium">Entradas vs Saídas por mês</div>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-sm font-medium">Entradas vs Saídas por mês</div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Período</span>
+            <select
+              value={monthsCount}
+              onChange={(e) => setMonthsCount(Number(e.target.value))}
+              className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm outline-none"
+            >
+              <option value={3}>3 meses</option>
+              <option value={6}>6 meses</option>
+              <option value={9}>9 meses</option>
+              <option value={12}>12 meses</option>
+            </select>
+          </div>
+        </div>
         <MonthlyBarChart data={monthly} />
       </Card>
 
