@@ -1,5 +1,5 @@
 "use client"
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import {
   Table,
@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { getDashboard } from "@/lib/api"
 
 type Transaction = {
   id: string
@@ -18,41 +19,10 @@ type Transaction = {
   status: "aprovado" | "pendente" | "falhou"
 }
 
-const transactions: Transaction[] = [
-  { id: "1", date: "2025-12-01", description: "Pagamento assinatura", amount: 129.9, status: "aprovado" },
-  { id: "2", date: "2025-12-02", description: "Compra marketplace", amount: 349.0, status: "pendente" },
-  { id: "3", date: "2025-12-02", description: "Estorno pedido", amount: -49.9, status: "aprovado" },
-  { id: "4", date: "2025-12-03", description: "Pagamento boleto", amount: 219.5, status: "falhou" },
-]
-
 type MonthlyAgg = {
   monthLabel: string
   entradas: number
   saidas: number
-}
-
-function buildMonthlyAggregates(ts: Transaction[], monthsCount: number): MonthlyAgg[] {
-  const now = new Date()
-  const months: { key: string; label: string }[] = []
-  for (let i = monthsCount - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-    const label = d.toLocaleString("pt-BR", { month: "short" })
-    months.push({ key, label })
-  }
-  const agg = new Map<string, { entradas: number; saidas: number }>()
-  for (const t of ts) {
-    const d = new Date(t.date)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-    const a = agg.get(key) ?? { entradas: 0, saidas: 0 }
-    if (t.amount >= 0) a.entradas += t.amount
-    else a.saidas += Math.abs(t.amount)
-    agg.set(key, a)
-  }
-  return months.map((m) => {
-    const a = agg.get(m.key) ?? { entradas: 0, saidas: 0 }
-    return { monthLabel: m.label, entradas: a.entradas, saidas: a.saidas }
-  })
 }
 
 function MonthlyBarChart({ data }: { data: MonthlyAgg[] }) {
@@ -114,18 +84,45 @@ function MonthlyBarChart({ data }: { data: MonthlyAgg[] }) {
 
 export default function DashboardPage() {
   const [monthsCount, setMonthsCount] = useState<number>(12)
-  const total = transactions.reduce((acc, t) => acc + t.amount, 0)
-  const aprovados = transactions.filter((t) => t.status === "aprovado").length
-  const pendentes = transactions.filter((t) => t.status === "pendente").length
-  const falhou = transactions.filter((t) => t.status === "falhou").length
-  const monthly = useMemo(() => buildMonthlyAggregates(transactions, monthsCount), [monthsCount])
+  const [saldo, setSaldo] = useState<number>(0)
+  const [aprovados, setAprovados] = useState<number>(0)
+  const [pendentes, setPendentes] = useState<number>(0)
+  const [falhou, setFalhou] = useState<number>(0)
+  const [monthly, setMonthly] = useState<MonthlyAgg[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+
+  useEffect(() => {
+    getDashboard(monthsCount, 10)
+      .then((res) => {
+        setSaldo(res.big_numbers.balance || 0)
+        setAprovados(res.big_numbers.approved || 0)
+        setPendentes(res.big_numbers.pending || 0)
+        setFalhou(res.big_numbers.failed || 0)
+        const monthlyAgg: MonthlyAgg[] = (res.monthly || []).map((m) => {
+          const [y, mm] = m.month.split("-").map((v) => Number(v))
+          const d = new Date(y, (mm || 1) - 1, 1)
+          const label = d.toLocaleString("pt-BR", { month: "short" })
+          return { monthLabel: label, entradas: m.inflows || 0, saidas: m.outflows || 0 }
+        })
+        setMonthly(monthlyAgg)
+        const txs: Transaction[] = (res.recent_transactions || []).map((t) => ({
+          id: t.id,
+          date: t.date,
+          description: t.description,
+          amount: t.type === "expense" ? -Math.abs(t.amount || 0) : Math.abs(t.amount || 0),
+          status: t.status === "pending" ? "pendente" : t.status === "canceled" ? "falhou" : "aprovado",
+        }))
+        setTransactions(txs)
+      })
+      .catch(() => {})
+  }, [monthsCount])
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Saldo</div>
-          <div className="mt-1 text-2xl font-semibold">R$ {total.toFixed(2)}</div>
+          <div className="mt-1 text-2xl font-semibold">{saldo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
         </Card>
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Aprovadas</div>

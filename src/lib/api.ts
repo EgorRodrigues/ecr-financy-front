@@ -207,5 +207,35 @@ export async function updateIncome(id: string, input: TransactionInput) {
 }
 
 export async function deleteIncome(id: string) {
-  return apiFetch(`/incomes/${id}/`, { method: "DELETE" })
+  return apiFetch(`/incomes/${id}`, { method: "DELETE" })
+}
+
+export type DashboardResponse = {
+  big_numbers: {
+    balance: number
+    approved: number
+    pending: number
+    failed: number
+  }
+  monthly: Array<{
+    month: string
+    inflows: number
+    outflows: number
+  }>
+  recent_transactions: Array<{
+    id: string
+    date: string
+    description: string
+    amount: number
+    status: "pending" | "paid" | "received" | "canceled"
+    type: "income" | "expense"
+  }>
+}
+
+export async function getDashboard(months?: number, recent_limit?: number): Promise<DashboardResponse> {
+  const params: string[] = []
+  if (typeof months === "number") params.push(`months=${months}`)
+  if (typeof recent_limit === "number") params.push(`recent_limit=${recent_limit}`)
+  const q = params.length ? `?${params.join("&")}` : ""
+  return apiFetch(`/dashboard/${q}`, { method: "GET" })
 }
