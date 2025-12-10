@@ -11,6 +11,8 @@ type Expense = {
   tipo: "despesa" | "receita"
   dataEmissao?: string
   dataVencimento?: string
+  parcelado?: boolean
+  parcelas?: number
   categoria?: string
   categoriaId?: string
   subcategoria?: string
@@ -39,6 +41,8 @@ export default function CadastroDespesasPage() {
     tipo: "despesa",
     valor: 0,
     status: "pendente",
+    parcelado: false,
+    parcelas: 1,
   })
   const [valorText, setValorText] = useState(
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0)
@@ -93,34 +97,72 @@ export default function CadastroDespesasPage() {
   async function salvar() {
     setSalvando(true)
     try {
-      const payload = {
-        amount: form.valor,
-        status: form.status,
-      issue_date: form.dataEmissao,
-      due_date: form.dataVencimento,
-      category_id: form.categoriaId,
-        subcategory_id: form.subcategoriaId,
-        cost_center_id: form.centroCustoId,
-        contact_id: form.fornecedorClienteId,
-        description: form.descricao,
-        document: form.documento,
-        payment_method: form.formaPagamento,
-        account: form.contaId,
-        recurrence: !!form.recorrencia,
-        competence: form.competencia,
-        project: form.projeto,
-        tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
-        notes: form.observacoes,
-        active: true,
-      }
-      if (form.tipo === "despesa") {
-        await createExpense(payload)
-        setMensagem("Despesa salva no backend")
+      const isParcelado = !!form.parcelado && (form.parcelas || 1) > 1
+      if (isParcelado) {
+        const n = Math.max(2, form.parcelas || 2)
+        const total = Math.abs(form.valor || 0)
+        const base = Math.floor((total * 100) / n)
+        const amounts: number[] = Array.from({ length: n }, (_, i) => (i < n - 1 ? base : total * 100 - base * (n - 1))).map((c) => c / 100)
+        const start = form.dataVencimento || new Date().toISOString().slice(0, 10)
+        const startDate = new Date(start)
+        const requests: Promise<unknown>[] = []
+        for (let i = 0; i < n; i++) {
+          const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate())
+          const due = d.toISOString().slice(0, 10)
+          const payload = {
+            amount: form.tipo === "despesa" ? -Math.abs(amounts[i]) : Math.abs(amounts[i]),
+            status: form.status,
+            issue_date: form.dataEmissao,
+            due_date: due,
+            category_id: form.categoriaId,
+            subcategory_id: form.subcategoriaId,
+            cost_center_id: form.centroCustoId,
+            contact_id: form.fornecedorClienteId,
+            description: [form.descricao || "", `(parcela ${i + 1}/${n})`].filter(Boolean).join(" "),
+            document: form.documento ? `${form.documento}-${i + 1}/${n}` : undefined,
+            payment_method: form.formaPagamento,
+            account: form.contaId,
+            recurrence: !!form.recorrencia,
+            competence: form.competencia,
+            project: form.projeto,
+            tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
+            notes: form.observacoes,
+            active: true,
+          }
+          requests.push(form.tipo === "despesa" ? createExpense(payload) : createIncome(payload))
+        }
+        await Promise.all(requests)
+        setMensagem("Parcelas salvas no backend")
       } else {
-        await createIncome(payload)
-        setMensagem("Receita salva no backend")
+        const payload = {
+          amount: form.valor,
+          status: form.status,
+          issue_date: form.dataEmissao,
+          due_date: form.dataVencimento,
+          category_id: form.categoriaId,
+          subcategory_id: form.subcategoriaId,
+          cost_center_id: form.centroCustoId,
+          contact_id: form.fornecedorClienteId,
+          description: form.descricao,
+          document: form.documento,
+          payment_method: form.formaPagamento,
+          account: form.contaId,
+          recurrence: !!form.recorrencia,
+          competence: form.competencia,
+          project: form.projeto,
+          tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          notes: form.observacoes,
+          active: true,
+        }
+        if (form.tipo === "despesa") {
+          await createExpense(payload)
+          setMensagem("Despesa salva no backend")
+        } else {
+          await createIncome(payload)
+          setMensagem("Receita salva no backend")
+        }
       }
-      setForm({ id: "", tipo: form.tipo, valor: 0, status: "pendente" })
+      setForm({ id: "", tipo: form.tipo, valor: 0, status: "pendente", parcelado: false, parcelas: 1 })
       setValorText(new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(0))
     } catch {
       setMensagem("Falha ao salvar")
@@ -330,6 +372,30 @@ export default function CadastroDespesasPage() {
           <Input type="date" value={form.dataVencimento ?? ""} onChange={(e) => update("dataVencimento", e.target.value)} />
         </div>
 
+          <div>
+            <label className="text-xs">Parcelado</label>
+            <select
+              className="bg-background h-9 w-full rounded-md border px-2 text-sm"
+              value={form.parcelado ? "sim" : "nao"}
+              onChange={(e) => update("parcelado", e.target.value === "sim")}
+            >
+              <option value="nao">Não</option>
+              <option value="sim">Sim</option>
+            </select>
+          </div>
+
+          {form.parcelado && (
+            <div>
+              <label className="text-xs">Número de Parcelas</label>
+              <Input
+                type="number"
+                min={2}
+                value={form.parcelas ?? 2}
+                onChange={(e) => update("parcelas", Number(e.target.value))}
+              />
+            </div>
+          )}
+
           <div className="md:col-span-2">
             <label className="text-xs">Descrição</label>
             <textarea
@@ -342,7 +408,7 @@ export default function CadastroDespesasPage() {
           <div className="md:col-span-2">
             <label className="text-xs">Observações</label>
             <textarea
-              className="bg-background h-24 w-full rounded-md border px-2 py-2 text-sm"
+              className="bg-background h-20 w-full rounded-md border px-2 py-2 text-sm"
               value={form.observacoes ?? ""}
               onChange={(e) => update("observacoes", e.target.value)}
             />
