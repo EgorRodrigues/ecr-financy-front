@@ -1,5 +1,7 @@
 "use client"
 
+import { Plus } from "lucide-react"
+import { ContactSheet } from "@/components/financeiro/contact-sheet"
 import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -55,6 +57,7 @@ export default function CadastroDespesasPage() {
   const [centros, setCentros] = useState<Array<{ id: string; name: string; code?: string }>>([])
   const [contacts, setContacts] = useState<Array<{ id: string; name: string }>>([])
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string }>>([])
+  const [contactSheetOpen, setContactSheetOpen] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => setMensagem(null), 3000)
@@ -68,13 +71,17 @@ export default function CadastroDespesasPage() {
     getCostCenters()
       .then((list) => startTransition(() => setCentros(list)))
       .catch(() => {})
-    getContacts()
-      .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })))) )
-      .catch(() => {})
+    loadContacts()
     getAccounts()
       .then((list) => startTransition(() => setAccounts(list.map((a) => ({ id: a.id, name: a.name })))) )
       .catch(() => {})
   }, [])
+
+  function loadContacts() {
+    getContacts()
+      .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })))) )
+      .catch(() => {})
+  }
 
   function update<K extends keyof Expense>(key: K, value: Expense[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -291,21 +298,26 @@ export default function CadastroDespesasPage() {
 
           <div>
             <label className="text-xs">Fornecedor/Cliente</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.fornecedorClienteId ?? ""}
-              onChange={(e) => {
-                const id = e.target.value
-                const selected = contacts.find((c) => c.id === id)
-                update("fornecedorClienteId", id)
-                update("fornecedorCliente", selected?.name || "")
-              }}
-            >
-              <option value="">Selecione</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-1">
+              <select
+                className="bg-background h-10 w-full rounded-md border px-2"
+                value={form.fornecedorClienteId ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value
+                  const selected = contacts.find((c) => c.id === id)
+                  update("fornecedorClienteId", id)
+                  update("fornecedorCliente", selected?.name || "")
+                }}
+              >
+                <option value="">Selecione</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => setContactSheetOpen(true)} title="Novo Fornecedor/Cliente">
+                <Plus className="h-4 w-4 text-emerald-600" />
+              </Button>
+            </div>
           </div>
 
           <div>
@@ -415,6 +427,12 @@ export default function CadastroDespesasPage() {
           </div>
         </div>
       </Card>
+      <ContactSheet 
+        open={contactSheetOpen} 
+        onOpenChange={setContactSheetOpen} 
+        onSuccess={loadContacts}
+        defaultType="supplier"
+      />
     </div>
   )
 }

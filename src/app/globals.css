@@ -120,3 +120,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @media (min-width: 768px) {
+    [data-form-cols="3"] .md\:grid-cols-2 {
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+  }
+  [data-form-compact="true"] .p-4 {
+    padding: 0.75rem !important;
+  }
+  [data-form-compact="true"] .gap-4 {
+    gap: 0.75rem !important;
+  }
+  [data-form-compact="true"] select {
+    height: 2.25rem !important;
+  }
+  [data-form-compact="true"] input {
+    height: 2.25rem !important;
+  }
+  [data-form-compact="true"] textarea {
+    height: 5rem !important;
+  }
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { FormConfig } from "@/components/layout/form-config"
 
 export const metadata: Metadata = {
   title: "Financy | Financeiro",
@@ -15,7 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SidebarTrigger />
           <span className="text-sm font-medium">Financeiro</span>
         </div>
-        <div className="p-4 space-y-4">{children}</div>
+        <FormConfig className="p-4 space-y-4">{children}</FormConfig>
       </SidebarInset>
     </SidebarProvider>
   )

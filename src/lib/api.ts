@@ -134,7 +134,7 @@ export async function createAccount(input: AccountInput) {
 
 export async function getAccounts(limit?: number): Promise<Array<Account>> {
   const q = typeof limit === "number" ? `?limit=${limit}` : ""
-  return apiFetch(`/accounts${q}`, { method: "GET" })
+  return apiFetch(`/accounts/${q}`, { method: "GET" })
 }
 
 export async function getAccount(id: string): Promise<Account> {
@@ -159,6 +159,7 @@ export type TransactionInput = {
   fine?: number
   discount?: number
   total_paid?: number
+  total_received?: number
   category_id?: string
   subcategory_id?: string
   cost_center_id?: string

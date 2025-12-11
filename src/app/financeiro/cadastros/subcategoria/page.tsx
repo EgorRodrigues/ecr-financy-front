@@ -20,7 +20,7 @@ export default function CadastroSubcategoriaPage() {
   const [form, setForm] = useState<Subcategory>({ id: "", nome: "", categoriaId: "", descricao: "", ativo: true })
   const [mensagem, setMensagem] = useState<string | null>(null)
   const [categorias, setCategorias] = useState<Category[]>([])
-  const [items, setItems] = useState<Array<{ id: string; name: string; active?: boolean; category_id?: string }>>([])
+  const [items, setItems] = useState<Array<{ id: string; name: string; description?: string; active?: boolean; category_id?: string }>>([])
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<{ id: string; name: string; description?: string; active?: boolean; category_id?: string } | null>(null)
   const [edit, setEdit] = useState<SubcategoryInput | null>(null)

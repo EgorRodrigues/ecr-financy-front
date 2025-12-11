@@ -1,10 +1,12 @@
 "use client"
 
+import { Plus } from "lucide-react"
 import { useEffect, useState, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
+import { ContactSheet } from "@/components/financeiro/contact-sheet"
 import {
   Table,
   TableBody,
@@ -13,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { getExpenses, updateExpense, deleteExpense, getContacts, type ExpenseRecord, type TransactionInput, type Contact } from "@/lib/api"
+import { getExpenses, updateExpense, deleteExpense, getContacts, getAccounts, getCategories, getSubcategories, getCostCenters, type ExpenseRecord, type TransactionInput, type Contact, type Account } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 
 type ExpenseItem = {
@@ -30,7 +32,13 @@ export default function ContasAPagarPage() {
   const [dados, setDados] = useState<ExpenseItem[]>([])
   const [records, setRecords] = useState<ExpenseRecord[]>([])
   const [contactMap, setContactMap] = useState<Record<string, string>>({})
+  const [contactsList, setContactsList] = useState<Contact[]>([])
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
+  const [subcategories, setSubcategories] = useState<Array<{ id: string; name: string }>>([])
+  const [costCenters, setCostCenters] = useState<Array<{ id: string; name: string }>>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [open, setOpen] = useState(false)
+  const [contactSheetOpen, setContactSheetOpen] = useState(false)
   const [mode, setMode] = useState<"view" | "edit" | "pay">("view")
   const [selected, setSelected] = useState<ExpenseRecord | null>(null)
   const [edit, setEdit] = useState<TransactionInput | null>(null)
@@ -61,17 +69,34 @@ export default function ContasAPagarPage() {
       .catch(() => {})
   }
 
+  const loadContacts = () => {
+    getContacts()
+      .then((list) => startTransition(() => {
+        setContactsList(list as Contact[])
+        const map: Record<string, string> = {}
+        ;(list as Contact[]).forEach((c) => { map[c.id] = c.name })
+        setContactMap(map)
+      }))
+      .catch(() => {})
+  }
+
   useEffect(() => {
     load()
   }, [])
 
   useEffect(() => {
-    getContacts()
-      .then((list) => startTransition(() => {
-        const map: Record<string, string> = {}
-        ;(list as Contact[]).forEach((c) => { map[c.id] = c.name })
-        setContactMap(map)
-      }))
+    loadContacts()
+
+    getCategories()
+      .then((list) => startTransition(() => setCategories(list)))
+      .catch(() => {})
+
+    getCostCenters()
+      .then((list) => startTransition(() => setCostCenters(list)))
+      .catch(() => {})
+
+    getAccounts()
+      .then((list) => startTransition(() => setAccounts(list)))
       .catch(() => {})
   }, [])
 
@@ -107,6 +132,15 @@ export default function ContasAPagarPage() {
       notes: rec.notes,
       active: rec.active,
     } : null)
+
+    if (rec && rec.category_id) {
+      getSubcategories(rec.category_id).then((list) => {
+        startTransition(() => setSubcategories(list))
+      })
+    } else {
+      setSubcategories([])
+    }
+
     setMode("edit")
     setOpen(true)
   }
@@ -348,7 +382,21 @@ export default function ContasAPagarPage() {
             <div className="grid grid-cols-2 gap-3 p-4 text-sm">
               <div className="col-span-2">
                 <div className="text-muted-foreground">Fornecedor</div>
-                <div>{contactMap[edit.contact_id || ""] || edit.contact_id || ""}</div>
+                <div className="flex items-center gap-1">
+                  <select 
+                    className="bg-background h-9 w-full rounded-md border px-2" 
+                    value={edit.contact_id || ""} 
+                    onChange={(e) => setEdit({ ...edit, contact_id: e.target.value })}
+                  >
+                    <option value="">Selecione</option>
+                    {contactsList.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setContactSheetOpen(true)} title="Novo Fornecedor">
+                    <Plus className="h-4 w-4 text-emerald-600" />
+                  </Button>
+                </div>
               </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Valor</div>
@@ -371,9 +419,63 @@ export default function ContasAPagarPage() {
                 <Input type="date" value={edit.due_date || ""} onChange={(e) => setEdit({ ...edit, due_date: e.target.value })} />
               </div>
               
+              <div>
+                <div className="text-muted-foreground">Categoria</div>
+                <select
+                  className="bg-background h-9 w-full rounded-md border px-2"
+                  value={edit.category_id || ""}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setEdit({ ...edit, category_id: id, subcategory_id: "" })
+                    if (id) {
+                      getSubcategories(id).then((list) => startTransition(() => setSubcategories(list)))
+                    } else {
+                      setSubcategories([])
+                    }
+                  }}
+                >
+                  <option value="">Selecione</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="text-muted-foreground">Subcategoria</div>
+                <select
+                  className="bg-background h-9 w-full rounded-md border px-2"
+                  value={edit.subcategory_id || ""}
+                  onChange={(e) => setEdit({ ...edit, subcategory_id: e.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  {subcategories.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="text-muted-foreground">Centro de Custo</div>
+                <select
+                  className="bg-background h-9 w-full rounded-md border px-2"
+                  value={edit.cost_center_id || ""}
+                  onChange={(e) => setEdit({ ...edit, cost_center_id: e.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  {costCenters.map((cc) => (
+                    <option key={cc.id} value={cc.id}>{cc.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
-                <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+                <textarea 
+                  className="bg-background h-20 w-full rounded-md border px-2 py-2" 
+                  value={edit.description || ""} 
+                  onChange={(e) => setEdit({ ...edit, description: e.target.value })} 
+                />
               </div>
               <div>
                 <div className="text-muted-foreground">Documento</div>
@@ -381,11 +483,27 @@ export default function ContasAPagarPage() {
               </div>
               <div>
                 <div className="text-muted-foreground">Forma</div>
-                <Input value={edit.payment_method || ""} onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })} />
+                <select
+                  className="bg-background h-9 w-full rounded-md border px-2"
+                  value={edit.payment_method || ""}
+                  onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  <option value="pix">PIX</option>
+                  <option value="boleto">Boleto</option>
+                  <option value="cartao">Cartão</option>
+                  <option value="transferencia">Transferência</option>
+                  <option value="dinheiro">Dinheiro</option>
+                </select>
               </div>
               <div>
                 <div className="text-muted-foreground">Conta</div>
-                <Input value={edit.account || ""} onChange={(e) => setEdit({ ...edit, account: e.target.value })} />
+                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.account || ""} onChange={(e) => setEdit({ ...edit, account: e.target.value })}>
+                  <option value="">Selecione</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <div className="text-muted-foreground">Competência</div>
@@ -401,7 +519,11 @@ export default function ContasAPagarPage() {
               </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Observações</div>
-                <Input value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+                <textarea 
+                  className="bg-background h-20 w-full rounded-md border px-2 py-2" 
+                  value={edit.notes || ""} 
+                  onChange={(e) => setEdit({ ...edit, notes: e.target.value })} 
+                />
               </div>
               <div>
                 <div className="text-muted-foreground">Ativo</div>
@@ -473,6 +595,13 @@ export default function ContasAPagarPage() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ContactSheet 
+        open={contactSheetOpen} 
+        onOpenChange={setContactSheetOpen} 
+        onSuccess={loadContacts}
+        defaultType="supplier"
+      />
     </div>
   )
 }
