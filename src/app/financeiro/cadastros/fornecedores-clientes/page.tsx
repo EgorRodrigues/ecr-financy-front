@@ -371,17 +371,33 @@ export default function CadastroFornecedoresClientesPage() {
                 <div className="text-muted-foreground">Nome</div>
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
-              <div className="col-span-2">
-                <div className="text-muted-foreground">Documento</div>
-                <Input value={edit.document || ""} onChange={(e) => setEdit({ ...edit, document: e.target.value })} />
-              </div>
+              {edit.person_type === "individual" && (
+                <div className="col-span-2">
+                  <div className="text-muted-foreground">CPF</div>
+                  <Input
+                    inputMode="numeric"
+                    value={edit.document || ""}
+                    onChange={(e) => setEdit({ ...edit, document: formatCPF(e.target.value) })}
+                  />
+                </div>
+              )}
+              {edit.person_type === "company" && (
+                <div className="col-span-2">
+                  <div className="text-muted-foreground">CNPJ</div>
+                  <Input
+                    inputMode="numeric"
+                    value={edit.document || ""}
+                    onChange={(e) => setEdit({ ...edit, document: formatCNPJ(e.target.value) })}
+                  />
+                </div>
+              )}
               <div>
                 <div className="text-muted-foreground">E-mail</div>
                 <Input type="email" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Telefone</div>
-                <Input value={edit.phone_local || ""} onChange={(e) => setEdit({ ...edit, phone_local: e.target.value })} />
+                <Input inputMode="tel" value={edit.phone_local || ""} onChange={(e) => setEdit({ ...edit, phone_local: formatPhone(e.target.value) })} />
               </div>
               <div className="col-span-2">
                 <div className="text-muted-foreground">Endereço</div>
