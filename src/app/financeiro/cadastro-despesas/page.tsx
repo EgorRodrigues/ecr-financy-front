@@ -117,7 +117,7 @@ export default function CadastroDespesasPage() {
           const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate())
           const due = d.toISOString().slice(0, 10)
           const payload = {
-            amount: form.tipo === "despesa" ? -Math.abs(amounts[i]) : Math.abs(amounts[i]),
+            amount: Math.abs(amounts[i]),
             status: form.status,
             issue_date: form.dataEmissao,
             due_date: due,
