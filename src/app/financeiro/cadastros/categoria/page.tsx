@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState, startTransition } from "react"
+import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createCategory, getCategories, updateCategory, deleteCategory, type CategoryInput } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import { useSort } from "@/hooks/use-sort"
+import { ArrowUpDown } from "lucide-react"
 
 type Category = {
   id: string
@@ -26,6 +28,15 @@ export default function CadastroCategoriaPage() {
     const t = setTimeout(() => setMensagem(null), 3000)
     return () => clearTimeout(t)
   }, [mensagem])
+
+  const displayItems = useMemo(() => {
+    return items.map((i) => ({
+      ...i,
+      displayActive: i.active ? "Sim" : "Não",
+    }))
+  }, [items])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems)
 
   useEffect(() => {
     getCategories()
@@ -124,18 +135,24 @@ export default function CadastroCategoriaPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2 text-left">Nome</th>
-              <th className="p-2 text-left">Observações</th>
-              <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("name")}>
+                Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("description")}>
+                Observações {sortConfig?.key === "description" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayActive")}>
+                Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
               <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((i) => (
+            {sortedItems.map((i) => (
               <tr key={i.id} className="border-b">
                 <td className="p-2">{i.name}</td>
                 <td className="p-2">{i.description || "-"}</td>
-                <td className="p-2">{i.active === false ? "Não" : "Sim"}</td>
+                <td className="p-2">{i.displayActive}</td>
                 <td className="p-2">
                   <div className="flex justify-end gap-2">
                     <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>

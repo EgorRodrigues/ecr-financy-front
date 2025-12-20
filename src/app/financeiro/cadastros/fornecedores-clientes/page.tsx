@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState, startTransition } from "react"
+import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
+import { useSort } from "@/hooks/use-sort"
+import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createContact, getContacts, updateContact, deleteContact, type ContactInput, type Contact } from "@/lib/api"
@@ -202,6 +204,17 @@ export default function CadastroFornecedoresClientesPage() {
     } catch {}
   }
 
+  const displayItems = useMemo(() => {
+    return items.map((i) => ({
+      ...i,
+      displayType: i.type === "supplier" ? "Fornecedor" : "Cliente",
+      displayPersonType: i.person_type === "individual" ? "Física" : "Jurídica",
+      displayActive: i.active ? "Sim" : "Não",
+    }))
+  }, [items])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -309,26 +322,40 @@ export default function CadastroFornecedoresClientesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2 text-left">Tipo</th>
-              <th className="p-2 text-left">Pessoa</th>
-              <th className="p-2 text-left">Nome</th>
-              <th className="p-2 text-left">Documento</th>
-              <th className="p-2 text-left">Telefone</th>
-              <th className="p-2 text-left">E-mail</th>
-              <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayType")}>
+                Tipo {sortConfig?.key === "displayType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayPersonType")}>
+                Pessoa {sortConfig?.key === "displayPersonType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("name")}>
+                Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("document")}>
+                Documento {sortConfig?.key === "document" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("phone_local")}>
+                Telefone {sortConfig?.key === "phone_local" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("email")}>
+                E-mail {sortConfig?.key === "email" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayActive")}>
+                Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
               <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((i) => (
+            {sortedItems.map((i) => (
               <tr key={i.id} className="border-b">
-                <td className="p-2">{i.type === "supplier" ? "Fornecedor" : "Cliente"}</td>
-                <td className="p-2">{i.person_type === "individual" ? "Física" : "Jurídica"}</td>
+                <td className="p-2">{i.displayType}</td>
+                <td className="p-2">{i.displayPersonType}</td>
                 <td className="p-2">{i.name}</td>
                 <td className="p-2">{i.document || "-"}</td>
                 <td className="p-2">{i.phone_local || "-"}</td>
                 <td className="p-2">{i.email || "-"}</td>
-                <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                <td className="p-2">{i.displayActive}</td>
                 <td className="p-2">
                   <div className="flex justify-end gap-2">
                     <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>

@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState, startTransition } from "react"
+import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useSort } from "@/hooks/use-sort"
 
 type Expense = {
   id: string
@@ -41,6 +43,16 @@ export default function RelatorioDespesasPage() {
   const totalDespesa = useMemo(() => items.filter(i => i.tipo === "despesa").reduce((acc, i) => acc + i.valor, 0), [items])
   const totalReceita = useMemo(() => items.filter(i => i.tipo === "receita").reduce((acc, i) => acc + i.valor, 0), [items])
 
+  const displayItems = useMemo(() => {
+    return items.map((i) => ({
+      ...i,
+      displayDate: i.dataPagamento || i.dataVencimento || i.dataEmissao || "",
+      displayCategory: [i.categoria, i.subcategoria].filter(Boolean).join(" / "),
+    }))
+  }, [items])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems)
+
   function printReport() {
     window.print()
   }
@@ -76,22 +88,38 @@ export default function RelatorioDespesasPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b">
-                <th className="p-2 text-left">Tipo</th>
-                <th className="p-2 text-left">Data</th>
-                <th className="p-2 text-left">Categoria</th>
-                <th className="p-2 text-left">Descrição</th>
-                <th className="p-2 text-left">Documento</th>
-                <th className="p-2 text-left">Forma</th>
-                <th className="p-2 text-right">Valor</th>
-                <th className="p-2 text-left">Status</th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("tipo")}>
+                  Tipo {sortConfig?.key === "tipo" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayDate")}>
+                  Data {sortConfig?.key === "displayDate" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayCategory")}>
+                  Categoria {sortConfig?.key === "displayCategory" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("descricao")}>
+                  Descrição {sortConfig?.key === "descricao" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("documento")}>
+                  Documento {sortConfig?.key === "documento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("formaPagamento")}>
+                  Forma {sortConfig?.key === "formaPagamento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("valor")}>
+                  Valor {sortConfig?.key === "valor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("status")}>
+                  Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {items.map((i) => (
+              {sortedItems.map((i) => (
                 <tr key={i.id} className="border-b">
                   <td className="p-2">{i.tipo}</td>
-                  <td className="p-2">{i.dataPagamento || i.dataVencimento || i.dataEmissao || "-"}</td>
-                  <td className="p-2">{[i.categoria, i.subcategoria].filter(Boolean).join(" / ")}</td>
+                  <td className="p-2">{i.displayDate || "-"}</td>
+                  <td className="p-2">{i.displayCategory}</td>
                   <td className="p-2">{i.descricao}</td>
                   <td className="p-2">{i.documento}</td>
                   <td className="p-2">{i.formaPagamento}</td>

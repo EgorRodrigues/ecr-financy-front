@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createSubcategory, getCategories, getAllSubcategories, updateSubcategory, deleteSubcategory, type SubcategoryInput } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import { useSort } from "@/hooks/use-sort"
+import { ArrowUpDown } from "lucide-react"
 
 type Category = { id: string; name: string }
 type Subcategory = {
@@ -96,6 +98,19 @@ export default function CadastroSubcategoriaPage() {
 
   const categoriasOptions = useMemo(() => categorias, [categorias])
 
+  const displayItems = useMemo(() => {
+    return items.map((i) => {
+      const cat = categorias.find((c) => c.id === i.category_id)
+      return {
+        ...i,
+        displayCategory: cat ? cat.name : "-",
+        displayActive: i.active ? "Sim" : "Não",
+      }
+    })
+  }, [items, categorias])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -153,20 +168,25 @@ export default function CadastroSubcategoriaPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2 text-left">Nome</th>
-              <th className="p-2 text-left">Categoria</th>
-              <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("name")}>
+                Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayCategory")}>
+                Categoria {sortConfig?.key === "displayCategory" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayActive")}>
+                Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
               <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((i) => {
-              const cat = categorias.find((c) => c.id === i.category_id)
+            {sortedItems.map((i) => {
               return (
                 <tr key={i.id} className="border-b">
                   <td className="p-2">{i.name}</td>
-                  <td className="p-2">{cat?.name || "-"}</td>
-                  <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                  <td className="p-2">{i.displayCategory}</td>
+                  <td className="p-2">{i.displayActive}</td>
                   <td className="p-2">
                     <div className="flex justify-end gap-2">
                       <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>

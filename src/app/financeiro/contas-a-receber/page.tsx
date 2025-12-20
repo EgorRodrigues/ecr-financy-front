@@ -1,11 +1,13 @@
 "use client"
 
-import { useEffect, useState, startTransition } from "react"
+import { Plus, ArrowUpDown } from "lucide-react"
+import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
+import { useSort } from "@/hooks/use-sort"
 import {
   Table,
   TableBody,
@@ -217,6 +219,15 @@ export default function ContasAReceberPage() {
     load()
   }
 
+  const displayData = useMemo(() => {
+    return dados.map((d) => ({
+      ...d,
+      displayCliente: contactMap[d.contactId || ""] || d.cliente,
+    }))
+  }, [dados, contactMap])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayData)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -232,17 +243,25 @@ export default function ContasAReceberPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead onClick={() => requestSort("displayCliente")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Cliente {sortConfig?.key === "displayCliente" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead onClick={() => requestSort("vencimento")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Vencimento {sortConfig?.key === "vencimento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("valor")}>
+                  Valor {sortConfig?.key === "valor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead onClick={() => requestSort("status")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dados.map((d) => (
+              {sortedItems.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell>{contactMap[d.contactId || ""] || d.cliente}</TableCell>
+                  <TableCell>{d.displayCliente}</TableCell>
                   <TableCell>{d.vencimento}</TableCell>
                   <TableCell className="text-right">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
                   <TableCell>

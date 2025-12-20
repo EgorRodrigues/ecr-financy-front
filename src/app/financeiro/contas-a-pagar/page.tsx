@@ -1,12 +1,13 @@
 "use client"
 
-import { Plus } from "lucide-react"
-import { useEffect, useState, startTransition } from "react"
+import { Plus, ArrowUpDown } from "lucide-react"
+import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
+import { useSort } from "@/hooks/use-sort"
 import {
   Table,
   TableBody,
@@ -26,6 +27,8 @@ type ExpenseItem = {
   valor: number
   status: "pendente" | "pago" | "atrasado" | "cancelado"
 }
+
+type BackendExpenseRecord = ExpenseRecord & { contact_name?: string }
 
 export default function ContasAPagarPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela")
@@ -99,8 +102,6 @@ export default function ContasAPagarPage() {
       .then((list) => startTransition(() => setAccounts(list)))
       .catch(() => {})
   }, [])
-
-  type BackendExpenseRecord = ExpenseRecord & { contact_name?: string }
 
   function openView(id: string) {
     const rec = records.find((r) => r.id === id) || null
@@ -218,6 +219,15 @@ export default function ContasAPagarPage() {
     load()
   }
 
+  const displayData = useMemo(() => {
+    return dados.map((d) => ({
+      ...d,
+      displayFornecedor: contactMap[d.contactId || ""] || d.fornecedor,
+    }))
+  }, [dados, contactMap])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayData)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -233,17 +243,25 @@ export default function ContasAPagarPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead onClick={() => requestSort("displayFornecedor")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Fornecedor {sortConfig?.key === "displayFornecedor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead onClick={() => requestSort("vencimento")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Vencimento {sortConfig?.key === "vencimento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("valor")}>
+                  Valor {sortConfig?.key === "valor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
+                <TableHead onClick={() => requestSort("status")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {dados.map((d) => (
+              {sortedItems.map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell>{contactMap[d.contactId || ""] || d.fornecedor}</TableCell>
+                  <TableCell>{d.displayFornecedor}</TableCell>
                   <TableCell>{d.vencimento}</TableCell>
                   <TableCell className="text-right">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
                   <TableCell>

@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState, startTransition } from "react"
+import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { createAccount, getAccounts, updateAccount, deleteAccount, type AccountInput, type Account } from "@/lib/api"
+import { useSort } from "@/hooks/use-sort"
+import { ArrowUpDown } from "lucide-react"
 
 type ContaForm = {
   id: string
@@ -38,6 +40,23 @@ export default function CadastroContasPage() {
       .then((list) => startTransition(() => setItems(list)))
       .catch(() => {})
   }, [])
+
+  const displayItems = useMemo(() => {
+    return items.map((i) => {
+      let displayType = i.type as string
+      if (i.type === "bank") displayType = "Banco"
+      if (i.type === "credit_card") displayType = "Cartão de Crédito"
+      if (i.type === "wallet") displayType = "Carteira"
+
+      return {
+        ...i,
+        displayType,
+        displayActive: i.active ? "Sim" : "Não",
+      }
+    })
+  }, [items])
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems)
 
   function update<K extends keyof ContaForm>(key: K, value: ContaForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -205,28 +224,44 @@ export default function CadastroContasPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="p-2 text-left">Nome</th>
-              <th className="p-2 text-left">Tipo</th>
-              <th className="p-2 text-left">Agência</th>
-              <th className="p-2 text-left">Conta</th>
-              <th className="p-2 text-left">Cartão</th>
-              <th className="p-2 text-left">Saldo Inicial</th>
-              <th className="p-2 text-left">Limite</th>
-              <th className="p-2 text-left">Ativo</th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("name")}>
+                Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayType")}>
+                Tipo {sortConfig?.key === "displayType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("agency")}>
+                Agência {sortConfig?.key === "agency" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("account")}>
+                Conta {sortConfig?.key === "account" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("card_number")}>
+                Cartão {sortConfig?.key === "card_number" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("initial_balance")}>
+                Saldo Inicial {sortConfig?.key === "initial_balance" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("available_limit")}>
+                Limite {sortConfig?.key === "available_limit" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
+              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayActive")}>
+                Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </th>
               <th className="p-2 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((i) => (
+            {sortedItems.map((i) => (
               <tr key={i.id} className="border-b">
                 <td className="p-2">{i.name}</td>
-                <td className="p-2">{i.type === "bank" ? "Banco" : i.type === "credit_card" ? "Cartão" : "Carteira"}</td>
+                <td className="p-2">{i.displayType}</td>
                 <td className="p-2">{i.agency || "-"}</td>
                 <td className="p-2">{i.account || "-"}</td>
                 <td className="p-2">{i.card_number || "-"}</td>
                 <td className="p-2">{typeof i.initial_balance === "number" ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(i.initial_balance || 0) : "-"}</td>
                 <td className="p-2">{typeof i.available_limit === "number" ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(i.available_limit || 0) : "-"}</td>
-                <td className="p-2">{i.active ? "Sim" : "Não"}</td>
+                <td className="p-2">{i.displayActive}</td>
                 <td className="p-2">
                   <div className="flex justify-end gap-2">
                     <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>

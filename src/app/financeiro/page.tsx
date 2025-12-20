@@ -10,6 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getDashboard } from "@/lib/api"
+import { useSort } from "@/hooks/use-sort"
+import { ArrowUpDown } from "lucide-react"
 
 type Transaction = {
   id: string
@@ -90,6 +92,8 @@ export default function DashboardPage() {
   const [falhou, setFalhou] = useState<number>(0)
   const [monthly, setMonthly] = useState<MonthlyAgg[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  
+  const { items: sortedItems, requestSort, sortConfig } = useSort(transactions)
 
   useEffect(() => {
     getDashboard(monthsCount, 10)
@@ -163,14 +167,22 @@ export default function DashboardPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead onClick={() => requestSort("date")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                Data {sortConfig?.key === "date" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </TableHead>
+              <TableHead onClick={() => requestSort("description")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                Descrição {sortConfig?.key === "description" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </TableHead>
+              <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("amount")}>
+                Valor {sortConfig?.key === "amount" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </TableHead>
+              <TableHead onClick={() => requestSort("status")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((t) => (
+            {sortedItems.map((t) => (
               <TableRow key={t.id}>
                 <TableCell>{t.date}</TableCell>
                 <TableCell>{t.description}</TableCell>
