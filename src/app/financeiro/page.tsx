@@ -96,7 +96,7 @@ export default function DashboardPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(transactions)
 
   useEffect(() => {
-    getDashboard(monthsCount, 10)
+    getDashboard(monthsCount, 100)
       .then((res) => {
         setSaldo(res.big_numbers.balance || 0)
         setAprovados(res.big_numbers.approved || 0)
