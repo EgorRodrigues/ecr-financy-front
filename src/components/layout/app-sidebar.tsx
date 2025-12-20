@@ -79,10 +79,18 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Relatórios">
-                  <Link href="/financeiro/relatorios">
+                <SidebarMenuButton asChild tooltip="Relatórios de Despesas">
+                  <Link href="/financeiro/relatorios/despesas">
                     <LineChart />
-                    <span>Relatórios</span>
+                    <span>Relatórios Despesas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Previsão Financeira">
+                  <Link href="/financeiro/relatorios/previsao">
+                    <LineChart />
+                    <span>Previsão Financeira</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

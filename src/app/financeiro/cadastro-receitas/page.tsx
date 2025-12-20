@@ -187,7 +187,7 @@ export default function CadastroReceitasPage() {
         <div className="flex gap-2">
           <Button onClick={salvar} disabled={salvando}>Salvar</Button>
           <Button asChild variant="outline">
-            <a href="/dashboard/relatorios/despesas">Ir para Relatório</a>
+            <a href="/financeiro/relatorios/despesas">Ir para Relatório</a>
           </Button>
         </div>
       </div>
