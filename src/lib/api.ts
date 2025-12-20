@@ -240,3 +240,16 @@ export async function getDashboard(months?: number, recent_limit?: number): Prom
   const q = params.length ? `?${params.join("&")}` : ""
   return apiFetch(`/dashboard/${q}`, { method: "GET" })
 }
+
+export type ForecastItem = {
+  id: string
+  month: string // YYYY-MM
+  category: string
+  amount: number
+  status: "projetado" | "confirmado"
+  type: "income" | "expense"
+}
+
+export async function getFinancialForecast(startDate: string, endDate: string): Promise<Array<ForecastItem>> {
+  return apiFetch(`/financial-forecast?startDate=${startDate}&endDate=${endDate}`, { method: "GET" })
+}

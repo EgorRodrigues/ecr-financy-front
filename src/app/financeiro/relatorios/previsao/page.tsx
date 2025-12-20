@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import {
   Table,
@@ -12,36 +12,7 @@ import {
 } from "@/components/ui/table"
 import { useSort } from "@/hooks/use-sort"
 import { ArrowUpDown, ArrowUpCircle, ArrowDownCircle } from "lucide-react"
-
-type ForecastItem = {
-  id: string
-  month: string // YYYY-MM
-  category: string
-  amount: number
-  status: "projetado" | "confirmado"
-  type: "income" | "expense"
-}
-
-// Mock Data
-const MOCK_DATA: ForecastItem[] = [
-  // Expenses
-  { id: "1", month: "2024-02", category: "Aluguel", amount: 2500, status: "confirmado", type: "expense" },
-  { id: "2", month: "2024-02", category: "Energia", amount: 350, status: "projetado", type: "expense" },
-  { id: "3", month: "2024-02", category: "Internet", amount: 120, status: "confirmado", type: "expense" },
-  { id: "4", month: "2024-03", category: "Aluguel", amount: 2500, status: "projetado", type: "expense" },
-  { id: "5", month: "2024-03", category: "Energia", amount: 320, status: "projetado", type: "expense" },
-  { id: "6", month: "2024-03", category: "Internet", amount: 120, status: "projetado", type: "expense" },
-  { id: "7", month: "2024-04", category: "Aluguel", amount: 2600, status: "projetado", type: "expense" },
-  { id: "8", month: "2024-04", category: "Energia", amount: 300, status: "projetado", type: "expense" },
-  { id: "9", month: "2024-04", category: "Internet", amount: 120, status: "projetado", type: "expense" },
-  
-  // Income
-  { id: "10", month: "2024-02", category: "Salário", amount: 5000, status: "confirmado", type: "income" },
-  { id: "11", month: "2024-02", category: "Freelance", amount: 1500, status: "projetado", type: "income" },
-  { id: "12", month: "2024-03", category: "Salário", amount: 5000, status: "projetado", type: "income" },
-  { id: "13", month: "2024-03", category: "Freelance", amount: 1200, status: "projetado", type: "income" },
-  { id: "14", month: "2024-04", category: "Salário", amount: 5200, status: "projetado", type: "income" },
-]
+import { getFinancialForecast, type ForecastItem } from "@/lib/api"
 
 function ForecastChart({ data }: { data: ForecastItem[] }) {
   // Aggregate by month and type
@@ -55,6 +26,14 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
       return { month, income, expense }
     })
   }, [data])
+
+  if (aggregated.length === 0) {
+    return (
+      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+        Nenhum dado para exibir no gráfico neste período
+      </div>
+    )
+  }
 
   const width = 700
   const height = 300
@@ -160,9 +139,28 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
 }
 
 export default function PrevisaoFinanceiraPage() {
-  const [items] = useState<ForecastItem[]>(MOCK_DATA)
+  const [items, setItems] = useState<ForecastItem[]>([])
   
   const { items: sortedItems, requestSort, sortConfig } = useSort(items)
+
+  useEffect(() => {
+    // Calculate date range: current month to 6 months ahead
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 6, 0) // Last day of 6th month
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0]
+
+    getFinancialForecast(formatDate(start), formatDate(end))
+      .then((data) => {
+        if (data) {
+          startTransition(() => setItems(data))
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch forecast:", err)
+      })
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -205,37 +203,45 @@ export default function PrevisaoFinanceiraPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedItems.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>{item.month}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {item.type === "income" ? (
-                      <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-                    ) : (
-                      <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                    )}
-                    <span className={item.type === "income" ? "text-emerald-600" : "text-red-600"}>
-                      {item.type === "income" ? "Receita" : "Despesa"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>{item.category}</TableCell>
-                <TableCell>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    item.status === "confirmado" 
-                      ? "bg-emerald-100 text-emerald-700" 
-                      : "bg-blue-100 text-blue-700"
-                  }`}>
-                    {item.status === "confirmado" ? "Confirmado" : "Projetado"}
-                  </span>
-                </TableCell>
-                <TableCell className={`text-right font-medium ${item.type === "income" ? "text-emerald-600" : "text-red-600"}`}>
-                  {item.type === "expense" ? "- " : "+ "}
-                  {item.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            {sortedItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Nenhuma previsão encontrada para o período.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              sortedItems.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.month}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {item.type === "income" ? (
+                        <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className={item.type === "income" ? "text-emerald-600" : "text-red-600"}>
+                        {item.type === "income" ? "Receita" : "Despesa"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{item.category}</TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      item.status === "confirmado" 
+                        ? "bg-emerald-100 text-emerald-700" 
+                        : "bg-blue-100 text-blue-700"
+                    }`}>
+                      {item.status === "confirmado" ? "Confirmado" : "Projetado"}
+                    </span>
+                  </TableCell>
+                  <TableCell className={`text-right font-medium ${item.type === "income" ? "text-emerald-600" : "text-red-600"}`}>
+                    {item.type === "expense" ? "- " : "+ "}
+                    {item.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
