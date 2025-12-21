@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, LineChart, Table as TableIcon, Settings, ReceiptText, HandCoins, Banknote } from "lucide-react"
+import { Home, LineChart, Table as TableIcon, Settings, ReceiptText, HandCoins, Banknote, CreditCard } from "lucide-react"
 import Link from "next/link"
 import {
   Sidebar,
@@ -59,6 +59,14 @@ export function AppSidebar() {
                   <Link href="/financeiro/cadastro-receitas">
                     <HandCoins />
                     <span>Cadastro de Receitas</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Cartão de Crédito">
+                  <Link href="/financeiro/cartao-credito">
+                    <CreditCard />
+                    <span>Cartão de Crédito</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
