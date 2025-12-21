@@ -34,6 +34,7 @@ type FormState = {
   fornecedorClienteId?: string
   descricao?: string
   documento?: string
+  formaPagamento?: string
   competencia?: string
   projeto?: string
   tags?: string
@@ -50,6 +51,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
     status: "pendente",
     parcelado: false,
     parcelas: 1,
+    formaPagamento: "cartao",
     dataEmissao: format(new Date(), "yyyy-MM-dd"),
     dataVencimento: format(new Date(), "yyyy-MM-dd"),
   })
@@ -74,6 +76,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         status: "pendente",
         parcelado: false,
         parcelas: 1,
+        formaPagamento: "cartao",
         dataEmissao: format(new Date(), "yyyy-MM-dd"),
         dataVencimento: format(new Date(), "yyyy-MM-dd"),
       })
@@ -171,7 +174,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             contact_id: form.fornecedorClienteId,
             description: [form.descricao || "", `(parcela ${i + 1}/${n})`].filter(Boolean).join(" "),
             document: form.documento ? `${form.documento}-${i + 1}/${n}` : undefined,
-            payment_method: "credit_card",
+            payment_method: form.formaPagamento,
             account: cardId,
             recurrence: !!form.recorrencia,
             competence: form.competencia,
@@ -195,7 +198,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
           contact_id: form.fornecedorClienteId,
           description: form.descricao,
           document: form.documento,
-          payment_method: "credit_card",
+          payment_method: form.formaPagamento,
           account: cardId,
           recurrence: !!form.recorrencia,
           competence: form.competencia,
@@ -222,7 +225,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         <SheetHeader>
           <SheetTitle>Nova Despesa - {cardName}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 p-4">
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -335,13 +338,34 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Documento</label>
+              <label className="text-sm font-medium">Documento/Nota</label>
               <Input 
                 value={form.documento ?? ""} 
                 onChange={(e) => update("documento", e.target.value)} 
               />
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Forma de Pagamento</label>
+              <Select 
+                value={form.formaPagamento ?? ""} 
+                onValueChange={(v) => update("formaPagamento", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="cartao">Cartão</SelectItem>
+                  <SelectItem value="transferencia">Transferência</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Competência</label>
               <Input 
@@ -350,9 +374,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
                 placeholder="AAAA-MM"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Projeto</label>
               <Input 
@@ -360,15 +382,15 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
                 onChange={(e) => update("projeto", e.target.value)} 
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tags</label>
-              <Input 
-                value={form.tags ?? ""} 
-                onChange={(e) => update("tags", e.target.value)} 
-                placeholder="tag1, tag2"
-              />
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Tags</label>
+            <Input 
+              value={form.tags ?? ""} 
+              onChange={(e) => update("tags", e.target.value)} 
+              placeholder="tag1, tag2"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
