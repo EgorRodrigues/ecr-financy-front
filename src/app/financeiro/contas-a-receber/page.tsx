@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, ArrowUpDown } from "lucide-react"
+import { Plus, ArrowUpDown, Pencil, Trash2 } from "lucide-react"
 import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -275,8 +275,12 @@ export default function ContasAReceberPage() {
                       {d.status !== "recebido" && d.status !== "cancelado" && (
                         <Button size="sm" onClick={() => openReceive(d.id)}>Receber</Button>
                       )}
-                      <Button variant="secondary" size="sm" onClick={() => openEdit(d.id)}>Editar</Button>
-                      <Button variant="destructive" size="sm" onClick={() => remove(d.id)}>Excluir</Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>

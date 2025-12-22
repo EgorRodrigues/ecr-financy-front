@@ -8,7 +8,7 @@ import { CurrencyInput } from "@/components/ui/currency-input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { createAccount, getAccounts, updateAccount, deleteAccount, type AccountInput, type Account } from "@/lib/api"
 import { useSort } from "@/hooks/use-sort"
-import { ArrowUpDown } from "lucide-react"
+import { ArrowUpDown, Pencil, Trash2 } from "lucide-react"
 
 type ContaForm = {
   id: string
@@ -264,8 +264,12 @@ export default function CadastroContasPage() {
                 <td className="p-2">{i.displayActive}</td>
                 <td className="p-2">
                   <div className="flex justify-end gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(i.id)}>Editar</Button>
-                    <Button variant="destructive" size="sm" onClick={() => remove(i.id)}>Excluir</Button>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(i.id)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => remove(i.id)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
                   </div>
                 </td>
               </tr>
