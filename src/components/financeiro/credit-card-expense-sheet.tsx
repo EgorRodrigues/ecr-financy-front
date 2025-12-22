@@ -21,7 +21,6 @@ type CreditCardExpenseSheetProps = {
 type FormState = {
   tipo: "despesa" | "receita"
   valor: number
-  status: "pendente" | "pago" | "cancelado"
   dataEmissao?: string
   dataVencimento?: string
   categoria?: string
@@ -34,7 +33,6 @@ type FormState = {
   fornecedorClienteId?: string
   descricao?: string
   documento?: string
-  formaPagamento?: string
   competencia?: string
   projeto?: string
   tags?: string
@@ -48,10 +46,8 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
   const [form, setForm] = useState<FormState>({
     tipo: "despesa",
     valor: 0,
-    status: "pendente",
     parcelado: false,
     parcelas: 1,
-    formaPagamento: "cartao",
     dataEmissao: format(new Date(), "yyyy-MM-dd"),
     dataVencimento: format(new Date(), "yyyy-MM-dd"),
   })
@@ -73,10 +69,8 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
       setForm({
         tipo: "despesa",
         valor: 0,
-        status: "pendente",
         parcelado: false,
         parcelas: 1,
-        formaPagamento: "cartao",
         dataEmissao: format(new Date(), "yyyy-MM-dd"),
         dataVencimento: format(new Date(), "yyyy-MM-dd"),
       })
@@ -165,7 +159,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
           
           const payload: TransactionInput = {
             amount: Math.abs(amounts[i]),
-            status: form.status,
+            status: "pago",
             issue_date: form.dataEmissao, // Original purchase date
             due_date: dateStr, // Shifted date for invoice allocation
             category_id: form.categoriaId,
@@ -174,7 +168,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             contact_id: form.fornecedorClienteId,
             description: [form.descricao || "", `(parcela ${i + 1}/${n})`].filter(Boolean).join(" "),
             document: form.documento ? `${form.documento}-${i + 1}/${n}` : undefined,
-            payment_method: form.formaPagamento,
+            payment_method: "cartao",
             account: cardId,
             recurrence: !!form.recorrencia,
             competence: form.competencia,
@@ -189,7 +183,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
       } else {
         const payload: TransactionInput = {
           amount: form.valor,
-          status: form.status,
+          status: "pago",
           issue_date: form.dataEmissao,
           due_date: form.dataEmissao, // Same date for single purchase
           category_id: form.categoriaId,
@@ -198,7 +192,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
           contact_id: form.fornecedorClienteId,
           description: form.descricao,
           document: form.documento,
-          payment_method: form.formaPagamento,
+          payment_method: "cartao",
           account: cardId,
           recurrence: !!form.recorrencia,
           competence: form.competencia,
@@ -238,30 +232,13 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <Select 
-                value={form.status} 
-                onValueChange={(v) => update("status", v as FormState["status"])}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="pago">Pago</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Data da Compra</label>
+              <Input 
+                type="date" 
+                value={form.dataEmissao} 
+                onChange={(e) => update("dataEmissao", e.target.value)} 
+              />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Data da Compra</label>
-            <Input 
-              type="date" 
-              value={form.dataEmissao} 
-              onChange={(e) => update("dataEmissao", e.target.value)} 
-            />
           </div>
 
           <div className="space-y-2">
@@ -336,33 +313,12 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Documento/Nota</label>
-              <Input 
-                value={form.documento ?? ""} 
-                onChange={(e) => update("documento", e.target.value)} 
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Forma de Pagamento</label>
-              <Select 
-                value={form.formaPagamento ?? ""} 
-                onValueChange={(v) => update("formaPagamento", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pix">PIX</SelectItem>
-                  <SelectItem value="boleto">Boleto</SelectItem>
-                  <SelectItem value="cartao">Cartão</SelectItem>
-                  <SelectItem value="transferencia">Transferência</SelectItem>
-                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Documento/Nota</label>
+            <Input 
+              value={form.documento ?? ""} 
+              onChange={(e) => update("documento", e.target.value)} 
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
