@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createCreditCardTransaction, getCategories, getSubcategories, getCostCenters, getContacts, type CreditCardTransactionInput } from "@/lib/api"
+import { createCreditCardTransaction, updateCreditCardTransaction, getCategories, getSubcategories, getCostCenters, getContacts, type CreditCardTransactionInput, type CreditCardTransactionRecord } from "@/lib/api"
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
@@ -16,6 +16,7 @@ type CreditCardExpenseSheetProps = {
   cardId: string
   cardName: string
   onSuccess?: () => void
+  initialData?: CreditCardTransactionRecord | null
 }
 
 type FormState = {
@@ -42,7 +43,7 @@ type FormState = {
   recorrencia?: boolean
 }
 
-export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, onSuccess }: CreditCardExpenseSheetProps) {
+export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, onSuccess, initialData }: CreditCardExpenseSheetProps) {
   const [form, setForm] = useState<FormState>({
     tipo: "despesa",
     valor: 0,
@@ -65,18 +66,45 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
   useEffect(() => {
     if (open) {
       loadDependencies()
-      // Reset form when opening
-      setForm({
-        tipo: "despesa",
-        valor: 0,
-        parcelado: false,
-        parcelas: 1,
-        dataEmissao: format(new Date(), "yyyy-MM-dd"),
-        dataVencimento: format(new Date(), "yyyy-MM-dd"),
-      })
-      setValorText("R$ 0,00")
+      if (initialData) {
+        setForm({
+          tipo: "despesa",
+          valor: initialData.amount,
+          parcelado: false, // Usually updates are for single entries
+          parcelas: 1,
+          dataEmissao: initialData.issue_date,
+          dataVencimento: initialData.due_date,
+          categoriaId: initialData.category_id,
+          subcategoriaId: initialData.subcategory_id,
+          centroCustoId: initialData.cost_center_id,
+          fornecedorClienteId: initialData.contact_id,
+          descricao: initialData.description,
+          documento: initialData.document,
+          competencia: initialData.competence,
+          projeto: initialData.project,
+          tags: initialData.tags?.join(", "),
+          observacoes: initialData.notes,
+          recorrencia: initialData.recurrence,
+        })
+        const formatted = new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        }).format(initialData.amount)
+        setValorText(formatted)
+      } else {
+        // Reset form when opening in create mode
+        setForm({
+          tipo: "despesa",
+          valor: 0,
+          parcelado: false,
+          parcelas: 1,
+          dataEmissao: format(new Date(), "yyyy-MM-dd"),
+          dataVencimento: format(new Date(), "yyyy-MM-dd"),
+        })
+        setValorText("R$ 0,00")
+      }
     }
-  }, [open])
+  }, [open, initialData])
 
   useEffect(() => {
     if (form.categoriaId) {
@@ -129,9 +157,36 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
 
     setLoading(true)
     try {
-      const isParcelado = !!form.parcelado && (form.parcelas || 1) > 1
-      
-      if (isParcelado) {
+      if (initialData) {
+        // Update mode
+        const payload: CreditCardTransactionInput = {
+          amount: form.valor,
+          status: initialData.status, // Preserve status
+          issue_date: form.dataEmissao,
+          due_date: form.dataEmissao,
+          payment_date: form.dataEmissao,
+          original_amount: form.valor,
+          category_id: form.categoriaId,
+          subcategory_id: form.subcategoriaId,
+          cost_center_id: form.centroCustoId,
+          contact_id: form.fornecedorClienteId,
+          description: form.descricao,
+          document: form.documento,
+          // payment_method removed as it triggers validation error if set to "credit_card" and is optional
+          account: cardId,
+          recurrence: !!form.recorrencia,
+          competence: form.competencia,
+          project: form.projeto,
+          tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          notes: form.observacoes,
+          active: true,
+        }
+        await updateCreditCardTransaction(initialData.id, payload)
+      } else {
+        // Create mode
+        const isParcelado = !!form.parcelado && (form.parcelas || 1) > 1
+        
+        if (isParcelado) {
         const n = Math.max(2, form.parcelas || 2)
         const total = Math.abs(form.valor || 0)
         const base = Math.floor((total * 100) / n)
@@ -202,6 +257,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         }
         await createCreditCardTransaction(payload)
       }
+      }
 
       onSuccess?.()
       onOpenChange(false)
@@ -216,7 +272,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto sm:max-w-[540px] w-full">
         <SheetHeader>
-          <SheetTitle>Nova Despesa - {cardName}</SheetTitle>
+          <SheetTitle>{initialData ? "Editar Despesa" : "Nova Despesa"} - {cardName}</SheetTitle>
         </SheetHeader>
         <div className="space-y-4 p-4">
           
@@ -390,7 +446,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={loading || !form.valor || !form.descricao}>
-            {loading ? "Salvando..." : "Salvar Despesa"}
+            {loading ? "Salvando..." : (initialData ? "Atualizar Despesa" : "Salvar Despesa")}
           </Button>
         </SheetFooter>
       </SheetContent>

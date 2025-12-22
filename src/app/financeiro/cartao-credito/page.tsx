@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, CreditCard, Calendar } from "lucide-react"
+import { Plus, CreditCard, Calendar, Pencil, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getAccounts, getCreditCardSummary, Account, CreditCardTransactionRecord } from "@/lib/api"
+import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, Account, CreditCardTransactionRecord } from "@/lib/api"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet"
@@ -19,6 +19,7 @@ export default function CreditCardPage() {
   const [loading, setLoading] = useState(true)
   const [expensesLoading, setExpensesLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<CreditCardTransactionRecord | null>(null)
 
   useEffect(() => {
     loadAccounts()
@@ -32,6 +33,12 @@ export default function CreditCardPage() {
       setCardSummary(null)
     }
   }, [selectedCardId])
+
+  useEffect(() => {
+    if (!sheetOpen) {
+      setEditingTransaction(null)
+    }
+  }, [sheetOpen])
 
   async function loadAccounts() {
     try {
@@ -63,6 +70,22 @@ export default function CreditCardPage() {
       setCardSummary(null)
     } finally {
       setExpensesLoading(false)
+    }
+  }
+
+  function handleEdit(transaction: CreditCardTransactionRecord) {
+    setEditingTransaction(transaction)
+    setSheetOpen(true)
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Tem certeza que deseja excluir esta transação?")) return
+    
+    try {
+      await deleteCreditCardTransaction(id)
+      if (selectedCardId) loadExpenses(selectedCardId)
+    } catch (error) {
+      console.error("Failed to delete transaction", error)
     }
   }
 
@@ -116,12 +139,13 @@ export default function CreditCardPage() {
                   <TableHead>Descrição</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="w-[100px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cardExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
+                    <TableCell colSpan={5} className="text-center py-4">
                       Nenhuma despesa encontrada para este cartão.
                     </TableCell>
                   </TableRow>
@@ -133,6 +157,14 @@ export default function CreditCardPage() {
                       <TableCell>{expense.category_id || "-"}</TableCell>
                       <TableCell className="text-right">
                         {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense.amount)}
+                      </TableCell>
+                      <TableCell className="flex gap-2 justify-end">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)}>
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
