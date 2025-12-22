@@ -14,38 +14,53 @@ import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expe
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([])
   const [selectedCardId, setSelectedCardId] = useState<string>("")
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>([])
+  const [cardExpenses, setCardExpenses] = useState<ExpenseRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [expensesLoading, setExpensesLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   useEffect(() => {
-    loadData()
+    loadAccounts()
   }, [])
 
-  async function loadData() {
+  useEffect(() => {
+    if (selectedCardId) {
+      loadExpenses(selectedCardId)
+    } else {
+      setCardExpenses([])
+    }
+  }, [selectedCardId])
+
+  async function loadAccounts() {
     try {
-      const allAccounts = await getAccounts()
-      const creditCards = allAccounts.filter(acc => acc.type === "credit_card")
+      const creditCards = await getAccounts({ account_type: "credit_card" })
       setCards(creditCards)
       
       if (creditCards.length > 0 && !selectedCardId) {
         setSelectedCardId(creditCards[0].id)
       }
-
-      const allExpenses = await getExpenses()
-      setExpenses(allExpenses)
     } catch (error) {
-      console.error("Failed to load data", error)
+      console.error("Failed to load accounts", error)
     } finally {
       setLoading(false)
     }
   }
 
+  async function loadExpenses(accountId: string) {
+    setExpensesLoading(true)
+    try {
+      const expenses = await getExpenses({ account: accountId })
+      setCardExpenses(expenses)
+    } catch (error) {
+      console.error("Failed to load expenses", error)
+      setCardExpenses([])
+    } finally {
+      setExpensesLoading(false)
+    }
+  }
+
   const selectedCard = cards.find(c => c.id === selectedCardId)
   
-  // Filter expenses for the selected card
-  const cardExpenses = expenses.filter(e => e.account === selectedCardId)
-
   // Calculate invoice data (mock logic for now as we don't have invoice dates)
   const currentInvoiceValue = cardExpenses.reduce((acc, curr) => acc + curr.amount, 0)
   const availableLimit = selectedCard?.available_limit || 0
@@ -194,7 +209,7 @@ export default function CreditCardPage() {
         cardId={selectedCardId}
         cardName={selectedCard?.name || ""}
         onSuccess={() => {
-          loadData()
+          if (selectedCardId) loadExpenses(selectedCardId)
         }}
       />
     </div>

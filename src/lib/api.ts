@@ -132,9 +132,12 @@ export async function createAccount(input: AccountInput) {
   return apiFetch(`/accounts`, { method: "POST", body: JSON.stringify(input) })
 }
 
-export async function getAccounts(limit?: number): Promise<Array<Account>> {
-  const q = typeof limit === "number" ? `?limit=${limit}` : ""
-  return apiFetch(`/accounts/${q}`, { method: "GET" })
+export async function getAccounts(params?: { limit?: number; account?: string; account_type?: string }): Promise<Array<Account>> {
+  const query = new URLSearchParams()
+  if (params?.limit) query.append("limit", params.limit.toString())
+  if (params?.account) query.append("account", params.account)
+  if (params?.account_type) query.append("account_type", params.account_type)
+  return apiFetch(`/accounts/?${query.toString()}`, { method: "GET" })
 }
 
 export async function getAccount(id: string): Promise<Account> {
@@ -187,12 +190,14 @@ export async function createIncome(input: TransactionInput) {
   return apiFetch(`/incomes/`, { method: "POST", body: JSON.stringify(input) })
 }
 
-export async function getExpenses(): Promise<Array<ExpenseRecord>> {
-  return apiFetch(`/expenses/`, { method: "GET" })
+export async function getExpenses(params?: { account?: string; account_type?: string }): Promise<Array<ExpenseRecord>> {
+  const query = new URLSearchParams(params as Record<string, string>).toString()
+  return apiFetch(`/expenses/?${query}`, { method: "GET" })
 }
 
-export async function getIncomes(): Promise<Array<IncomeRecord>> {
-  return apiFetch(`/incomes/`, { method: "GET" })
+export async function getIncomes(params?: { account?: string; account_type?: string }): Promise<Array<IncomeRecord>> {
+  const query = new URLSearchParams(params as Record<string, string>).toString()
+  return apiFetch(`/incomes/?${query}`, { method: "GET" })
 }
 
 export async function updateExpense(id: string, input: TransactionInput) {
