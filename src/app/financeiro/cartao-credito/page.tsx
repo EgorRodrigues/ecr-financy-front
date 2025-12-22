@@ -247,6 +247,7 @@ export default function CreditCardPage() {
         onOpenChange={setSheetOpen} 
         cardId={selectedCardId}
         cardName={selectedCard?.name || ""}
+        initialData={editingTransaction}
         onSuccess={() => {
           if (selectedCardId) loadExpenses(selectedCardId)
         }}
