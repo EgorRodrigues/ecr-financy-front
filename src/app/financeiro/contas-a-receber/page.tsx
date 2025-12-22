@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, ArrowUpDown, Pencil, Trash2 } from "lucide-react"
+import { Plus, ArrowUpDown, Pencil, Trash2, Eye, Banknote } from "lucide-react"
 import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -271,9 +271,13 @@ export default function ContasAReceberPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openView(d.id)}>Ver</Button>
+                      <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {d.status !== "recebido" && d.status !== "cancelado" && (
-                        <Button size="sm" onClick={() => openReceive(d.id)}>Receber</Button>
+                        <Button variant="ghost" size="icon" onClick={() => openReceive(d.id)}>
+                          <Banknote className="h-4 w-4 text-emerald-600" />
+                        </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
                         <Pencil className="h-4 w-4" />
@@ -302,13 +306,21 @@ export default function ContasAReceberPage() {
               <div className={
                 d.status === "recebido" ? "text-emerald-600" : d.status === "pendente" ? "text-amber-600" : "text-rose-600"
               }>{d.status}</div>
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openView(d.id)}>Ver</Button>
+              <div className="mt-4 flex gap-2 justify-end">
+                <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
+                  <Eye className="h-4 w-4" />
+                </Button>
                 {d.status !== "recebido" && d.status !== "cancelado" && (
-                  <Button size="sm" onClick={() => openReceive(d.id)}>Receber</Button>
+                  <Button variant="ghost" size="icon" onClick={() => openReceive(d.id)}>
+                    <Banknote className="h-4 w-4 text-emerald-600" />
+                  </Button>
                 )}
-                <Button variant="secondary" size="sm" onClick={() => openEdit(d.id)}>Editar</Button>
-                <Button variant="destructive" size="sm" onClick={() => remove(d.id)}>Excluir</Button>
+                <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
               </div>
             </Card>
           ))}
