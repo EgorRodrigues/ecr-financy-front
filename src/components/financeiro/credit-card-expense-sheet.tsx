@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createExpense, getCategories, getSubcategories, getCostCenters, getContacts, type TransactionInput } from "@/lib/api"
+import { createCreditCardTransaction, getCategories, getSubcategories, getCostCenters, getContacts, type CreditCardTransactionInput } from "@/lib/api"
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
@@ -141,34 +141,27 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         
         const requests: Promise<unknown>[] = []
         for (let i = 0; i < n; i++) {
-          // For credit card installments, usually the purchase date is the same, 
-          // but if we want to simulate monthly billing, we might shift due dates?
-          // However, for credit card expenses, the "due_date" on the expense usually maps to when it appears on the invoice.
-          // Let's assume standard behavior: date of purchase is fixed, but maybe we don't shift dates for credit card entries 
-          // in the same way as accounts payable? 
-          // Actually, if I buy something in 3 installments on credit card:
-          // 1st installment: Current invoice
-          // 2nd installment: Next invoice
-          // 3rd installment: Next next invoice
-          // So we should shift the dates (issue_date or due_date?). 
-          // Usually 'issue_date' is the purchase date (constant) and 'due_date' might be used for filtering by month.
-          // Let's stick to the logic from CadastroDespesasPage which shifts dates by month.
-          
           const d = new Date(startDate.getFullYear(), startDate.getMonth() + i, startDate.getDate())
           const dateStr = d.toISOString().slice(0, 10)
           
-          const payload: TransactionInput = {
+          const payload: CreditCardTransactionInput = {
             amount: Math.abs(amounts[i]),
-            status: "pago",
+            status: "pendente",
             issue_date: form.dataEmissao, // Original purchase date
             due_date: dateStr, // Shifted date for invoice allocation
+            payment_date: form.dataEmissao,
+            original_amount: Math.abs(amounts[i]),
+            interest: 0,
+            fine: 0,
+            discount: 0,
+            total_paid: 0,
             category_id: form.categoriaId,
             subcategory_id: form.subcategoriaId,
             cost_center_id: form.centroCustoId,
             contact_id: form.fornecedorClienteId,
             description: [form.descricao || "", `(parcela ${i + 1}/${n})`].filter(Boolean).join(" "),
             document: form.documento ? `${form.documento}-${i + 1}/${n}` : undefined,
-            payment_method: "cartao",
+            // payment_method removed as it triggers validation error if set to "credit_card" and is optional
             account: cardId,
             recurrence: !!form.recorrencia,
             competence: form.competencia,
@@ -177,22 +170,28 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             notes: form.observacoes,
             active: true,
           }
-          requests.push(createExpense(payload))
+          requests.push(createCreditCardTransaction(payload))
         }
         await Promise.all(requests)
       } else {
-        const payload: TransactionInput = {
+        const payload: CreditCardTransactionInput = {
           amount: form.valor,
-          status: "pago",
+          status: "pendente",
           issue_date: form.dataEmissao,
-          due_date: form.dataEmissao, // Same date for single purchase
+          due_date: form.dataEmissao,
+          payment_date: form.dataEmissao,
+          original_amount: form.valor,
+          interest: 0,
+          fine: 0,
+          discount: 0,
+          total_paid: 0,
           category_id: form.categoriaId,
           subcategory_id: form.subcategoriaId,
           cost_center_id: form.centroCustoId,
           contact_id: form.fornecedorClienteId,
           description: form.descricao,
           document: form.documento,
-          payment_method: "cartao",
+          payment_method: "credit_card",
           account: cardId,
           recurrence: !!form.recorrencia,
           competence: form.competencia,
@@ -201,13 +200,13 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
           notes: form.observacoes,
           active: true,
         }
-        await createExpense(payload)
+        await createCreditCardTransaction(payload)
       }
 
       onSuccess?.()
       onOpenChange(false)
     } catch (error) {
-      console.error("Failed to create expense", error)
+      console.error("Failed to create credit card transaction", error)
     } finally {
       setLoading(false)
     }

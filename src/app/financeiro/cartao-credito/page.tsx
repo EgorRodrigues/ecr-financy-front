@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getAccounts, getExpenses, Account, ExpenseRecord } from "@/lib/api"
+import { getAccounts, getCreditCardSummary, Account, CreditCardTransactionRecord } from "@/lib/api"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet"
@@ -14,7 +14,8 @@ import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expe
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([])
   const [selectedCardId, setSelectedCardId] = useState<string>("")
-  const [cardExpenses, setCardExpenses] = useState<ExpenseRecord[]>([])
+  const [cardExpenses, setCardExpenses] = useState<CreditCardTransactionRecord[]>([])
+  const [cardSummary, setCardSummary] = useState<{ total_limit: number; available_limit: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [expensesLoading, setExpensesLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -28,6 +29,7 @@ export default function CreditCardPage() {
       loadExpenses(selectedCardId)
     } else {
       setCardExpenses([])
+      setCardSummary(null)
     }
   }, [selectedCardId])
 
@@ -49,11 +51,16 @@ export default function CreditCardPage() {
   async function loadExpenses(accountId: string) {
     setExpensesLoading(true)
     try {
-      const expenses = await getExpenses({ account: accountId })
-      setCardExpenses(expenses)
+      const summary = await getCreditCardSummary(accountId)
+      setCardExpenses(summary.transactions)
+      setCardSummary({
+        total_limit: summary.total_limit,
+        available_limit: summary.available_limit,
+      })
     } catch (error) {
       console.error("Failed to load expenses", error)
       setCardExpenses([])
+      setCardSummary(null)
     } finally {
       setExpensesLoading(false)
     }
@@ -61,10 +68,10 @@ export default function CreditCardPage() {
 
   const selectedCard = cards.find(c => c.id === selectedCardId)
   
-  // Calculate invoice data (mock logic for now as we don't have invoice dates)
+  // Calculate invoice data
   const currentInvoiceValue = cardExpenses.reduce((acc, curr) => acc + curr.amount, 0)
-  const availableLimit = selectedCard?.available_limit || 0
-  const totalLimit = (selectedCard?.initial_balance || 0) + availableLimit // Just a guess on how limits work here
+  const availableLimit = cardSummary?.available_limit || selectedCard?.available_limit || 0
+  const totalLimit = cardSummary?.total_limit || (selectedCard?.initial_balance || 0) + availableLimit // Fallback
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">

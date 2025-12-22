@@ -216,6 +216,66 @@ export async function deleteIncome(id: string) {
   return apiFetch(`/incomes/${id}`, { method: "DELETE" })
 }
 
+export type CreditCardTransactionInput = {
+  amount: number
+  status: "pendente" | "pago" | "cancelado"
+  issue_date?: string
+  due_date?: string
+  payment_date?: string
+  original_amount?: number
+  interest?: number
+  fine?: number
+  discount?: number
+  total_paid?: number
+  category_id?: string
+  subcategory_id?: string
+  cost_center_id?: string
+  contact_id?: string
+  description?: string
+  document?: string
+  payment_method?: string
+  account?: string
+  recurrence?: boolean
+  competence?: string
+  project?: string
+  tags?: string[]
+  notes?: string
+  active?: boolean
+}
+
+export type CreditCardTransactionRecord = CreditCardTransactionInput & { id: string }
+
+export async function createCreditCardTransaction(input: CreditCardTransactionInput) {
+  return apiFetch(`/credit-card-transactions/`, { method: "POST", body: JSON.stringify(input) })
+}
+
+export async function getCreditCardTransactions(params?: { account?: string }): Promise<Array<CreditCardTransactionRecord>> {
+  const query = new URLSearchParams(params as Record<string, string>).toString()
+  return apiFetch(`/credit-card-transactions/?${query}`, { method: "GET" })
+}
+
+export async function getCreditCardTransaction(id: string): Promise<CreditCardTransactionRecord> {
+  return apiFetch(`/credit-card-transactions/${id}`, { method: "GET" })
+}
+
+export async function updateCreditCardTransaction(id: string, input: CreditCardTransactionInput) {
+  return apiFetch(`/credit-card-transactions/${id}`, { method: "PUT", body: JSON.stringify(input) })
+}
+
+export async function deleteCreditCardTransaction(id: string) {
+  return apiFetch(`/credit-card-transactions/${id}`, { method: "DELETE" })
+}
+
+export type CreditCardSummaryResponse = {
+  total_limit: number
+  available_limit: number
+  transactions: CreditCardTransactionRecord[]
+}
+
+export async function getCreditCardSummary(accountId: string): Promise<CreditCardSummaryResponse> {
+  return apiFetch(`/credit-card-transactions/summary/${accountId}`, { method: "GET" })
+}
+
 export type DashboardResponse = {
   big_numbers: {
     balance: number
