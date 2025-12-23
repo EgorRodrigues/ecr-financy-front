@@ -19,6 +19,8 @@ type ContaForm = {
   numeroCartao?: string
   saldoInicial?: number
   limiteDisponivel?: number
+  diaFechamento?: number
+  diaVencimento?: number
   ativo: boolean
 }
 
@@ -83,6 +85,8 @@ export default function CadastroContasPage() {
         card_number: (form.numeroCartao || "").replace(/\D/g, "") || undefined,
         initial_balance: form.saldoInicial,
         available_limit: form.limiteDisponivel,
+        closing_day: form.diaFechamento,
+        due_day: form.diaVencimento,
         active: form.ativo,
       })
       setMensagem("Conta salva")
@@ -109,6 +113,8 @@ export default function CadastroContasPage() {
             card_number: rec.card_number ?? undefined,
             initial_balance: rec.initial_balance ?? undefined,
             available_limit: rec.available_limit ?? undefined,
+            closing_day: rec.closing_day ?? undefined,
+            due_day: rec.due_day ?? undefined,
             active: rec.active,
           }
         : null,
@@ -206,6 +212,26 @@ export default function CadastroContasPage() {
               <div>
                 <label className="text-xs">Limite disponível</label>
                 <CurrencyInput value={form.limiteDisponivel} onValueChange={(v) => update("limiteDisponivel", v)} />
+              </div>
+              <div>
+                <label className="text-xs">Dia Fechamento</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={form.diaFechamento ?? ""}
+                  onChange={(e) => update("diaFechamento", parseInt(e.target.value) || undefined)}
+                />
+              </div>
+              <div>
+                <label className="text-xs">Dia Vencimento</label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={form.diaVencimento ?? ""}
+                  onChange={(e) => update("diaVencimento", parseInt(e.target.value) || undefined)}
+                />
               </div>
             </>
           )}
@@ -326,6 +352,30 @@ export default function CadastroContasPage() {
                 <div className="text-muted-foreground">Limite disponível</div>
                 <CurrencyInput value={edit.available_limit} onValueChange={(v) => setEdit({ ...edit, available_limit: v })} />
               </div>
+              {edit.type === "credit_card" && (
+                <>
+                  <div>
+                    <div className="text-muted-foreground">Dia Fechamento</div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={edit.closing_day ?? ""}
+                      onChange={(e) => setEdit({ ...edit, closing_day: parseInt(e.target.value) || undefined })}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Dia Vencimento</div>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={edit.due_day ?? ""}
+                      onChange={(e) => setEdit({ ...edit, due_day: parseInt(e.target.value) || undefined })}
+                    />
+                  </div>
+                </>
+              )}
               <div>
                 <div className="text-muted-foreground">Ativo</div>
                 <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>

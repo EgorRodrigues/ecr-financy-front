@@ -111,6 +111,8 @@ export type AccountInput = {
   card_number?: string
   initial_balance?: number
   available_limit?: number
+  closing_day?: number
+  due_day?: number
   active?: boolean
 }
 
@@ -123,6 +125,8 @@ export type Account = {
   card_number?: string | null
   initial_balance?: number | null
   available_limit?: number | null
+  closing_day?: number | null
+  due_day?: number | null
   created_at: string
   updated_at: string
   active: boolean
