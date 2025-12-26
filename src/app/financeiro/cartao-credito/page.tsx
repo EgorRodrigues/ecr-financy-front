@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, Account, CreditCardTransactionRecord } from "@/lib/api"
+import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, Account, CreditCardTransactionRecord, Invoice } from "@/lib/api"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet"
@@ -16,6 +16,8 @@ export default function CreditCardPage() {
   const [selectedCardId, setSelectedCardId] = useState<string>("")
   const [cardExpenses, setCardExpenses] = useState<CreditCardTransactionRecord[]>([])
   const [cardSummary, setCardSummary] = useState<{ total_limit: number; available_limit: number } | null>(null)
+  const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null)
+  const [nextInvoices, setNextInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
   const [expensesLoading, setExpensesLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -31,6 +33,8 @@ export default function CreditCardPage() {
     } else {
       setCardExpenses([])
       setCardSummary(null)
+      setCurrentInvoice(null)
+      setNextInvoices([])
     }
   }, [selectedCardId])
 
@@ -64,10 +68,14 @@ export default function CreditCardPage() {
         total_limit: summary.total_limit,
         available_limit: summary.available_limit,
       })
+      setCurrentInvoice(summary.current_invoice || null)
+      setNextInvoices(summary.next_invoices || [])
     } catch (error) {
       console.error("Failed to load expenses", error)
       setCardExpenses([])
       setCardSummary(null)
+      setCurrentInvoice(null)
+      setNextInvoices([])
     } finally {
       setExpensesLoading(false)
     }
@@ -92,7 +100,7 @@ export default function CreditCardPage() {
   const selectedCard = cards.find(c => c.id === selectedCardId)
   
   // Calculate invoice data
-  const currentInvoiceValue = cardExpenses.reduce((acc, curr) => acc + curr.amount, 0)
+  const currentInvoiceValue = currentInvoice?.amount || 0
   const availableLimit = cardSummary?.available_limit || selectedCard?.available_limit || 0
   const totalLimit = cardSummary?.total_limit || (selectedCard?.initial_balance || 0) + availableLimit // Fallback
 
@@ -188,7 +196,7 @@ export default function CreditCardPage() {
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(currentInvoiceValue)}
                 </div>
                 <div className="text-xs text-muted-foreground mt-2">
-                  Vence em {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
+                  Vence em {currentInvoice?.due_date ? format(new Date(currentInvoice.due_date), "dd 'de' MMMM", { locale: ptBR }) : "-"}
                 </div>
               </CardContent>
             </Card>
@@ -223,15 +231,20 @@ export default function CreditCardPage() {
                 Próximas Faturas
               </h3>
               <div className="space-y-3">
-                {/* Mock future invoices */}
-                <div className="flex justify-between text-sm p-2 bg-background rounded border">
-                  <span>Fev/2026</span>
-                  <span className="text-muted-foreground">R$ 0,00</span>
-                </div>
-                <div className="flex justify-between text-sm p-2 bg-background rounded border">
-                  <span>Mar/2026</span>
-                  <span className="text-muted-foreground">R$ 0,00</span>
-                </div>
+                {nextInvoices.length > 0 ? (
+                  nextInvoices.map((invoice) => (
+                    <div key={invoice.id} className="flex justify-between text-sm p-2 bg-background rounded border">
+                      <span className="capitalize">{format(new Date(invoice.due_date), "MMM/yyyy", { locale: ptBR })}</span>
+                      <span className="text-muted-foreground">
+                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(invoice.amount)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-muted-foreground text-center py-2">
+                    Nenhuma fatura futura
+                  </div>
+                )}
               </div>
             </div>
           </div>

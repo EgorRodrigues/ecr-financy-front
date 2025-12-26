@@ -245,6 +245,7 @@ export type CreditCardTransactionInput = {
   tags?: string[]
   notes?: string
   active?: boolean
+  invoice_id?: string
 }
 
 export type CreditCardTransactionRecord = CreditCardTransactionInput & { id: string }
@@ -270,10 +271,24 @@ export async function deleteCreditCardTransaction(id: string) {
   return apiFetch(`/credit-card-transactions/${id}`, { method: "DELETE" })
 }
 
+export type Invoice = {
+  id: string
+  account_id: string
+  period_start: string
+  period_end: string
+  due_date: string
+  amount: number
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export type CreditCardSummaryResponse = {
   total_limit: number
   available_limit: number
   transactions: CreditCardTransactionRecord[]
+  current_invoice?: Invoice
+  next_invoices: Invoice[]
 }
 
 export async function getCreditCardSummary(accountId: string): Promise<CreditCardSummaryResponse> {
