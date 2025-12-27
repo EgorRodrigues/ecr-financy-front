@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, Account, CreditCardTransactionRecord, Invoice } from "@/lib/api"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet"
 
@@ -160,7 +160,7 @@ export default function CreditCardPage() {
                 ) : (
                   cardExpenses.map(expense => (
                     <TableRow key={expense.id}>
-                      <TableCell>{expense.issue_date ? format(new Date(expense.issue_date), "dd/MM/yyyy") : "-"}</TableCell>
+                      <TableCell>{expense.issue_date ? format(parseISO(expense.issue_date), "dd/MM/yyyy") : "-"}</TableCell>
                       <TableCell>{expense.description}</TableCell>
                       <TableCell>{expense.category_id || "-"}</TableCell>
                       <TableCell className="text-right">
@@ -196,7 +196,7 @@ export default function CreditCardPage() {
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(currentInvoiceValue)}
                 </div>
                 <div className="text-xs text-muted-foreground mt-2">
-                  Vence em {currentInvoice?.due_date ? format(new Date(currentInvoice.due_date), "dd 'de' MMMM", { locale: ptBR }) : "-"}
+                  Vence em {currentInvoice?.due_date ? format(parseISO(currentInvoice.due_date), "dd 'de' MMMM", { locale: ptBR }) : "-"}
                 </div>
               </CardContent>
             </Card>
@@ -234,7 +234,7 @@ export default function CreditCardPage() {
                 {nextInvoices.length > 0 ? (
                   nextInvoices.map((invoice) => (
                     <div key={invoice.id} className="flex justify-between text-sm p-2 bg-background rounded border">
-                      <span className="capitalize">{format(new Date(invoice.due_date), "MMM/yyyy", { locale: ptBR })}</span>
+                      <span className="capitalize">{format(parseISO(invoice.due_date), "MMM/yyyy", { locale: ptBR })}</span>
                       <span className="text-muted-foreground">
                         {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(invoice.amount)}
                       </span>
