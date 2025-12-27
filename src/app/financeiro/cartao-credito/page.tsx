@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, Account, CreditCardTransactionRecord, Invoice } from "@/lib/api"
+import { getAccounts, getCreditCardSummary, deleteCreditCardTransaction, getCategories, Account, CreditCardTransactionRecord, Invoice } from "@/lib/api"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet"
@@ -18,6 +18,8 @@ export default function CreditCardPage() {
   const [cardSummary, setCardSummary] = useState<{ total_limit: number; available_limit: number } | null>(null)
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null)
   const [nextInvoices, setNextInvoices] = useState<Invoice[]>([])
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [expensesLoading, setExpensesLoading] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -25,6 +27,7 @@ export default function CreditCardPage() {
 
   useEffect(() => {
     loadAccounts()
+    loadCategories()
   }, [])
 
   useEffect(() => {
@@ -35,6 +38,7 @@ export default function CreditCardPage() {
       setCardSummary(null)
       setCurrentInvoice(null)
       setNextInvoices([])
+      setSelectedInvoiceId(null)
     }
   }, [selectedCardId])
 
@@ -59,6 +63,15 @@ export default function CreditCardPage() {
     }
   }
 
+  async function loadCategories() {
+    try {
+      const data = await getCategories()
+      setCategories(data)
+    } catch (error) {
+      console.error("Failed to load categories", error)
+    }
+  }
+
   async function loadExpenses(accountId: string) {
     setExpensesLoading(true)
     try {
@@ -70,12 +83,14 @@ export default function CreditCardPage() {
       })
       setCurrentInvoice(summary.current_invoice || null)
       setNextInvoices(summary.next_invoices || [])
+      setSelectedInvoiceId(summary.current_invoice?.id || null)
     } catch (error) {
       console.error("Failed to load expenses", error)
       setCardExpenses([])
       setCardSummary(null)
       setCurrentInvoice(null)
       setNextInvoices([])
+      setSelectedInvoiceId(null)
     } finally {
       setExpensesLoading(false)
     }
@@ -103,6 +118,10 @@ export default function CreditCardPage() {
   const currentInvoiceValue = currentInvoice?.amount || 0
   const availableLimit = cardSummary?.available_limit || selectedCard?.available_limit || 0
   const totalLimit = cardSummary?.total_limit || (selectedCard?.initial_balance || 0) + availableLimit // Fallback
+
+  const filteredExpenses = selectedInvoiceId
+    ? cardExpenses.filter(expense => expense.invoice_id === selectedInvoiceId)
+    : cardExpenses
 
   return (
     <div className="flex h-[calc(100vh-4rem)]">
@@ -151,18 +170,18 @@ export default function CreditCardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cardExpenses.length === 0 ? (
+                {filteredExpenses.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-4">
-                      Nenhuma despesa encontrada para este cartão.
+                      {selectedInvoiceId ? "Nenhuma despesa nesta fatura." : "Nenhuma despesa encontrada para este cartão."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  cardExpenses.map(expense => (
+                  filteredExpenses.map(expense => (
                     <TableRow key={expense.id}>
                       <TableCell>{expense.issue_date ? format(parseISO(expense.issue_date), "dd/MM/yyyy") : "-"}</TableCell>
                       <TableCell>{expense.description}</TableCell>
-                      <TableCell>{expense.category_id || "-"}</TableCell>
+                      <TableCell>{categories.find(c => c.id === expense.category_id)?.name || expense.category_id || "-"}</TableCell>
                       <TableCell className="text-right">
                         {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense.amount)}
                       </TableCell>
@@ -189,7 +208,10 @@ export default function CreditCardPage() {
         
         {selectedCard ? (
           <div className="space-y-6">
-            <Card>
+            <Card 
+              className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === currentInvoice?.id ? "border-primary ring-1 ring-primary" : ""}`}
+              onClick={() => currentInvoice && setSelectedInvoiceId(currentInvoice.id)}
+            >
               <CardContent className="pt-6">
                 <div className="text-sm text-muted-foreground mb-1">Fatura Atual</div>
                 <div className="text-2xl font-bold text-primary">
@@ -233,7 +255,11 @@ export default function CreditCardPage() {
               <div className="space-y-3">
                 {nextInvoices.length > 0 ? (
                   nextInvoices.map((invoice) => (
-                    <div key={invoice.id} className="flex justify-between text-sm p-2 bg-background rounded border">
+                    <div 
+                      key={invoice.id} 
+                      className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
+                      onClick={() => setSelectedInvoiceId(invoice.id)}
+                    >
                       <span className="capitalize">{format(parseISO(invoice.due_date), "MMM/yyyy", { locale: ptBR })}</span>
                       <span className="text-muted-foreground">
                         {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(invoice.amount)}
