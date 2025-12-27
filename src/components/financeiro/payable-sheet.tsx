@@ -278,7 +278,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
         </SheetHeader>
         <div className="space-y-4 p-4">
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Valor</label>
               <Input 
@@ -303,7 +303,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Emissão</label>
               <Input 
@@ -331,7 +331,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria</label>
               <Select value={form.categoriaId} onValueChange={(v) => update("categoriaId", v)}>
@@ -376,7 +376,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              <div className="space-y-2">
               <label className="text-sm font-medium">Forma de Pagto</label>
               <Select value={form.formaPagamento} onValueChange={(v) => update("formaPagamento", v)}>
@@ -422,7 +422,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Parcelado?</label>
               <Select 

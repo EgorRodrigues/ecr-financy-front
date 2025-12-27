@@ -257,7 +257,7 @@ export default function ContasAPagarPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(displayData)
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-4rem)]">
       <div className="flex-1 p-6 overflow-auto space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">Contas a Pagar</h2>
@@ -270,9 +270,10 @@ export default function ContasAPagarPage() {
 
         {view === "tabela" ? (
           <Card className="p-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead onClick={() => requestSort("displayFornecedor")} className="cursor-pointer hover:bg-muted/50 transition-colors">
                     Fornecedor {sortConfig?.key === "displayFornecedor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
                   </TableHead>
@@ -329,6 +330,7 @@ export default function ContasAPagarPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -372,7 +374,7 @@ export default function ContasAPagarPage() {
         )}
       </div>
 
-      <div className="w-80 border-l bg-muted/30 p-6 overflow-auto">
+      <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l bg-muted/30 p-6 overflow-auto">
         <h2 className="text-lg font-semibold mb-4">Resumo Mensal</h2>
         
         <div className="space-y-6">
@@ -419,15 +421,15 @@ export default function ContasAPagarPage() {
           <SheetHeader>
             <SheetTitle>{mode === "view" ? "Visualizar" : mode === "edit" ? "Editar" : "Pagar"}</SheetTitle>
           </SheetHeader>
-          {mode === "view" && selected && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-              <div className="col-span-2">
+          {selected && mode === "view" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Fornecedor</div>
-                <div>{contactMap[selected.contact_id || ""] || selected.contact_id || ""}</div>
+                <div className="font-semibold">{contactsList.find(c => c.id === selected.contact_id)?.name || "-"}</div>
               </div>
-              <div>
-                <div className="text-muted-foreground">Valor</div>
-                <div>{(selected.amount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              <div className="col-span-1 sm:col-span-2">
+                <div className="text-muted-foreground">Valor Original</div>
+                <div className="text-lg font-bold">{(selected.amount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Status</div>

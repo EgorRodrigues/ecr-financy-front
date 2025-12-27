@@ -124,12 +124,12 @@ export default function CreditCardPage() {
     : cardExpenses
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
       {/* Main Content */}
-      <div className="flex-1 p-6 overflow-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="flex-1 p-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold">Despesas no Cartão</h1>
-          <Button onClick={() => setSheetOpen(true)} disabled={!selectedCardId}>
+          <Button onClick={() => setSheetOpen(true)} disabled={!selectedCardId} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Lançar Despesa
           </Button>
@@ -138,7 +138,7 @@ export default function CreditCardPage() {
         <div className="mb-6">
           <label className="text-sm font-medium mb-2 block">Selecione o Cartão</label>
           <Select value={selectedCardId} onValueChange={setSelectedCardId}>
-            <SelectTrigger className="w-[300px]">
+            <SelectTrigger className="w-full sm:w-[300px]">
               <SelectValue placeholder="Selecione um cartão" />
             </SelectTrigger>
             <SelectContent>
@@ -159,51 +159,53 @@ export default function CreditCardPage() {
             <CardTitle>Histórico de Compras</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead className="w-[100px]">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredExpenses.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4">
-                      {selectedInvoiceId ? "Nenhuma despesa nesta fatura." : "Nenhuma despesa encontrada para este cartão."}
-                    </TableCell>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
-                ) : (
-                  filteredExpenses.map(expense => (
-                    <TableRow key={expense.id}>
-                      <TableCell>{expense.issue_date ? format(parseISO(expense.issue_date), "dd/MM/yyyy") : "-"}</TableCell>
-                      <TableCell>{expense.description}</TableCell>
-                      <TableCell>{categories.find(c => c.id === expense.category_id)?.name || expense.category_id || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense.amount)}
-                      </TableCell>
-                      <TableCell className="flex gap-2 justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {filteredExpenses.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        {selectedInvoiceId ? "Nenhuma despesa nesta fatura." : "Nenhuma despesa encontrada para este cartão."}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    filteredExpenses.map(expense => (
+                      <TableRow key={expense.id}>
+                        <TableCell>{expense.issue_date ? format(parseISO(expense.issue_date), "dd/MM/yyyy") : "-"}</TableCell>
+                        <TableCell>{expense.description}</TableCell>
+                        <TableCell>{categories.find(c => c.id === expense.category_id)?.name || expense.category_id || "-"}</TableCell>
+                        <TableCell className="text-right">
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(expense.amount)}
+                        </TableCell>
+                        <TableCell className="flex gap-2 justify-end">
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(expense)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(expense.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Side Panel */}
-      <div className="w-80 border-l bg-muted/30 p-6 overflow-auto">
+      <div className="w-full md:w-80 border-t md:border-l md:border-t-0 bg-muted/30 p-6">
         <h2 className="text-lg font-semibold mb-4">Resumo da Fatura</h2>
         
         {selectedCard ? (

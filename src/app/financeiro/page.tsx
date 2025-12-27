@@ -9,6 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { getDashboard } from "@/lib/api"
 import { useSort } from "@/hooks/use-sort"
 import { ArrowUpDown } from "lucide-react"
@@ -42,7 +49,7 @@ function MonthlyBarChart({ data }: { data: MonthlyAgg[] }) {
   const barWidth = Math.max(6, (groupWidth - innerGap) / 2)
   return (
     <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] w-full">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] min-w-[700px]">
         <rect x={padding} y={padding} width={chartWidth} height={chartHeight} fill="#ffffff" />
         {data.map((d, i) => {
           const gx = padding + i * groupWidth
@@ -147,16 +154,17 @@ export default function DashboardPage() {
           <div className="text-sm font-medium">Entradas vs Saídas por mês</div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Período</span>
-            <select
-              value={monthsCount}
-              onChange={(e) => setMonthsCount(Number(e.target.value))}
-              className="h-8 rounded-md border border-gray-200 bg-white px-2 text-sm outline-none"
-            >
-              <option value={3}>3 meses</option>
-              <option value={6}>6 meses</option>
-              <option value={9}>9 meses</option>
-              <option value={12}>12 meses</option>
-            </select>
+            <Select value={String(monthsCount)} onValueChange={(v) => setMonthsCount(Number(v))}>
+              <SelectTrigger className="h-8 w-[120px]">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="3">3 meses</SelectItem>
+                <SelectItem value="6">6 meses</SelectItem>
+                <SelectItem value="9">9 meses</SelectItem>
+                <SelectItem value="12">12 meses</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <MonthlyBarChart data={monthly} />
@@ -164,8 +172,9 @@ export default function DashboardPage() {
 
       <Card className="p-4">
         <div className="mb-3 text-sm font-medium">Transações recentes</div>
-        <Table>
-          <TableHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
             <TableRow>
               <TableHead onClick={() => requestSort("date")} className="cursor-pointer hover:bg-muted/50 transition-colors">
                 Data {sortConfig?.key === "date" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
@@ -204,6 +213,7 @@ export default function DashboardPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   )

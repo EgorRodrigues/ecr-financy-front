@@ -15,15 +15,26 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
+import { NavUser } from "@/components/layout/nav-user"
+import { SearchForm } from "@/components/layout/search-form"
+
+const data = {
+  user: {
+    name: "Usuario",
+    email: "usuario@exemplo.com",
+    avatar: "/avatars/shadcn.jpg",
+  },
+}
 
 export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2">
-          <ReceiptText className="size-5" />
-          <span className="text-sm font-semibold">Financy</span>
+        <div className="flex items-center gap-2 px-2 py-2">
+          <ReceiptText className="size-6" />
+          <span className="text-base font-semibold">Financy</span>
         </div>
+        <SearchForm />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -159,7 +170,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-2 text-xs text-sidebar-foreground/70">Ctrl+B para ocultar</div>
+        <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
   )

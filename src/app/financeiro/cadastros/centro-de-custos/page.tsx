@@ -4,6 +4,8 @@ import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createCostCenter, getCostCenters, updateCostCenter, deleteCostCenter, type CostCenterInput } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
 import { useSort } from "@/hooks/use-sort"
@@ -115,19 +117,20 @@ export default function CadastroCentroCustosPage() {
           </div>
           <div>
             <label className="text-xs">Ativo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.ativo ? "true" : "false"}
-              onChange={(e) => update("ativo", e.target.value === "true")}
-            >
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
+            <Select value={form.ativo ? "true" : "false"} onValueChange={(v) => update("ativo", v === "true")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Sim</SelectItem>
+                <SelectItem value="false">Não</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="md:col-span-2">
             <label className="text-xs">Descrição</label>
-            <textarea
-              className="bg-background h-24 w-full rounded-md border px-2 py-2 text-sm"
+            <Textarea
+              className="h-24 resize-none"
               value={form.descricao}
               onChange={(e) => update("descricao", e.target.value)}
             />
@@ -137,6 +140,7 @@ export default function CadastroCentroCustosPage() {
 
       <Card className="p-4">
         <div className="mb-2 text-sm font-medium">Centros de custos cadastrados</div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
@@ -177,15 +181,16 @@ export default function CadastroCentroCustosPage() {
             )}
           </tbody>
         </table>
+        </div>
       </Card>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="max-w-xl h-full overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Editar Centro de Custos</SheetTitle>
           </SheetHeader>
           {edit && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
               <div>
                 <div className="text-muted-foreground">Código</div>
                 <Input value={edit.code || ""} onChange={(e) => setEdit({ ...edit, code: e.target.value })} />
@@ -194,16 +199,21 @@ export default function CadastroCentroCustosPage() {
                 <div className="text-muted-foreground">Nome</div>
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
-                <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
+                <Textarea className="h-24 resize-none" value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Ativo</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+                <Select value={String(edit.active)} onValueChange={(v) => setEdit({ ...edit, active: v === "true" })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Sim</SelectItem>
+                    <SelectItem value="false">Não</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

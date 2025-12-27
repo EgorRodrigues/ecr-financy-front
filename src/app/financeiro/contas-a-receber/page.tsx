@@ -5,6 +5,7 @@ import { useEffect, useState, startTransition, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Combobox } from "@/components/ui/combobox"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
 import { ReceivableSheet } from "@/components/financeiro/receivable-sheet"
@@ -256,7 +257,7 @@ export default function ContasAReceberPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(displayData)
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-4rem)]">
       <div className="flex-1 p-6 overflow-auto space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">Contas a Receber</h2>
@@ -269,9 +270,10 @@ export default function ContasAReceberPage() {
 
         {view === "tabela" ? (
           <Card className="p-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead onClick={() => requestSort("displayCliente")} className="cursor-pointer hover:bg-muted/50 transition-colors">
                     Cliente {sortConfig?.key === "displayCliente" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
                   </TableHead>
@@ -328,6 +330,7 @@ export default function ContasAReceberPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -414,13 +417,13 @@ export default function ContasAReceberPage() {
       </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="max-w-xl h-full overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{mode === "view" ? "Visualizar" : mode === "edit" ? "Editar" : "Receber"}</SheetTitle>
           </SheetHeader>
           {mode === "view" && selected && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Cliente</div>
                 <div>{contactMap[selected.contact_id || ""] || selected.contact_id || ""}</div>
               </div>
@@ -464,7 +467,7 @@ export default function ContasAReceberPage() {
                 <div className="text-muted-foreground">Total Recebido</div>
                 <div>{(selected.total_received ?? selected.total_paid ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
                 <div>{selected.description || ""}</div>
               </div>
@@ -488,37 +491,33 @@ export default function ContasAReceberPage() {
                 <div className="text-muted-foreground">Projeto</div>
                 <div>{selected.project || ""}</div>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Tags</div>
                 <div>{(selected.tags || []).join(", ")}</div>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Observações</div>
                 <div>{selected.notes || ""}</div>
               </div>
             </div>
           )}
           {mode === "edit" && edit && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Cliente</div>
                 <div className="flex items-center gap-1">
-                  <select 
-                    className="bg-background h-9 w-full rounded-md border px-2" 
-                    value={edit.contact_id || ""} 
-                    onChange={(e) => setEdit({ ...edit, contact_id: e.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {contactsList.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <Combobox
+                    options={contactsList.map(c => ({ label: c.name, value: c.id }))}
+                    value={edit.contact_id || ""}
+                    onChange={(val) => setEdit({ ...edit, contact_id: val })}
+                    placeholder="Selecione o cliente..."
+                  />
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setContactSheetOpen(true)} title="Novo Cliente">
                     <Plus className="h-4 w-4 text-emerald-600" />
                   </Button>
                 </div>
               </div>
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Valor</div>
                 <CurrencyInput value={edit.amount ?? 0} onValueChange={(v) => setEdit({ ...edit, amount: v })} />
               </div>
@@ -618,7 +617,7 @@ export default function ContasAReceberPage() {
                 <Input value={edit.payment_method || ""} onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })} />
               </div>
 
-              <div className="col-span-2">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Observações</div>
                 <Input value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
               </div>

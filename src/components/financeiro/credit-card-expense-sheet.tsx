@@ -277,7 +277,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
         </SheetHeader>
         <div className="space-y-4 p-4">
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Valor</label>
               <Input 
@@ -306,7 +306,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria</label>
               <Select value={form.categoriaId} onValueChange={(v) => update("categoriaId", v)}>
@@ -373,7 +373,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Competência</label>
               <Input 
@@ -401,7 +401,7 @@ export function CreditCardExpenseSheet({ open, onOpenChange, cardId, cardName, o
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Parcelado?</label>
               <Select 

@@ -149,7 +149,7 @@ export function ContactSheet({ open, onOpenChange, onSuccess, defaultType = "sup
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="max-w-xl h-full overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Novo {form.tipo === "fornecedor" ? "Fornecedor" : "Cliente"}</SheetTitle>
         </SheetHeader>

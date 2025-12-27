@@ -6,8 +6,10 @@ import { useSort } from "@/hooks/use-sort"
 import { ArrowUpDown, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createContact, getContacts, updateContact, deleteContact, type ContactInput, type Contact } from "@/lib/api"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
 
 type Party = {
   id: string
@@ -229,49 +231,52 @@ export default function CadastroFornecedoresClientesPage() {
       <Card className="p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="text-xs">Tipo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.tipo}
-              onChange={(e) => update("tipo", e.target.value as Party["tipo"])}
-            >
-              <option value="fornecedor">Fornecedor</option>
-              <option value="cliente">Cliente</option>
-            </select>
+            <label className="text-xs mb-1 block">Tipo</label>
+            <Select value={form.tipo} onValueChange={(v) => update("tipo", v as Party["tipo"])}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                <SelectItem value="cliente">Cliente</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <label className="text-xs">Pessoa</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.pessoa}
-              onChange={(e) => update("pessoa", e.target.value as Party["pessoa"])}
-            >
-              <option value="fisica">Pessoa Física</option>
-              <option value="juridica">Pessoa Jurídica</option>
-            </select>
+            <label className="text-xs mb-1 block">Pessoa</label>
+            <Select value={form.pessoa} onValueChange={(v) => update("pessoa", v as Party["pessoa"])}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fisica">Pessoa Física</SelectItem>
+                <SelectItem value="juridica">Pessoa Jurídica</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <label className="text-xs">Nome</label>
+            <label className="text-xs mb-1 block">Nome</label>
             <Input value={form.nome} onChange={(e) => update("nome", e.target.value)} />
           </div>
 
           <div>
-            <label className="text-xs">Ativo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.ativo ? "true" : "false"}
-              onChange={(e) => update("ativo", e.target.value === "true")}
-            >
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
+            <label className="text-xs mb-1 block">Ativo</label>
+            <Select value={form.ativo ? "true" : "false"} onValueChange={(v) => update("ativo", v === "true")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Sim</SelectItem>
+                <SelectItem value="false">Não</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {form.pessoa === "fisica" && (
             <div>
-              <label className="text-xs">CPF</label>
+              <label className="text-xs mb-1 block">CPF</label>
               <Input
                 inputMode="numeric"
                 value={form.cpf ?? ""}
@@ -282,7 +287,7 @@ export default function CadastroFornecedoresClientesPage() {
 
           {form.pessoa === "juridica" && (
             <div>
-              <label className="text-xs">CNPJ</label>
+              <label className="text-xs mb-1 block">CNPJ</label>
               <Input
                 inputMode="numeric"
                 value={form.cnpj ?? ""}
@@ -292,24 +297,24 @@ export default function CadastroFornecedoresClientesPage() {
           )}
 
           <div>
-            <label className="text-xs">E-mail</label>
+            <label className="text-xs mb-1 block">E-mail</label>
             <Input type="email" value={form.email ?? ""} onChange={(e) => update("email", e.target.value)} />
           </div>
 
           <div>
-            <label className="text-xs">Telefone</label>
+            <label className="text-xs mb-1 block">Telefone</label>
             <Input inputMode="tel" value={form.telefone ?? ""} onChange={(e) => update("telefone", formatPhone(e.target.value))} />
           </div>
 
           <div className="md:col-span-2">
-            <label className="text-xs">Endereço</label>
+            <label className="text-xs mb-1 block">Endereço</label>
             <Input value={form.endereco ?? ""} onChange={(e) => update("endereco", e.target.value)} />
           </div>
 
           <div className="md:col-span-2">
-            <label className="text-xs">Observações</label>
-            <textarea
-              className="bg-background h-24 w-full rounded-md border px-2 py-2 text-sm"
+            <label className="text-xs mb-1 block">Observações</label>
+            <Textarea
+              className="h-24 resize-none"
               value={form.observacoes ?? ""}
               onChange={(e) => update("observacoes", e.target.value)}
             />
@@ -319,92 +324,104 @@ export default function CadastroFornecedoresClientesPage() {
 
       <Card className="p-4">
         <div className="mb-2 text-sm font-medium">Contatos cadastrados</div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b">
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayType")}>
-                Tipo {sortConfig?.key === "displayType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayPersonType")}>
-                Pessoa {sortConfig?.key === "displayPersonType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("name")}>
-                Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("document")}>
-                Documento {sortConfig?.key === "document" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("phone_local")}>
-                Telefone {sortConfig?.key === "phone_local" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("email")}>
-                E-mail {sortConfig?.key === "email" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("displayActive")}>
-                Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-              </th>
-              <th className="p-2 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedItems.map((i) => (
-              <tr key={i.id} className="border-b">
-                <td className="p-2">{i.displayType}</td>
-                <td className="p-2">{i.displayPersonType}</td>
-                <td className="p-2">{i.name}</td>
-                <td className="p-2">{i.document || "-"}</td>
-                <td className="p-2">{i.phone_local || "-"}</td>
-                <td className="p-2">{i.email || "-"}</td>
-                <td className="p-2">{i.displayActive}</td>
-                <td className="p-2">
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(i.id)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(i.id)}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("displayType")}>
+                  Tipo {sortConfig?.key === "displayType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("displayPersonType")}>
+                  Pessoa {sortConfig?.key === "displayPersonType" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("name")}>
+                  Nome {sortConfig?.key === "name" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("document")}>
+                  Documento {sortConfig?.key === "document" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("phone_local")}>
+                  Telefone {sortConfig?.key === "phone_local" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("email")}>
+                  E-mail {sortConfig?.key === "email" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors whitespace-nowrap" onClick={() => requestSort("displayActive")}>
+                  Ativo {sortConfig?.key === "displayActive" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                </th>
+                <th className="p-2 text-right whitespace-nowrap">Ações</th>
               </tr>
-            ))}
-            {items.length === 0 && (
-              <tr>
-                <td className="p-2 text-center text-muted-foreground" colSpan={8}>Nenhum contato cadastrado</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sortedItems.map((i) => (
+                <tr key={i.id} className="border-b">
+                  <td className="p-2 whitespace-nowrap">{i.displayType}</td>
+                  <td className="p-2 whitespace-nowrap">{i.displayPersonType}</td>
+                  <td className="p-2 whitespace-nowrap">{i.name}</td>
+                  <td className="p-2 whitespace-nowrap">{i.document || "-"}</td>
+                  <td className="p-2 whitespace-nowrap">{i.phone_local || "-"}</td>
+                  <td className="p-2 whitespace-nowrap">{i.email || "-"}</td>
+                  <td className="p-2 whitespace-nowrap">{i.displayActive}</td>
+                  <td className="p-2 whitespace-nowrap">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(i.id)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => remove(i.id)}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr>
+                  <td className="p-2 text-center text-muted-foreground" colSpan={8}>Nenhum contato cadastrado</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="max-w-xl h-full overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Editar Contato</SheetTitle>
           </SheetHeader>
           {edit && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
               <div>
-                <div className="text-muted-foreground">Tipo</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value as ContactInput["type"] })}>
-                  <option value="supplier">Fornecedor</option>
-                  <option value="customer">Cliente</option>
-                </select>
+                <div className="text-muted-foreground mb-1">Tipo</div>
+                <Select value={edit.type} onValueChange={(v) => setEdit({ ...edit, type: v as ContactInput["type"] })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="supplier">Fornecedor</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
-                <div className="text-muted-foreground">Pessoa</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.person_type} onChange={(e) => setEdit({ ...edit, person_type: e.target.value as ContactInput["person_type"] })}>
-                  <option value="individual">Física</option>
-                  <option value="company">Jurídica</option>
-                </select>
+                <div className="text-muted-foreground mb-1">Pessoa</div>
+                <Select value={edit.person_type} onValueChange={(v) => setEdit({ ...edit, person_type: v as ContactInput["person_type"] })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="individual">Física</SelectItem>
+                    <SelectItem value="company">Jurídica</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="col-span-2">
-                <div className="text-muted-foreground">Nome</div>
+              <div className="col-span-1 sm:col-span-2">
+                <div className="text-muted-foreground mb-1">Nome</div>
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
               {edit.person_type === "individual" && (
-                <div className="col-span-2">
-                  <div className="text-muted-foreground">CPF</div>
+                <div className="col-span-1 sm:col-span-2">
+                  <div className="text-muted-foreground mb-1">CPF</div>
                   <Input
                     inputMode="numeric"
                     value={edit.document || ""}
@@ -413,8 +430,8 @@ export default function CadastroFornecedoresClientesPage() {
                 </div>
               )}
               {edit.person_type === "company" && (
-                <div className="col-span-2">
-                  <div className="text-muted-foreground">CNPJ</div>
+                <div className="col-span-1 sm:col-span-2">
+                  <div className="text-muted-foreground mb-1">CNPJ</div>
                   <Input
                     inputMode="numeric"
                     value={edit.document || ""}
@@ -423,27 +440,32 @@ export default function CadastroFornecedoresClientesPage() {
                 </div>
               )}
               <div>
-                <div className="text-muted-foreground">E-mail</div>
+                <div className="text-muted-foreground mb-1">E-mail</div>
                 <Input type="email" value={edit.email || ""} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
               </div>
               <div>
-                <div className="text-muted-foreground">Telefone</div>
+                <div className="text-muted-foreground mb-1">Telefone</div>
                 <Input inputMode="tel" value={edit.phone_local || ""} onChange={(e) => setEdit({ ...edit, phone_local: formatPhone(e.target.value) })} />
               </div>
-              <div className="col-span-2">
-                <div className="text-muted-foreground">Endereço</div>
+              <div className="col-span-1 sm:col-span-2">
+                <div className="text-muted-foreground mb-1">Endereço</div>
                 <Input value={edit.address || ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
               </div>
-              <div className="col-span-2">
-                <div className="text-muted-foreground">Observações</div>
-                <Input value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+              <div className="col-span-1 sm:col-span-2">
+                <div className="text-muted-foreground mb-1">Observações</div>
+                <Textarea className="h-24 resize-none" value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
               </div>
               <div>
-                <div className="text-muted-foreground">Ativo</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+                <div className="text-muted-foreground mb-1">Ativo</div>
+                <Select value={String(edit.active)} onValueChange={(v) => setEdit({ ...edit, active: v === "true" })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Sim</SelectItem>
+                    <SelectItem value="false">Não</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createAccount, getAccounts, updateAccount, deleteAccount, type AccountInput, type Account } from "@/lib/api"
 import { useSort } from "@/hooks/use-sort"
 import { ArrowUpDown, Pencil, Trash2 } from "lucide-react"
@@ -163,26 +164,28 @@ export default function CadastroContasPage() {
           </div>
           <div>
             <label className="text-xs">Tipo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.tipo}
-              onChange={(e) => update("tipo", e.target.value as ContaForm["tipo"])}
-            >
-              <option value="banco">Banco</option>
-              <option value="cartao">Cartão de Crédito</option>
-              <option value="carteira">Carteira</option>
-            </select>
+            <Select value={form.tipo} onValueChange={(v) => update("tipo", v as ContaForm["tipo"])}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="banco">Banco</SelectItem>
+                <SelectItem value="cartao">Cartão de Crédito</SelectItem>
+                <SelectItem value="carteira">Carteira</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="text-xs">Ativo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.ativo ? "true" : "false"}
-              onChange={(e) => update("ativo", e.target.value === "true")}
-            >
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
+            <Select value={form.ativo ? "true" : "false"} onValueChange={(v) => update("ativo", v === "true")}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="true">Sim</SelectItem>
+                <SelectItem value="false">Não</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {form.tipo === "banco" && (
@@ -247,6 +250,7 @@ export default function CadastroContasPage() {
 
       <Card className="p-4">
         <div className="mb-2 text-sm font-medium">Contas cadastradas</div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
@@ -304,33 +308,35 @@ export default function CadastroContasPage() {
               <tr>
                 <td className="p-2 text-center text-muted-foreground" colSpan={9}>Nenhuma conta cadastrada</td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
+        </div>
       </Card>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="max-w-xl h-full overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Editar Conta</SheetTitle>
           </SheetHeader>
           {edit && (
-            <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
+              <div className="col-span-1 sm:col-span-2">
                 <div className="text-muted-foreground">Nome</div>
                 <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Tipo</div>
-                <select
-                  className="bg-background h-9 w-full rounded-md border px-2"
-                  value={edit.type}
-                  onChange={(e) => setEdit({ ...edit, type: e.target.value as AccountInput["type"] })}
-                >
-                  <option value="bank">Banco</option>
-                  <option value="credit_card">Cartão</option>
-                  <option value="wallet">Carteira</option>
-                </select>
+                <Select value={edit.type} onValueChange={(v) => setEdit({ ...edit, type: v as AccountInput["type"] })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank">Banco</SelectItem>
+                    <SelectItem value="credit_card">Cartão</SelectItem>
+                    <SelectItem value="wallet">Carteira</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <div className="text-muted-foreground">Agência</div>
@@ -378,10 +384,15 @@ export default function CadastroContasPage() {
               )}
               <div>
                 <div className="text-muted-foreground">Ativo</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+                <Select value={String(edit.active)} onValueChange={(v) => setEdit({ ...edit, active: v === "true" })}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Sim</SelectItem>
+                    <SelectItem value="false">Não</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
