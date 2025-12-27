@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
 import { PayableSheet } from "@/components/financeiro/payable-sheet"
+import { Combobox } from "@/components/ui/combobox"
 import { useSort } from "@/hooks/use-sort"
 import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -101,9 +102,10 @@ export default function ContasAPagarPage() {
   const loadContacts = () => {
     getContacts()
       .then((list) => startTransition(() => {
-        setContactsList(list as Contact[])
+        const sorted = (list as Contact[]).sort((a, b) => a.name.localeCompare(b.name))
+        setContactsList(sorted)
         const map: Record<string, string> = {}
-        ;(list as Contact[]).forEach((c) => { map[c.id] = c.name })
+        sorted.forEach((c) => { map[c.id] = c.name })
         setContactMap(map)
       }))
       .catch(() => {})
@@ -502,16 +504,12 @@ export default function ContasAPagarPage() {
               <div className="col-span-2">
                 <div className="text-muted-foreground">Fornecedor</div>
                 <div className="flex items-center gap-1">
-                  <select 
-                    className="bg-background h-9 w-full rounded-md border px-2" 
-                    value={edit.contact_id || ""} 
-                    onChange={(e) => setEdit({ ...edit, contact_id: e.target.value })}
-                  >
-                    <option value="">Selecione</option>
-                    {contactsList.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                  <Combobox
+                    options={contactsList.map(c => ({ value: c.id, label: c.name }))}
+                    value={edit.contact_id || ""}
+                    onChange={(v) => setEdit({ ...edit, contact_id: v })}
+                    placeholder="Selecione..."
+                  />
                   <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => setContactSheetOpen(true)} title="Novo Fornecedor">
                     <Plus className="h-4 w-4 text-emerald-600" />
                   </Button>

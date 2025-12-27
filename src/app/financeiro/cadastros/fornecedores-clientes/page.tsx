@@ -154,7 +154,7 @@ export default function CadastroFornecedoresClientesPage() {
         setForm({ id: "", tipo: form.tipo, pessoa: form.pessoa, nome: "", ativo: true })
         try {
           const list = await getContacts()
-          startTransition(() => setItems(list))
+          startTransition(() => setItems(list.sort((a, b) => a.name.localeCompare(b.name))))
         } catch {}
       } catch {
         setMensagem("Falha ao salvar")
@@ -190,7 +190,7 @@ export default function CadastroFornecedoresClientesPage() {
     setEdit(null)
     try {
       const list = await getContacts()
-      startTransition(() => setItems(list))
+      startTransition(() => setItems(list.sort((a, b) => a.name.localeCompare(b.name))))
     } catch {}
   }
 

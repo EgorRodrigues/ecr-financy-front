@@ -19,6 +19,7 @@ import {
 import { format } from "date-fns"
 import { Plus } from "lucide-react"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
+import { Combobox } from "@/components/ui/combobox"
 
 type PayableSheetProps = {
   open: boolean
@@ -136,7 +137,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
         getAccounts()
       ])
       setCategories(cats)
-      setContacts(conts)
+      setContacts(conts.sort((a, b) => a.name.localeCompare(b.name)))
       setCostCenters(ccs)
       setAccounts(accs)
     } catch (error) {
@@ -146,7 +147,7 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
 
   function loadContacts() {
     getContacts()
-      .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })))) )
+      .then((list) => startTransition(() => setContacts(list.map((c) => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))) )
       .catch(() => {})
   }
 
@@ -363,16 +364,12 @@ export function PayableSheet({ open, onOpenChange, onSuccess, initialData }: Pay
           <div className="space-y-2">
             <label className="text-sm font-medium">Fornecedor</label>
             <div className="flex items-center gap-2">
-              <Select value={form.fornecedorClienteId} onValueChange={(v) => update("fornecedorClienteId", v)}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                options={contacts.map(c => ({ value: c.id, label: c.name }))}
+                value={form.fornecedorClienteId}
+                onChange={(v) => update("fornecedorClienteId", v)}
+                placeholder="Selecione..."
+              />
               <Button variant="outline" size="icon" onClick={() => setContactSheetOpen(true)}>
                 <Plus className="h-4 w-4" />
               </Button>

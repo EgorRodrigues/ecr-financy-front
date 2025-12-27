@@ -101,9 +101,10 @@ export default function ContasAReceberPage() {
   const loadContacts = () => {
     getContacts()
       .then((list) => startTransition(() => {
-        setContactsList(list as Contact[])
+        const sorted = (list as Contact[]).sort((a, b) => a.name.localeCompare(b.name))
+        setContactsList(sorted)
         const map: Record<string, string> = {}
-        ;(list as Contact[]).forEach((c) => { map[c.id] = c.name })
+        sorted.forEach((c) => { map[c.id] = c.name })
         setContactMap(map)
       }))
       .catch(() => {})
