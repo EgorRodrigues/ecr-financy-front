@@ -1,13 +1,16 @@
 "use client"
 
-import { Plus, ArrowUpDown, Pencil, Trash2, Eye, Banknote } from "lucide-react"
+import { Plus, ArrowUpDown, Pencil, Trash2, Eye, Banknote, Calendar } from "lucide-react"
 import { useEffect, useState, startTransition, useMemo } from "react"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { ContactSheet } from "@/components/financeiro/contact-sheet"
+import { PayableSheet } from "@/components/financeiro/payable-sheet"
 import { useSort } from "@/hooks/use-sort"
+import { format, parseISO } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import {
   Table,
   TableBody,
@@ -32,7 +35,7 @@ type BackendExpenseRecord = ExpenseRecord & { contact_name?: string }
 
 export default function ContasAPagarPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela")
-  const [dados, setDados] = useState<ExpenseItem[]>([])
+
   const [records, setRecords] = useState<ExpenseRecord[]>([])
   const [contactMap, setContactMap] = useState<Record<string, string>>({})
   const [contactsList, setContactsList] = useState<Contact[]>([])
@@ -41,7 +44,21 @@ export default function ContasAPagarPage() {
   const [costCenters, setCostCenters] = useState<Array<{ id: string; name: string }>>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [open, setOpen] = useState(false)
+  const [payableSheetOpen, setPayableSheetOpen] = useState(false)
   const [contactSheetOpen, setContactSheetOpen] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7))
+
+  const dados = useMemo(() => {
+    const filtered = records.filter(r => (r.due_date || "").startsWith(selectedMonth))
+    return (filtered as BackendExpenseRecord[]).map((i) => ({
+      id: i.id,
+      fornecedor: i.contact_name || i.contact_id || "",
+      contactId: i.contact_id,
+      vencimento: i.due_date || "",
+      valor: typeof i.amount === "number" ? i.amount : 0,
+      status: (i.status as ExpenseItem["status"]) || "pendente",
+    }))
+  }, [records, selectedMonth])
   const [mode, setMode] = useState<"view" | "edit" | "pay">("view")
   const [selected, setSelected] = useState<ExpenseRecord | null>(null)
   const [edit, setEdit] = useState<TransactionInput | null>(null)
@@ -59,18 +76,27 @@ export default function ContasAPagarPage() {
     getExpenses()
       .then((list) => startTransition(() => {
         setRecords(list)
-        const mapped: ExpenseItem[] = (list as BackendExpenseRecord[]).map((i) => ({
-          id: i.id,
-          fornecedor: i.contact_name || i.contact_id || "",
-          contactId: i.contact_id,
-          vencimento: i.due_date || "",
-          valor: typeof i.amount === "number" ? i.amount : 0,
-          status: (i.status as ExpenseItem["status"]) || "pendente",
-        }))
-        setDados(mapped)
       }))
       .catch(() => {})
   }
+
+
+
+  const monthlySummary = useMemo(() => {
+    const summary: Record<string, number> = {}
+    records.forEach(r => {
+      const month = (r.due_date || "").slice(0, 7)
+      if (month) {
+        summary[month] = (summary[month] || 0) + (r.amount || 0)
+      }
+    })
+    
+    return Object.entries(summary)
+      .sort((a, b) => a[0].localeCompare(b[0])) // Sort ascending
+      .map(([month, total]) => ({ month, total }))
+  }, [records])
+
+  const currentMonthTotal = monthlySummary.find(s => s.month === selectedMonth)?.total || 0
 
   const loadContacts = () => {
     getContacts()
@@ -229,103 +255,162 @@ export default function ContasAPagarPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(displayData)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">Contas a Pagar</h2>
-        <div className="flex gap-2">
-          <Button variant={view === "tabela" ? "default" : "outline"} onClick={() => setView("tabela")}>Tabela</Button>
-          <Button variant={view === "cards" ? "default" : "outline"} onClick={() => setView("cards")}>Cards</Button>
+    <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex-1 p-6 overflow-auto space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium">Contas a Pagar</h2>
+          <div className="flex gap-2">
+            <Button onClick={() => setPayableSheetOpen(true)}>Lançar Despesa</Button>
+            <Button variant={view === "tabela" ? "default" : "outline"} onClick={() => setView("tabela")}>Tabela</Button>
+            <Button variant={view === "cards" ? "default" : "outline"} onClick={() => setView("cards")}>Cards</Button>
+          </div>
         </div>
+
+        {view === "tabela" ? (
+          <Card className="p-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead onClick={() => requestSort("displayFornecedor")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    Fornecedor {sortConfig?.key === "displayFornecedor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                  </TableHead>
+                  <TableHead onClick={() => requestSort("vencimento")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    Vencimento {sortConfig?.key === "vencimento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("valor")}>
+                    Valor {sortConfig?.key === "valor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                  </TableHead>
+                  <TableHead onClick={() => requestSort("status")} className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
+                  </TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                      Nenhuma conta a pagar encontrada para este mês.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedItems.map((d) => (
+                    <TableRow key={d.id}>
+                      <TableCell>{d.displayFornecedor}</TableCell>
+                      <TableCell>{d.vencimento ? format(parseISO(d.vencimento), "dd/MM/yyyy") : "-"}</TableCell>
+                      <TableCell className="text-right">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
+                      <TableCell>
+                        <span className={
+                          d.status === "pago" ? "text-emerald-600" : d.status === "pendente" ? "text-amber-600" : "text-rose-600"
+                        }>{d.status}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {d.status !== "pago" && d.status !== "cancelado" && (
+                            <Button variant="ghost" size="icon" onClick={() => openPay(d.id)}>
+                              <Banknote className="h-4 w-4 text-emerald-600" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {dados.length === 0 ? (
+              <div className="col-span-3 text-center py-8 text-muted-foreground">
+                Nenhuma conta a pagar encontrada para este mês.
+              </div>
+            ) : (
+              dados.map((d) => (
+                <Card key={d.id} className="p-4">
+                  <div className="text-xs text-muted-foreground">Fornecedor</div>
+                  <div className="text-sm font-medium">{contactMap[d.contactId || ""] || d.fornecedor}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">Vencimento</div>
+                  <div className="text-sm">{d.vencimento ? format(parseISO(d.vencimento), "dd/MM/yyyy") : "-"}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">Valor</div>
+                  <div className="text-sm font-semibold">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+                  <div className="mt-2 text-xs text-muted-foreground">Status</div>
+                  <div className={
+                    d.status === "pago" ? "text-emerald-600" : d.status === "pendente" ? "text-amber-600" : "text-rose-600"
+                  }>{d.status}</div>
+                  <div className="mt-4 flex gap-2 justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {d.status !== "pago" && d.status !== "cancelado" && (
+                      <Button variant="ghost" size="icon" onClick={() => openPay(d.id)}>
+                        <Banknote className="h-4 w-4 text-emerald-600" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
-      {view === "tabela" ? (
-        <Card className="p-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead onClick={() => requestSort("displayFornecedor")} className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  Fornecedor {sortConfig?.key === "displayFornecedor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-                </TableHead>
-                <TableHead onClick={() => requestSort("vencimento")} className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  Vencimento {sortConfig?.key === "vencimento" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-                </TableHead>
-                <TableHead className="text-right cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => requestSort("valor")}>
-                  Valor {sortConfig?.key === "valor" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-                </TableHead>
-                <TableHead onClick={() => requestSort("status")} className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  Status {sortConfig?.key === "status" && <ArrowUpDown className="ml-2 h-4 w-4 inline" />}
-                </TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedItems.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell>{d.displayFornecedor}</TableCell>
-                  <TableCell>{d.vencimento}</TableCell>
-                  <TableCell className="text-right">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</TableCell>
-                  <TableCell>
-                    <span className={
-                      d.status === "pago" ? "text-emerald-600" : d.status === "pendente" ? "text-amber-600" : "text-rose-600"
-                    }>{d.status}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {d.status !== "pago" && d.status !== "cancelado" && (
-                        <Button variant="ghost" size="icon" onClick={() => openPay(d.id)}>
-                          <Banknote className="h-4 w-4 text-emerald-600" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {dados.map((d) => (
-            <Card key={d.id} className="p-4">
-              <div className="text-xs text-muted-foreground">Fornecedor</div>
-              <div className="text-sm font-medium">{contactMap[d.contactId || ""] || d.fornecedor}</div>
-              <div className="mt-2 text-xs text-muted-foreground">Vencimento</div>
-              <div className="text-sm">{d.vencimento}</div>
-              <div className="mt-2 text-xs text-muted-foreground">Valor</div>
-              <div className="text-sm font-semibold">{d.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
-              <div className="mt-2 text-xs text-muted-foreground">Status</div>
-              <div className={
-                d.status === "pago" ? "text-emerald-600" : d.status === "pendente" ? "text-amber-600" : "text-rose-600"
-              }>{d.status}</div>
-              <div className="mt-4 flex gap-2 justify-end">
-                <Button variant="ghost" size="icon" onClick={() => openView(d.id)}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-                {d.status !== "pago" && d.status !== "cancelado" && (
-                  <Button variant="ghost" size="icon" onClick={() => openPay(d.id)}>
-                    <Banknote className="h-4 w-4 text-emerald-600" />
-                  </Button>
-                )}
-                <Button variant="ghost" size="icon" onClick={() => openEdit(d.id)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => remove(d.id)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+      <div className="w-80 border-l bg-muted/30 p-6 overflow-auto">
+        <h2 className="text-lg font-semibold mb-4">Resumo Mensal</h2>
+        
+        <div className="space-y-6">
+          <Card className="border-primary ring-1 ring-primary">
+            <CardContent className="pt-6">
+              <div className="text-sm text-muted-foreground mb-1">Total em {selectedMonth ? format(parseISO(selectedMonth + "-01"), "MMMM 'de' yyyy", { locale: ptBR }) : "-"}</div>
+              <div className="text-2xl font-bold text-primary">
+                {currentMonthTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </div>
-            </Card>
-          ))}
+            </CardContent>
+          </Card>
+
+          <div className="mt-8">
+            <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Histórico por Mês
+            </h3>
+            <div className="space-y-3">
+              {monthlySummary.length > 0 ? (
+                monthlySummary.map((item) => (
+                  <div 
+                    key={item.month} 
+                    className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedMonth === item.month ? "border-primary ring-1 ring-primary" : ""}`}
+                    onClick={() => setSelectedMonth(item.month)}
+                  >
+                    <span className="capitalize">{format(parseISO(item.month + "-01"), "MMM/yyyy", { locale: ptBR })}</span>
+                    <span className="text-muted-foreground">
+                      {item.total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  Nenhum registro encontrado
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="max-w-xl h-full overflow-y-auto">
@@ -503,138 +588,88 @@ export default function ContasAPagarPage() {
                 </select>
               </div>
 
+              <div>
+                <div className="text-muted-foreground">Conta</div>
+                <select
+                  className="bg-background h-9 w-full rounded-md border px-2"
+                  value={edit.account || ""}
+                  onChange={(e) => setEdit({ ...edit, account: e.target.value })}
+                >
+                  <option value="">Selecione</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.name}>{a.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="col-span-2">
                 <div className="text-muted-foreground">Descrição</div>
-                <textarea 
-                  className="bg-background h-20 w-full rounded-md border px-2 py-2" 
-                  value={edit.description || ""} 
-                  onChange={(e) => setEdit({ ...edit, description: e.target.value })} 
-                />
+                <Input value={edit.description || ""} onChange={(e) => setEdit({ ...edit, description: e.target.value })} />
               </div>
+              
               <div>
                 <div className="text-muted-foreground">Documento</div>
                 <Input value={edit.document || ""} onChange={(e) => setEdit({ ...edit, document: e.target.value })} />
               </div>
+              
               <div>
-                <div className="text-muted-foreground">Forma</div>
-                <select
-                  className="bg-background h-9 w-full rounded-md border px-2"
-                  value={edit.payment_method || ""}
-                  onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })}
-                >
-                  <option value="">Selecione</option>
-                  <option value="pix">PIX</option>
-                  <option value="boleto">Boleto</option>
-                  <option value="cartao">Cartão</option>
-                  <option value="transferencia">Transferência</option>
-                  <option value="dinheiro">Dinheiro</option>
-                </select>
+                <div className="text-muted-foreground">Forma Pagto</div>
+                <Input value={edit.payment_method || ""} onChange={(e) => setEdit({ ...edit, payment_method: e.target.value })} />
               </div>
-              <div>
-                <div className="text-muted-foreground">Conta</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={edit.account || ""} onChange={(e) => setEdit({ ...edit, account: e.target.value })}>
-                  <option value="">Selecione</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="text-muted-foreground">Competência</div>
-                <Input value={edit.competence || ""} onChange={(e) => setEdit({ ...edit, competence: e.target.value })} />
-              </div>
-              <div>
-                <div className="text-muted-foreground">Projeto</div>
-                <Input value={edit.project || ""} onChange={(e) => setEdit({ ...edit, project: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <div className="text-muted-foreground">Tags (vírgula)</div>
-                <Input value={(edit.tags || []).join(", ")} onChange={(e) => setEdit({ ...edit, tags: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
-              </div>
+
               <div className="col-span-2">
                 <div className="text-muted-foreground">Observações</div>
-                <textarea 
-                  className="bg-background h-20 w-full rounded-md border px-2 py-2" 
-                  value={edit.notes || ""} 
-                  onChange={(e) => setEdit({ ...edit, notes: e.target.value })} 
-                />
-              </div>
-              <div>
-                <div className="text-muted-foreground">Ativo</div>
-                <select className="bg-background h-9 w-full rounded-md border px-2" value={String(edit.active ?? true)} onChange={(e) => setEdit({ ...edit, active: e.target.value === "true" })}>
-                  <option value="true">true</option>
-                  <option value="false">false</option>
-                </select>
+                <Input value={edit.notes || ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
               </div>
             </div>
           )}
           {mode === "pay" && pay && (
             <div className="grid grid-cols-2 gap-3 p-4 text-sm">
-              <div>
-                <div className="text-muted-foreground">Data do Pagamento</div>
-                <Input type="date" value={pay.payment_date || ""} onChange={(e) => setPay({ ...(pay || {}), payment_date: e.target.value })} />
+              <div className="col-span-2">
+                <div className="text-muted-foreground font-semibold">Resumo do Pagamento</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Valor</div>
-                <CurrencyInput value={pay.amount ?? 0} onValueChange={(v) => {
-                  const total = v + (pay?.interest ?? 0) + (pay?.fine ?? 0) - (pay?.discount ?? 0)
-                  setPay({ ...(pay || {}), amount: v, total_paid: total })
-                }} />
+                <div className="text-muted-foreground">Valor Original</div>
+                <div>{(pay.amount ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Data Pagamento</div>
+                <Input type="date" value={pay.payment_date || ""} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Juros</div>
-                <CurrencyInput value={pay.interest ?? 0} onValueChange={(v) => {
-                  const total = (pay?.amount ?? 0) + v + (pay?.fine ?? 0) - (pay?.discount ?? 0)
-                  setPay({ ...(pay || {}), interest: v, total_paid: total })
-                }} />
+                <CurrencyInput value={pay.interest ?? 0} onValueChange={(v) => setPay({ ...pay, interest: v, total_paid: (pay.amount||0) + v + (pay.fine||0) - (pay.discount||0) })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Multa</div>
-                <CurrencyInput value={pay.fine ?? 0} onValueChange={(v) => {
-                  const total = (pay?.amount ?? 0) + (pay?.interest ?? 0) + v - (pay?.discount ?? 0)
-                  setPay({ ...(pay || {}), fine: v, total_paid: total })
-                }} />
+                <CurrencyInput value={pay.fine ?? 0} onValueChange={(v) => setPay({ ...pay, fine: v, total_paid: (pay.amount||0) + (pay.interest||0) + v - (pay.discount||0) })} />
               </div>
               <div>
                 <div className="text-muted-foreground">Desconto</div>
-                <CurrencyInput value={pay.discount ?? 0} onValueChange={(v) => {
-                  const total = (pay?.amount ?? 0) + (pay?.interest ?? 0) + (pay?.fine ?? 0) - v
-                  setPay({ ...(pay || {}), discount: v, total_paid: total })
-                }} />
+                <CurrencyInput value={pay.discount ?? 0} onValueChange={(v) => setPay({ ...pay, discount: v, total_paid: (pay.amount||0) + (pay.interest||0) + (pay.fine||0) - v })} />
               </div>
               <div>
-                <div className="text-muted-foreground">Valor Total Pago</div>
-                <CurrencyInput value={pay.total_paid ?? 0} onValueChange={(v) => setPay({ ...(pay || {}), total_paid: v })} />
+                <div className="text-muted-foreground">Total a Pagar</div>
+                <div className="font-bold text-lg">{(pay.total_paid ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
               </div>
             </div>
           )}
-          <SheetFooter>
-            {mode === "edit" && (
-              <div className="flex gap-2">
-                <Button onClick={saveEdit}>Salvar</Button>
-                <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              </div>
-            )}
-            {mode === "pay" && (
-              <div className="flex gap-2">
-                <Button onClick={savePay}>Confirmar Pagamento</Button>
-                <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              </div>
-            )}
-            {mode === "view" && (
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setOpen(false)}>Fechar</Button>
-              </div>
-            )}
+          <SheetFooter className="p-4 border-t">
+            {mode === "edit" && <Button onClick={saveEdit}>Salvar</Button>}
+            {mode === "pay" && <Button onClick={savePay}>Confirmar Pagamento</Button>}
           </SheetFooter>
         </SheetContent>
       </Sheet>
 
+      <PayableSheet 
+        open={payableSheetOpen} 
+        onOpenChange={setPayableSheetOpen} 
+        onSuccess={load}
+      />
       <ContactSheet 
         open={contactSheetOpen} 
         onOpenChange={setContactSheetOpen} 
         onSuccess={loadContacts}
-        defaultType="supplier"
       />
     </div>
   )

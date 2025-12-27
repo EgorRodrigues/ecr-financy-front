@@ -47,22 +47,6 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Cadastro de Despesas">
-                  <Link href="/financeiro/cadastro-despesas">
-                    <Banknote />
-                    <span>Cadastro de Despesas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Cadastro de Receitas">
-                  <Link href="/financeiro/cadastro-receitas">
-                    <HandCoins />
-                    <span>Cadastro de Receitas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Cartão de Crédito">
                   <Link href="/financeiro/cartao-credito">
                     <CreditCard />
