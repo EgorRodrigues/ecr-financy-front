@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, startTransition } from "react"
+import { useMemo, useState, useEffect, startTransition, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import {
   Select,
@@ -22,6 +22,28 @@ import { ArrowUpDown, ArrowUpCircle, ArrowDownCircle } from "lucide-react"
 import { getFinancialForecast, type ForecastItem } from "@/lib/api"
 
 function ForecastChart({ data }: { data: ForecastItem[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(700)
+  
+  useEffect(() => {
+    if (!containerRef.current) return
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentBoxSize) {
+          // Use contentBoxSize for precise width
+          setWidth(entry.contentBoxSize[0].inlineSize)
+        } else {
+          // Fallback
+          setWidth(entry.contentRect.width)
+        }
+      }
+    })
+    
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   // Aggregate by month and type
   const aggregated = useMemo(() => {
     const months = Array.from(new Set(data.map(d => d.month))).sort()
@@ -30,49 +52,65 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
       const monthData = data.filter(d => d.month === month)
       const income = monthData.filter(d => d.type === "income").reduce((acc, curr) => acc + curr.amount, 0)
       const expense = monthData.filter(d => d.type === "expense").reduce((acc, curr) => acc + curr.amount, 0)
-      return { month, income, expense }
+      const balance = income - expense
+      return { month, income, expense, balance }
     })
   }, [data])
 
   if (aggregated.length === 0) {
     return (
-      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
         Nenhum dado para exibir no gráfico neste período
       </div>
     )
   }
 
-  const width = 700
-  const height = 300
+  const height = 450 // Increased height for better visibility
   const padding = 40
-  const chartWidth = width - padding * 2
+  const chartWidth = Math.max(width, 500) - padding * 2 // Ensure minimum width
   const chartHeight = height - padding * 2
   
-  const maxIncome = Math.max(1, ...aggregated.map(d => d.income))
-  const maxExpense = Math.max(1, ...aggregated.map(d => d.expense))
-  const maxValue = Math.max(maxIncome, maxExpense) * 1.1 // Add 10% headroom
+  const maxIncome = Math.max(0, ...aggregated.map(d => d.income))
+  const maxExpense = Math.max(0, ...aggregated.map(d => d.expense))
+  const maxBalance = Math.max(0, ...aggregated.map(d => d.balance))
+  const minBalance = Math.min(0, ...aggregated.map(d => d.balance))
+  
+  const maxValue = Math.max(maxIncome, maxExpense, maxBalance) * 1.1
+  const minValue = Math.min(0, minBalance) * 1.1 // Add 10% headroom for negative values
+  const range = (maxValue - minValue) || 1
+
+  const getY = (val: number) => padding + chartHeight - ((val - minValue) / range) * chartHeight
+  const zeroY = getY(0)
 
   // Helper to generate path
-  const generatePath = (type: "income" | "expense") => {
+  const generatePath = (type: "income" | "expense" | "balance") => {
     const points = aggregated.map((d, i) => {
       const x = padding + (i / (aggregated.length - 1 || 1)) * chartWidth
-      const val = type === "income" ? d.income : d.expense
-      const y = padding + chartHeight - (val / maxValue) * chartHeight
+      let val = 0
+      
+      if (type === "balance") {
+        val = d.balance
+      } else {
+        val = type === "income" ? d.income : d.expense
+      }
+      
+      const y = getY(val)
       return { x, y, val, month: d.month }
     })
 
     const linePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ")
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${zeroY} L ${points[0].x} ${zeroY} Z`
     
     return { linePath, areaPath, points }
   }
 
   const incomeData = generatePath("income")
   const expenseData = generatePath("expense")
+  const balanceData = generatePath("balance")
 
   return (
-    <div className="w-full overflow-x-auto">
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-[300px] w-full min-w-[500px]">
+    <div className="w-full" ref={containerRef}>
+      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[450px]">
         {/* Gradients */}
         <defs>
           <linearGradient id="gradient-income" x1="0" y1="0" x2="0" y2="1">
@@ -89,9 +127,12 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
         {[0, 0.25, 0.5, 0.75, 1].map((t) => {
           const y = padding + chartHeight - t * chartHeight
           return (
-            <line key={t} x1={padding} y1={y} x2={width - padding} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" />
+            <line key={t} x1={padding} y1={y} x2={Math.max(width, 500) - padding} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" />
           )
         })}
+        
+        {/* Zero line */}
+        <line x1={padding} y1={zeroY} x2={Math.max(width, 500) - padding} y2={zeroY} stroke="#9ca3af" strokeWidth="1" />
 
         {/* Income Chart */}
         <path d={incomeData.areaPath} fill="url(#gradient-income)" />
@@ -100,6 +141,9 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
         {/* Expense Chart */}
         <path d={expenseData.areaPath} fill="url(#gradient-expense)" />
         <path d={expenseData.linePath} fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Balance Chart (Line Only) */}
+        <path d={balanceData.linePath} fill="none" stroke="#3b82f6" strokeWidth="2" strokeDasharray="5 5" strokeLinecap="round" strokeLinejoin="round" />
 
         {/* Points and Labels */}
         {incomeData.points.map((p) => {
@@ -128,6 +172,16 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
             </text>
           </g>
         ))}
+
+        {/* Balance Points */}
+        {balanceData.points.map((p) => (
+          <g key={`balance-${p.month}`}>
+            <circle cx={p.x} cy={p.y} r={3} fill="#ffffff" stroke="#3b82f6" strokeWidth="2" />
+            <text x={p.x + 10} y={p.y - 5} textAnchor="start" fontSize={10} fill="#2563eb" fontWeight="500">
+              {p.val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </text>
+          </g>
+        ))}
       </svg>
       
       {/* Legend */}
@@ -139,6 +193,10 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500" />
           <span className="text-sm text-muted-foreground">Despesas</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full border-2 border-blue-500 border-dashed" />
+          <span className="text-sm text-muted-foreground">Saldo (Entrada - Saída)</span>
         </div>
       </div>
     </div>

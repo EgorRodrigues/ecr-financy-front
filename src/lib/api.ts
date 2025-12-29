@@ -80,7 +80,7 @@ export async function deleteCostCenter(id: string) {
 }
 
 export async function getSubcategories(categoryId: string): Promise<Array<{ id: string; name: string }>> {
-  return apiFetch(`/subcategories/${categoryId}/`, { method: "GET" })
+  return apiFetch(`/subcategories/?category_id=${categoryId}`, { method: "GET" })
 }
 
 export async function getCostCenters(): Promise<Array<{ id: string; name: string; code?: string }>> {
@@ -213,11 +213,11 @@ export async function deleteExpense(id: string) {
 }
 
 export async function updateIncome(id: string, input: TransactionInput) {
-  return apiFetch(`/incomes/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/incomes/${id}`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteIncome(id: string) {
-  return apiFetch(`/incomes/${id}/`, { method: "DELETE" })
+  return apiFetch(`/incomes/${id}`, { method: "DELETE" })
 }
 
 export type CreditCardTransactionInput = {
