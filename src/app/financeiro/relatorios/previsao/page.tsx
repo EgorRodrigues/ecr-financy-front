@@ -30,11 +30,8 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
     
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentBoxSize) {
-          // Use contentBoxSize for precise width
-          setWidth(entry.contentBoxSize[0].inlineSize)
-        } else {
-          // Fallback
+        // Use contentRect for better compatibility
+        if (entry.contentRect) {
           setWidth(entry.contentRect.width)
         }
       }
@@ -212,9 +209,7 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
     
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (entry.contentBoxSize) {
-          setWidth(entry.contentBoxSize[0].inlineSize)
-        } else {
+        if (entry.contentRect) {
           setWidth(entry.contentRect.width)
         }
       }
@@ -226,26 +221,35 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
 
   const aggregated = useMemo(() => {
     const months = Array.from(new Set(data.map(d => d.month))).sort()
-    let runningBalance = 0
     
-    return months.map(month => {
+    // First calculate monthly balances
+    const monthlyBalances = months.map(month => {
       const monthData = data.filter(d => d.month === month)
       const income = monthData.filter(d => d.type === "income").reduce((acc, curr) => acc + curr.amount, 0)
       const expense = monthData.filter(d => d.type === "expense").reduce((acc, curr) => acc + curr.amount, 0)
-      runningBalance += (income - expense)
-      return { month, value: runningBalance }
+      return { month, net: income - expense }
     })
+
+    // Then calculate running totals using reduce to avoid side effects
+    const result: { month: string; value: number }[] = []
+    monthlyBalances.reduce((acc, curr) => {
+      const newVal = acc + curr.net
+      result.push({ month: curr.month, value: newVal })
+      return newVal
+    }, 0)
+    
+    return result
   }, [data])
 
   if (aggregated.length === 0) {
     return (
-      <div className="flex h-[350px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
         Nenhum dado para exibir no gráfico neste período
       </div>
     )
   }
 
-  const height = 350
+  const height = 450
   const padding = 40
   const chartWidth = Math.max(width, 500) - padding * 2
   const chartHeight = height - padding * 2
@@ -271,7 +275,7 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
 
   return (
     <div className="w-full" ref={containerRef}>
-      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[350px]">
+      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[450px]">
         <defs>
           <linearGradient id="gradient-acc" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
@@ -301,10 +305,10 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
           return (
             <g key={p.month}>
               <circle cx={p.x} cy={p.y} r={4} fill="#ffffff" stroke="#8b5cf6" strokeWidth="2" />
-              <text x={p.x} y={height - 10} textAnchor="middle" fontSize={11} fill="#6b7280">
+              <text x={p.x} y={height - 10} textAnchor="middle" fontSize={12} fill="#6b7280">
                 {label}
               </text>
-              <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize={10} fill="#7c3aed" fontWeight="500">
+              <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize={12} fill="#7c3aed" fontWeight="500">
                 {p.val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
               </text>
             </g>
