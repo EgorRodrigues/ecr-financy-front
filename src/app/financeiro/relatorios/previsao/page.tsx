@@ -203,6 +203,125 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
   )
 }
 
+function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(700)
+  
+  useEffect(() => {
+    if (!containerRef.current) return
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentBoxSize) {
+          setWidth(entry.contentBoxSize[0].inlineSize)
+        } else {
+          setWidth(entry.contentRect.width)
+        }
+      }
+    })
+    
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  const aggregated = useMemo(() => {
+    const months = Array.from(new Set(data.map(d => d.month))).sort()
+    let runningBalance = 0
+    
+    return months.map(month => {
+      const monthData = data.filter(d => d.month === month)
+      const income = monthData.filter(d => d.type === "income").reduce((acc, curr) => acc + curr.amount, 0)
+      const expense = monthData.filter(d => d.type === "expense").reduce((acc, curr) => acc + curr.amount, 0)
+      runningBalance += (income - expense)
+      return { month, value: runningBalance }
+    })
+  }, [data])
+
+  if (aggregated.length === 0) {
+    return (
+      <div className="flex h-[350px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+        Nenhum dado para exibir no gráfico neste período
+      </div>
+    )
+  }
+
+  const height = 350
+  const padding = 40
+  const chartWidth = Math.max(width, 500) - padding * 2
+  const chartHeight = height - padding * 2
+  
+  const maxVal = Math.max(0, ...aggregated.map(d => d.value))
+  const minVal = Math.min(0, ...aggregated.map(d => d.value))
+  
+  const maxValue = maxVal * 1.1
+  const minValue = minVal * 1.1
+  const range = (maxValue - minValue) || 1
+
+  const getY = (val: number) => padding + chartHeight - ((val - minValue) / range) * chartHeight
+  const zeroY = getY(0)
+
+  const points = aggregated.map((d, i) => {
+    const x = padding + (i / (aggregated.length - 1 || 1)) * chartWidth
+    const y = getY(d.value)
+    return { x, y, val: d.value, month: d.month }
+  })
+
+  const linePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ")
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${zeroY} L ${points[0].x} ${zeroY} Z`
+
+  return (
+    <div className="w-full" ref={containerRef}>
+      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[350px]">
+        <defs>
+          <linearGradient id="gradient-acc" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+          const y = padding + chartHeight - t * chartHeight
+          return (
+            <line key={t} x1={padding} y1={y} x2={Math.max(width, 500) - padding} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" />
+          )
+        })}
+        
+        {/* Zero line */}
+        <line x1={padding} y1={zeroY} x2={Math.max(width, 500) - padding} y2={zeroY} stroke="#9ca3af" strokeWidth="1" />
+
+        <path d={areaPath} fill="url(#gradient-acc)" />
+        <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {points.map((p) => {
+          const [year, month] = p.month.split("-")
+          const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+          const label = date.toLocaleString("pt-BR", { month: "short", year: "2-digit" })
+          
+          return (
+            <g key={p.month}>
+              <circle cx={p.x} cy={p.y} r={4} fill="#ffffff" stroke="#8b5cf6" strokeWidth="2" />
+              <text x={p.x} y={height - 10} textAnchor="middle" fontSize={11} fill="#6b7280">
+                {label}
+              </text>
+              <text x={p.x} y={p.y - 15} textAnchor="middle" fontSize={10} fill="#7c3aed" fontWeight="500">
+                {p.val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              </text>
+            </g>
+          )
+        })}
+      </svg>
+      
+      <div className="flex justify-center mt-4">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-violet-500" />
+          <span className="text-sm text-muted-foreground">Saldo Acumulado</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PrevisaoFinanceiraPage() {
   const [items, setItems] = useState<ForecastItem[]>([])
   const [monthsRange, setMonthsRange] = useState("6")
@@ -256,6 +375,16 @@ export default function PrevisaoFinanceiraPage() {
           </p>
         </div>
         <ForecastChart data={items} />
+      </Card>
+
+      <Card className="p-6">
+        <div className="mb-4">
+          <h3 className="text-lg font-medium">Saldo Acumulado</h3>
+          <p className="text-sm text-muted-foreground">
+            Evolução do saldo acumulado ao longo do período.
+          </p>
+        </div>
+        <AccumulatedBalanceChart data={items} />
       </Card>
 
       <Card className="p-6">
