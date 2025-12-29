@@ -23,14 +23,22 @@ import { getFinancialForecast, type ForecastItem } from "@/lib/api"
 
 function ForecastChart({ data }: { data: ForecastItem[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(700)
+  const [width, setWidth] = useState(1200)
   
   useEffect(() => {
     if (!containerRef.current) return
     
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setWidth(containerRef.current.getBoundingClientRect().width)
+      }
+    }
+
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        // Use contentRect for better compatibility
         if (entry.contentRect) {
           setWidth(entry.contentRect.width)
         }
@@ -38,7 +46,10 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
     })
     
     observer.observe(containerRef.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateWidth)
+    }
   }, [])
 
   // Aggregate by month and type
@@ -62,9 +73,9 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
     )
   }
 
-  const height = 450 // Increased height for better visibility
-  const padding = 40
-  const chartWidth = Math.max(width, 500) - padding * 2 // Ensure minimum width
+  const height = 350
+  const padding = 60
+  const chartWidth = Math.max(width, 500) - padding * 2
   const chartHeight = height - padding * 2
   
   const maxIncome = Math.max(0, ...aggregated.map(d => d.income))
@@ -107,9 +118,9 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
 
   return (
     <div className="w-full" ref={containerRef}>
-      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[450px]">
+      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[350px]">
         {/* Gradients */}
-        <defs>
+        {/* <defs>
           <linearGradient id="gradient-income" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
             <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
@@ -118,7 +129,7 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
             <stop offset="0%" stopColor="#ef4444" stopOpacity="0.3" />
             <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
           </linearGradient>
-        </defs>
+        </defs> */}
 
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => {
@@ -174,7 +185,7 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
         {balanceData.points.map((p) => (
           <g key={`balance-${p.month}`}>
             <circle cx={p.x} cy={p.y} r={3} fill="#ffffff" stroke="#3b82f6" strokeWidth="2" />
-            <text x={p.x + 10} y={p.y - 5} textAnchor="start" fontSize={10} fill="#2563eb" fontWeight="500">
+            <text x={p.x} y={p.y - 5} textAnchor="middle" fontSize={10} fill="#2563eb" fontWeight="500">
               {p.val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
             </text>
           </g>
@@ -202,10 +213,19 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
 
 function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(700)
+  const [width, setWidth] = useState(1200)
   
   useEffect(() => {
     if (!containerRef.current) return
+    
+    const updateWidth = () => {
+      if (containerRef.current) {
+        setWidth(containerRef.current.getBoundingClientRect().width)
+      }
+    }
+
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
     
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -216,7 +236,10 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
     })
     
     observer.observe(containerRef.current)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateWidth)
+    }
   }, [])
 
   const aggregated = useMemo(() => {
@@ -249,8 +272,8 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
     )
   }
 
-  const height = 450
-  const padding = 40
+  const height = 350
+  const padding = 60
   const chartWidth = Math.max(width, 500) - padding * 2
   const chartHeight = height - padding * 2
   
@@ -275,7 +298,7 @@ function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
 
   return (
     <div className="w-full" ref={containerRef}>
-      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[450px]">
+      <svg viewBox={`0 0 ${Math.max(width, 500)} ${height}`} className="w-full h-[350px]">
         <defs>
           <linearGradient id="gradient-acc" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
@@ -371,25 +394,27 @@ export default function PrevisaoFinanceiraPage() {
         </div>
       </div>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-medium">Fluxo Previsto (Receitas vs Despesas)</h3>
-          <p className="text-sm text-muted-foreground">
-            Comparativo de entradas e saídas previstas para os próximos meses.
-          </p>
-        </div>
-        <ForecastChart data={items} />
-      </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium">Fluxo Previsto (Receitas vs Despesas)</h3>
+            <p className="text-sm text-muted-foreground">
+              Comparativo de entradas e saídas previstas para os próximos meses.
+            </p>
+          </div>
+          <ForecastChart data={items} />
+        </Card>
 
-      <Card className="p-6">
-        <div className="mb-4">
-          <h3 className="text-lg font-medium">Saldo Acumulado</h3>
-          <p className="text-sm text-muted-foreground">
-            Evolução do saldo acumulado ao longo do período.
-          </p>
-        </div>
-        <AccumulatedBalanceChart data={items} />
-      </Card>
+        <Card className="p-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium">Saldo Acumulado</h3>
+            <p className="text-sm text-muted-foreground">
+              Evolução do saldo acumulado ao longo do período.
+            </p>
+          </div>
+          <AccumulatedBalanceChart data={items} />
+        </Card>
+      </div>
 
       <Card className="p-6">
         <div className="mb-4">

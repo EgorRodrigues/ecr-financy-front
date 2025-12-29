@@ -187,7 +187,7 @@ export type ExpenseRecord = TransactionInput & { id: string }
 export type IncomeRecord = TransactionInput & { id: string }
 
 export async function createExpense(input: TransactionInput) {
-  return apiFetch(`/expenses/`, { method: "POST", body: JSON.stringify(input) })
+  return apiFetch(`/expenses`, { method: "POST", body: JSON.stringify(input) })
 }
 
 export async function createIncome(input: TransactionInput) {
@@ -205,11 +205,11 @@ export async function getIncomes(params?: { account?: string; account_type?: str
 }
 
 export async function updateExpense(id: string, input: TransactionInput) {
-  return apiFetch(`/expenses/${id}/`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/expenses/${id}`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteExpense(id: string) {
-  return apiFetch(`/expenses/${id}/`, { method: "DELETE" })
+  return apiFetch(`/expenses/${id}`, { method: "DELETE" })
 }
 
 export async function updateIncome(id: string, input: TransactionInput) {
