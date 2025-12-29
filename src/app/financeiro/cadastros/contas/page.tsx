@@ -308,7 +308,7 @@ export default function CadastroContasPage() {
               <tr>
                 <td className="p-2 text-center text-muted-foreground" colSpan={9}>Nenhuma conta cadastrada</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
         </div>

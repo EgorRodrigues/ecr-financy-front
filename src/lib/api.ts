@@ -56,11 +56,11 @@ export async function createSubcategory(input: SubcategoryInput) {
 }
 
 export async function updateSubcategory(categoryId: string, id: string, input: SubcategoryInput) {
-  return apiFetch(`/subcategories/${categoryId}/${id}`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/subcategories/${categoryId}/${id}/`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteSubcategory(categoryId: string, id: string) {
-  return apiFetch(`/subcategories/${categoryId}/${id}`, { method: "DELETE" })
+  return apiFetch(`/subcategories/${categoryId}/${id}/`, { method: "DELETE" })
 }
 
 export async function getAllSubcategories(): Promise<Array<{ id: string; name: string; description?: string; active?: boolean; category_id?: string }>> {
@@ -88,19 +88,19 @@ export async function getCostCenters(): Promise<Array<{ id: string; name: string
 }
 
 export async function createContact(input: ContactInput) {
-  return apiFetch(`/contacts`, { method: "POST", body: JSON.stringify(input) })
+  return apiFetch(`/contacts/`, { method: "POST", body: JSON.stringify(input) })
 }
 
 export async function updateContact(id: string, input: ContactInput) {
-  return apiFetch(`/contacts/${id}`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/contacts/${id}/`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteContact(id: string) {
-  return apiFetch(`/contacts/${id}`, { method: "DELETE" })
+  return apiFetch(`/contacts/${id}/`, { method: "DELETE" })
 }
 
 export async function getContacts(): Promise<Array<Contact>> {
-  return apiFetch(`/contacts`, { method: "GET" })
+  return apiFetch(`/contacts/`, { method: "GET" })
 }
 
 export type AccountInput = {
@@ -133,7 +133,7 @@ export type Account = {
 }
 
 export async function createAccount(input: AccountInput) {
-  return apiFetch(`/accounts`, { method: "POST", body: JSON.stringify(input) })
+  return apiFetch(`/accounts/`, { method: "POST", body: JSON.stringify(input) })
 }
 
 export async function getAccounts(params?: { limit?: number; account?: string; account_type?: string }): Promise<Array<Account>> {
@@ -145,15 +145,15 @@ export async function getAccounts(params?: { limit?: number; account?: string; a
 }
 
 export async function getAccount(id: string): Promise<Account> {
-  return apiFetch(`/accounts/${id}`, { method: "GET" })
+  return apiFetch(`/accounts/${id}/`, { method: "GET" })
 }
 
 export async function updateAccount(id: string, input: AccountInput) {
-  return apiFetch(`/accounts/${id}`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/accounts/${id}/`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteAccount(id: string) {
-  return apiFetch(`/accounts/${id}`, { method: "DELETE" })
+  return apiFetch(`/accounts/${id}/`, { method: "DELETE" })
 }
 
 export type TransactionInput = {
@@ -217,7 +217,7 @@ export async function updateIncome(id: string, input: TransactionInput) {
 }
 
 export async function deleteIncome(id: string) {
-  return apiFetch(`/incomes/${id}`, { method: "DELETE" })
+  return apiFetch(`/incomes/${id}/`, { method: "DELETE" })
 }
 
 export type CreditCardTransactionInput = {
@@ -260,15 +260,15 @@ export async function getCreditCardTransactions(params?: { account?: string }): 
 }
 
 export async function getCreditCardTransaction(id: string): Promise<CreditCardTransactionRecord> {
-  return apiFetch(`/credit-card-transactions/${id}`, { method: "GET" })
+  return apiFetch(`/credit-card-transactions/${id}/`, { method: "GET" })
 }
 
 export async function updateCreditCardTransaction(id: string, input: CreditCardTransactionInput) {
-  return apiFetch(`/credit-card-transactions/${id}`, { method: "PUT", body: JSON.stringify(input) })
+  return apiFetch(`/credit-card-transactions/${id}/`, { method: "PUT", body: JSON.stringify(input) })
 }
 
 export async function deleteCreditCardTransaction(id: string) {
-  return apiFetch(`/credit-card-transactions/${id}`, { method: "DELETE" })
+  return apiFetch(`/credit-card-transactions/${id}/`, { method: "DELETE" })
 }
 
 export type Invoice = {
@@ -292,7 +292,7 @@ export type CreditCardSummaryResponse = {
 }
 
 export async function getCreditCardSummary(accountId: string): Promise<CreditCardSummaryResponse> {
-  return apiFetch(`/credit-card-transactions/summary/${accountId}`, { method: "GET" })
+  return apiFetch(`/credit-card-transactions/summary/${accountId}/`, { method: "GET" })
 }
 
 export type DashboardResponse = {
@@ -335,5 +335,5 @@ export type ForecastItem = {
 }
 
 export async function getFinancialForecast(startDate: string, endDate: string): Promise<Array<ForecastItem>> {
-  return apiFetch(`/financial-forecast?startDate=${startDate}&endDate=${endDate}`, { method: "GET" })
+  return apiFetch(`/financial-forecast/?startDate=${startDate}&endDate=${endDate}`, { method: "GET" })
 }
