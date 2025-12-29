@@ -3,6 +3,13 @@
 import { useMemo, useState, useEffect, startTransition } from "react"
 import { Card } from "@/components/ui/card"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -140,14 +147,15 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
 
 export default function PrevisaoFinanceiraPage() {
   const [items, setItems] = useState<ForecastItem[]>([])
+  const [monthsRange, setMonthsRange] = useState("6")
   
   const { items: sortedItems, requestSort, sortConfig } = useSort(items)
 
   useEffect(() => {
-    // Calculate date range: current month to 6 months ahead
+    // Calculate date range: current month to selected months ahead
     const now = new Date()
     const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end = new Date(now.getFullYear(), now.getMonth() + 6, 0) // Last day of 6th month
+    const end = new Date(now.getFullYear(), now.getMonth() + parseInt(monthsRange), 0) // Last day of target month
 
     const formatDate = (d: Date) => d.toISOString().split('T')[0]
 
@@ -160,12 +168,26 @@ export default function PrevisaoFinanceiraPage() {
       .catch((err) => {
         console.error("Failed to fetch forecast:", err)
       })
-  }, [])
+  }, [monthsRange])
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold tracking-tight">Previsão Financeira</h2>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Período:</span>
+          <Select value={monthsRange} onValueChange={setMonthsRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecione o período" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="3">3 meses</SelectItem>
+              <SelectItem value="6">6 meses</SelectItem>
+              <SelectItem value="9">9 meses</SelectItem>
+              <SelectItem value="12">12 meses</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card className="p-6">
