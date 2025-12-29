@@ -1,7 +1,16 @@
-"use client"
+"use client";
 
-import { Home, LineChart, Table as TableIcon, Settings, ReceiptText, HandCoins, Banknote, CreditCard } from "lucide-react"
-import Link from "next/link"
+import {
+  Home,
+  LineChart,
+  Table as TableIcon,
+  Settings,
+  ReceiptText,
+  HandCoins,
+  Banknote,
+  CreditCard,
+} from "lucide-react";
+import Link from "next/link";
 import {
   Sidebar,
   SidebarContent,
@@ -14,9 +23,9 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
-} from "@/components/ui/sidebar"
-import { NavUser } from "@/components/layout/nav-user"
-import { SearchForm } from "@/components/layout/search-form"
+} from "@/components/ui/sidebar";
+import { NavUser } from "@/components/layout/nav-user";
+import { SearchForm } from "@/components/layout/search-form";
 
 const data = {
   user: {
@@ -24,7 +33,7 @@ const data = {
     email: "usuario@exemplo.com",
     avatar: "/avatars/shadcn.jpg",
   },
-}
+};
 
 export function AppSidebar() {
   return (
@@ -173,5 +182,5 @@ export function AppSidebar() {
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

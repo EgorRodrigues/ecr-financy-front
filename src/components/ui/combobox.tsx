@@ -1,23 +1,23 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export interface ComboboxOption {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface ComboboxProps {
-  options: ComboboxOption[]
-  value?: string
-  onChange: (value: string) => void
-  placeholder?: string
-  emptyText?: string
-  className?: string
-  disabled?: boolean
+  options: ComboboxOption[];
+  value?: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  emptyText?: string;
+  className?: string;
+  disabled?: boolean;
 }
 
 export function Combobox({
@@ -29,27 +29,30 @@ export function Combobox({
   className,
   disabled = false,
 }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState("")
-  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Filter options
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(search.toLowerCase())
-  )
+  );
 
   // Handle click outside
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false)
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const selectedOption = options.find((option) => option.value === value)
+  const selectedOption = options.find((option) => option.value === value);
 
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
@@ -67,7 +70,7 @@ export function Combobox({
         </span>
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
-      
+
       {open && (
         <div className="absolute top-full mt-1 z-50 w-full rounded-md border bg-popover text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95 bg-white dark:bg-slate-950">
           <div className="flex items-center border-b px-3">
@@ -93,9 +96,9 @@ export function Combobox({
                     value === option.value && "bg-accent text-accent-foreground"
                   )}
                   onClick={() => {
-                    onChange(option.value)
-                    setOpen(false)
-                    setSearch("")
+                    onChange(option.value);
+                    setOpen(false);
+                    setSearch("");
                   }}
                 >
                   <Check
@@ -112,5 +115,5 @@ export function Combobox({
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,13 +1,21 @@
-import type { Metadata } from "next"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/layout/app-sidebar"
-import { FormConfig } from "@/components/layout/form-config"
+import type { Metadata } from "next";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { FormConfig } from "@/components/layout/form-config";
 
 export const metadata: Metadata = {
   title: "Financy | Financeiro",
-}
+};
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -19,5 +27,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <FormConfig className="p-4 space-y-4">{children}</FormConfig>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

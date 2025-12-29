@@ -9,14 +9,9 @@
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
+      "runtimeArgs": ["run", "dev"],
       "console": "integratedTerminal",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "skipFiles": ["<node_internals>/**"],
       "serverReadyAction": {
         "action": "debugWithChrome",
         "pattern": "started server on .+, url: (https?://.+)",
