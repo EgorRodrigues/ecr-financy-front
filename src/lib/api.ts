@@ -1,8 +1,24 @@
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+declare global {
+  interface Window {
+    __ENV?: {
+      NEXT_PUBLIC_API_BASE_URL?: string;
+    };
+  }
+}
+
+function getBaseUrl() {
+  if (typeof window !== "undefined" && window.__ENV?.NEXT_PUBLIC_API_BASE_URL) {
+    return window.__ENV.NEXT_PUBLIC_API_BASE_URL;
+  }
+  if (typeof window === "undefined" && process.env["NEXT_PUBLIC_API_BASE_URL"]) {
+    return process.env["NEXT_PUBLIC_API_BASE_URL"];
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "https://ecr-financy-back-562960722206.us-central1.run.app";
+}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}${path}`, {
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
     ...init,
   });
