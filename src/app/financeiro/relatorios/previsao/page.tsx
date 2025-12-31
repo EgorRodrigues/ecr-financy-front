@@ -129,18 +129,6 @@ function ForecastChart({ data }: { data: ForecastItem[] }) {
         viewBox={`0 0 ${Math.max(width, 500)} ${height}`}
         className="w-full h-[350px]"
       >
-        {/* Gradients */}
-        {/* <defs>
-          <linearGradient id="gradient-income" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="gradient-expense" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
-          </linearGradient>
-        </defs> */}
-
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((t) => {
           const y = padding + chartHeight - t * chartHeight;

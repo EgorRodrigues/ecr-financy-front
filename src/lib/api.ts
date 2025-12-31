@@ -6,8 +6,10 @@ declare global {
   }
 }
 
+import { sanitizeApiUrl } from "./utils";
+
 function getBaseUrl() {
-  let url = "https://ecr-financy-back-562960722206.us-central1.run.app";
+  let url: string | undefined;
 
   if (typeof window !== "undefined" && window.__ENV?.NEXT_PUBLIC_API_BASE_URL) {
     url = window.__ENV.NEXT_PUBLIC_API_BASE_URL;
@@ -20,7 +22,13 @@ function getBaseUrl() {
     url = process.env.NEXT_PUBLIC_API_BASE_URL;
   }
 
-  return url.replace("http://", "https://");
+  if (!url) {
+    throw new Error(
+      "API Base URL not found. Please set NEXT_PUBLIC_API_BASE_URL."
+    );
+  }
+
+  return sanitizeApiUrl(url);
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {

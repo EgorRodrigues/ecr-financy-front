@@ -58,14 +58,7 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Transações">
-                  <Link href="/financeiro/transacoes">
-                    <TableIcon />
-                    <span>Transações</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Cartão de Crédito">
                   <Link href="/financeiro/cartao-credito">

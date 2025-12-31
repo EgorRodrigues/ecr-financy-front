@@ -49,9 +49,7 @@ export function SearchForm() {
             <CommandItem>
               <span>Financeiro</span>
             </CommandItem>
-            <CommandItem>
-              <span>Transações</span>
-            </CommandItem>
+
             <CommandItem>
               <span>Configurações</span>
             </CommandItem>
