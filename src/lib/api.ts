@@ -279,7 +279,7 @@ export type ExpenseRecord = TransactionInput & { id: string };
 export type IncomeRecord = TransactionInput & { id: string };
 
 export async function createExpense(input: TransactionInput) {
-  return apiFetch(`/expenses`, { method: "POST", body: JSON.stringify(input) });
+  return apiFetch(`/expenses/`, { method: "POST", body: JSON.stringify(input) });
 }
 
 export async function createIncome(input: TransactionInput) {
