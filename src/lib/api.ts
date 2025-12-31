@@ -7,13 +7,20 @@ declare global {
 }
 
 function getBaseUrl() {
+  let url = "https://ecr-financy-back-562960722206.us-central1.run.app";
+
   if (typeof window !== "undefined" && window.__ENV?.NEXT_PUBLIC_API_BASE_URL) {
-    return window.__ENV.NEXT_PUBLIC_API_BASE_URL;
+    url = window.__ENV.NEXT_PUBLIC_API_BASE_URL;
+  } else if (
+    typeof window === "undefined" &&
+    process.env["NEXT_PUBLIC_API_BASE_URL"]
+  ) {
+    url = process.env["NEXT_PUBLIC_API_BASE_URL"];
+  } else if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    url = process.env.NEXT_PUBLIC_API_BASE_URL;
   }
-  if (typeof window === "undefined" && process.env["NEXT_PUBLIC_API_BASE_URL"]) {
-    return process.env["NEXT_PUBLIC_API_BASE_URL"];
-  }
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "https://ecr-financy-back-562960722206.us-central1.run.app";
+
+  return url.replace("http://", "https://");
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
