@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 
 import {
@@ -61,10 +62,12 @@ export function NavUser({
                 </div>
               </div>
               <div className="h-px bg-border my-1" />
-              <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer">
-                <Settings className="h-4 w-4" />
-                <span>Configurações</span>
-              </div>
+              <Link href="/financeiro/configuracoes">
+                <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer">
+                  <Settings className="h-4 w-4" />
+                  <span>Configurações</span>
+                </div>
+              </Link>
               <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-destructive">
                 <LogOut className="h-4 w-4" />
                 <span>Sair</span>
