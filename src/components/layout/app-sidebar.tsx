@@ -22,6 +22,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarSeparator,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/layout/nav-user";
 import { SearchForm } from "@/components/layout/search-form";
@@ -35,6 +36,14 @@ const data = {
 };
 
 export function AppSidebar() {
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -51,7 +60,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Financeiro" isActive>
-                  <Link href="/financeiro">
+                  <Link href="/financeiro" onClick={handleLinkClick}>
                     <Home />
                     <span>Financeiro</span>
                   </Link>
@@ -60,7 +69,7 @@ export function AppSidebar() {
 
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Cartão de Crédito">
-                  <Link href="/financeiro/cartao-credito">
+                  <Link href="/financeiro/cartao-credito" onClick={handleLinkClick}>
                     <CreditCard />
                     <span>Cartão de Crédito</span>
                   </Link>
@@ -68,7 +77,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas a Pagar">
-                  <Link href="/financeiro/contas-a-pagar">
+                  <Link href="/financeiro/contas-a-pagar" onClick={handleLinkClick}>
                     <Banknote />
                     <span>Contas a Pagar</span>
                   </Link>
@@ -76,7 +85,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas a Receber">
-                  <Link href="/financeiro/contas-a-receber">
+                  <Link href="/financeiro/contas-a-receber" onClick={handleLinkClick}>
                     <HandCoins />
                     <span>Contas a Receber</span>
                   </Link>
@@ -84,7 +93,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Relatórios de Despesas">
-                  <Link href="/financeiro/relatorios/despesas">
+                  <Link href="/financeiro/relatorios/despesas" onClick={handleLinkClick}>
                     <LineChart />
                     <span>Relatórios Despesas</span>
                   </Link>
@@ -92,7 +101,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Previsão Financeira">
-                  <Link href="/financeiro/relatorios/previsao">
+                  <Link href="/financeiro/relatorios/previsao" onClick={handleLinkClick}>
                     <LineChart />
                     <span>Previsão Financeira</span>
                   </Link>
@@ -110,7 +119,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Categoria">
-                  <Link href="/financeiro/cadastros/categoria">
+                  <Link href="/financeiro/cadastros/categoria" onClick={handleLinkClick}>
                     <TableIcon />
                     <span>Categoria</span>
                   </Link>
@@ -118,7 +127,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Subcategoria">
-                  <Link href="/financeiro/cadastros/subcategoria">
+                  <Link href="/financeiro/cadastros/subcategoria" onClick={handleLinkClick}>
                     <TableIcon />
                     <span>Subcategoria</span>
                   </Link>
@@ -126,7 +135,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Centro de Custos">
-                  <Link href="/financeiro/cadastros/centro-de-custos">
+                  <Link href="/financeiro/cadastros/centro-de-custos" onClick={handleLinkClick}>
                     <TableIcon />
                     <span>Centro de Custos</span>
                   </Link>
@@ -134,7 +143,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Fornecedores/Clientes">
-                  <Link href="/financeiro/cadastros/fornecedores-clientes">
+                  <Link href="/financeiro/cadastros/fornecedores-clientes" onClick={handleLinkClick}>
                     <TableIcon />
                     <span>Fornecedores/Clientes</span>
                   </Link>
@@ -142,7 +151,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Contas">
-                  <Link href="/financeiro/cadastros/contas">
+                  <Link href="/financeiro/cadastros/contas" onClick={handleLinkClick}>
                     <TableIcon />
                     <span>Contas</span>
                   </Link>
