@@ -1,5 +1,11 @@
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
-  redirect("/financeiro");
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Link href="/financeiro" className="text-blue-500 hover:underline">
+        Ir para o Financeiro
+      </Link>
+    </div>
+  );
 }
