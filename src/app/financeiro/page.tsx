@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getDashboard } from "@/lib/api";
+import { getDashboard, getAccounts } from "@/lib/api";
 import { useSort } from "@/hooks/use-sort";
 import { ArrowUpDown } from "lucide-react";
 
@@ -180,13 +180,21 @@ export default function DashboardPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(transactions);
 
   useEffect(() => {
-    getDashboard(monthsCount, 100)
-      .then((res) => {
-        setSaldo(res.big_numbers.balance || 0);
-        setAprovados(res.big_numbers.approved || 0);
-        setPendentes(res.big_numbers.pending || 0);
-        setFalhou(res.big_numbers.failed || 0);
-        const monthlyAgg: MonthlyAgg[] = (res.monthly || []).map((m) => {
+    Promise.all([
+      getDashboard(Number(monthsCount), 100),
+      getAccounts(),
+    ])
+      .then(([dashboardRes, accountsRes]) => {
+        const accountsInitialBalance = accountsRes.reduce(
+          (acc, cur) => acc + (cur.initial_balance || 0),
+          0
+        );
+
+        setSaldo((dashboardRes.big_numbers.balance || 0) + accountsInitialBalance);
+        setAprovados(dashboardRes.big_numbers.approved || 0);
+        setPendentes(dashboardRes.big_numbers.pending || 0);
+        setFalhou(dashboardRes.big_numbers.failed || 0);
+        const monthlyAgg: MonthlyAgg[] = (dashboardRes.monthly || []).map((m) => {
           const [y, mm] = m.month.split("-").map((v) => Number(v));
           const d = new Date(y, (mm || 1) - 1, 1);
           const label = d.toLocaleString("pt-BR", { month: "short" });
@@ -197,21 +205,23 @@ export default function DashboardPage() {
           };
         });
         setMonthly(monthlyAgg);
-        const txs: Transaction[] = (res.recent_transactions || []).map((t) => ({
-          id: t.id,
-          date: t.date,
-          description: t.description,
-          amount:
-            t.type === "expense"
-              ? -Math.abs(t.amount || 0)
-              : Math.abs(t.amount || 0),
-          status:
-            t.status === "pending"
-              ? "pendente"
-              : t.status === "canceled"
-                ? "falhou"
-                : "aprovado",
-        }));
+        const txs: Transaction[] = (dashboardRes.recent_transactions || []).map(
+          (t) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            amount:
+              t.type === "expense"
+                ? -Math.abs(t.amount || 0)
+                : Math.abs(t.amount || 0),
+            status:
+              t.status === "pending"
+                ? "pendente"
+                : t.status === "canceled"
+                  ? "falhou"
+                  : "aprovado",
+          })
+        );
         setTransactions(txs);
       })
       .catch(() => {});
