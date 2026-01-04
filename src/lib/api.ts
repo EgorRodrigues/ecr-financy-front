@@ -297,6 +297,7 @@ export async function createIncome(input: TransactionInput) {
 export async function getExpenses(params?: {
   account?: string;
   account_type?: string;
+  status?: string;
 }): Promise<Array<ExpenseRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>
@@ -307,6 +308,7 @@ export async function getExpenses(params?: {
 export async function getIncomes(params?: {
   account?: string;
   account_type?: string;
+  status?: string;
 }): Promise<Array<IncomeRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>

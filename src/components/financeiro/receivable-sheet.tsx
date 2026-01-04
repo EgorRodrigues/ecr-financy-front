@@ -38,6 +38,7 @@ type ReceivableSheetProps = {
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   initialData?: IncomeRecord | null;
+  defaultAccountId?: string;
 };
 
 type FormState = {
@@ -72,6 +73,7 @@ export function ReceivableSheet({
   onOpenChange,
   onSuccess,
   initialData,
+  defaultAccountId,
 }: ReceivableSheetProps) {
   const [form, setForm] = useState<FormState>({
     valor: 0,
@@ -141,11 +143,25 @@ export function ReceivableSheet({
           status: "pendente",
           dataEmissao: format(new Date(), "yyyy-MM-dd"),
           dataVencimento: format(new Date(), "yyyy-MM-dd"),
+          contaId: defaultAccountId,
         });
         setValorText("R$ 0,00");
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, defaultAccountId]);
+
+  // Fix account ID if name is provided instead of ID
+  useEffect(() => {
+    if (initialData?.account && accounts.length > 0) {
+      const isId = accounts.some((a) => a.id === initialData.account);
+      if (!isId) {
+        const found = accounts.find((a) => a.name === initialData.account);
+        if (found) {
+          update("contaId", found.id);
+        }
+      }
+    }
+  }, [initialData, accounts]);
 
   useEffect(() => {
     if (form.categoriaId) {

@@ -3,11 +3,11 @@ name: Deploy to Staging
 on:
   push:
     branches:
-      - stg
+      - main
 env:
   REGION: us-central1
   PROJECT_ID: spry-metric-460820-i8
-  SERVICE_NAME: ecr-financy-front-staging
+  SERVICE_NAME: ecr-financy-front
 
 jobs:
   deploy:

@@ -8,6 +8,7 @@ import {
   HandCoins,
   Banknote,
   CreditCard,
+  Landmark,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -72,6 +73,14 @@ export function AppSidebar() {
                   <Link href="/financeiro/cartao-credito" onClick={handleLinkClick}>
                     <CreditCard />
                     <span>Cartão de Crédito</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Extrato por Conta">
+                  <Link href="/financeiro/extrato-conta" onClick={handleLinkClick}>
+                    <Landmark />
+                    <span>Extrato por Conta</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
