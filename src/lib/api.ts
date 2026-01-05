@@ -160,9 +160,8 @@ export async function deleteCostCenter(id: string) {
 export async function getSubcategories(
   categoryId: string
 ): Promise<Array<{ id: string; name: string }>> {
-  return apiFetch(`/subcategories/?category_id=${categoryId}`, {
-    method: "GET",
-  });
+  const all = await getAllSubcategories();
+  return all.filter((s) => s.category_id === categoryId);
 }
 
 export async function getCostCenters(): Promise<

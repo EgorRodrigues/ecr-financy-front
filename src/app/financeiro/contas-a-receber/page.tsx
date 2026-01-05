@@ -462,73 +462,89 @@ export default function ContasAReceberPage() {
               </div>
             ) : (
               dados.map((d) => (
-                <Card key={d.id} className="p-4">
-                  <div className="text-xs text-muted-foreground">Cliente</div>
-                  <div className="text-sm font-medium">
-                    {contactMap[d.contactId || ""] || d.cliente}
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Vencimento
-                  </div>
-                  <div className="text-sm">
-                    {d.vencimento
-                      ? format(parseISO(d.vencimento), "dd/MM/yyyy")
-                      : "-"}
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Valor
-                  </div>
-                  <div className="text-sm font-semibold">
-                    {d.valor.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Status
-                  </div>
-                  <div
-                    className={
-                      d.status === "recebido"
-                        ? "text-emerald-600"
-                        : d.status === "pendente"
-                          ? "text-amber-600"
-                          : "text-rose-600"
-                    }
-                  >
-                    {d.status}
-                  </div>
-                  <div className="mt-4 flex gap-2 justify-end">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openView(d.id)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {d.status !== "recebido" && d.status !== "cancelado" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openReceive(d.id)}
-                      >
-                        <Banknote className="h-4 w-4 text-emerald-600" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(d.id)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(d.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                <Card key={d.id} className="p-3">
+                  <div className="grid gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs text-muted-foreground">Cliente</div>
+                      <div className="text-sm font-medium truncate" title={contactMap[d.contactId || ""] || d.cliente}>
+                        {contactMap[d.contactId || ""] || d.cliente}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground">
+                          Vencimento
+                        </div>
+                        <div className="text-sm">
+                          {d.vencimento
+                            ? format(parseISO(d.vencimento), "dd/MM/yyyy")
+                            : "-"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">
+                          Valor
+                        </div>
+                        <div className="text-sm font-semibold">
+                          {d.valor.toLocaleString("pt-BR", {
+                            style: "currency",
+                            currency: "BRL",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <div>
+                        <div className="text-xs text-muted-foreground">
+                          Status
+                        </div>
+                        <div
+                          className={
+                            d.status === "recebido"
+                              ? "text-emerald-600 text-sm font-medium"
+                              : d.status === "pendente"
+                                ? "text-amber-600 text-sm font-medium"
+                                : "text-rose-600 text-sm font-medium"
+                          }
+                        >
+                          {d.status}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openView(d.id)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {d.status !== "recebido" && d.status !== "cancelado" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openReceive(d.id)}
+                          >
+                            <Banknote className="h-4 w-4 text-emerald-600" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(d.id)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(d.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </Card>
               ))

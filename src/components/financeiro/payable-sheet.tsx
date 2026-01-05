@@ -31,6 +31,9 @@ import {
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { ContactSheet } from "@/components/financeiro/contact-sheet";
+import { CategorySheet } from "@/components/financeiro/category-sheet";
+import { SubcategorySheet } from "@/components/financeiro/subcategory-sheet";
+import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
 
 type PayableSheetProps = {
@@ -104,6 +107,9 @@ export function PayableSheet({
 
   const [loading, setLoading] = useState(false);
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false);
+  const [costCenterSheetOpen, setCostCenterSheetOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -202,6 +208,22 @@ export function PayableSheet({
         )
       )
       .catch(() => {});
+  }
+
+  function loadCategories() {
+    getCategories().then(setCategories).catch(() => {});
+  }
+
+  function loadCostCenters() {
+    getCostCenters().then(setCostCenters).catch(() => {});
+  }
+
+  function reloadSubcategories() {
+    if (form.categoriaId) {
+      getSubcategories(form.categoriaId)
+        .then(setSubcategories)
+        .catch(() => setSubcategories([]));
+    }
   }
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -419,40 +441,61 @@ export function PayableSheet({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria</label>
-              <Select
-                value={form.categoriaId}
-                onValueChange={(v) => update("categoriaId", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={form.categoriaId}
+                  onValueChange={(v) => update("categoriaId", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => setCategorySheetOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Subcategoria</label>
-              <Select
-                value={form.subcategoriaId}
-                onValueChange={(v) => update("subcategoriaId", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {subcategories.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={form.subcategoriaId}
+                  onValueChange={(v) => update("subcategoriaId", v)}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subcategories.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  onClick={() => setSubcategorySheetOpen(true)}
+                  disabled={!form.categoriaId}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -517,21 +560,31 @@ export function PayableSheet({
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Centro de Custo</label>
-            <Select
-              value={form.centroCustoId}
-              onValueChange={(v) => update("centroCustoId", v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                {costCenters.map((cc) => (
-                  <SelectItem key={cc.id} value={cc.id}>
-                    {cc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={form.centroCustoId}
+                onValueChange={(v) => update("centroCustoId", v)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {costCenters.map((cc) => (
+                    <SelectItem key={cc.id} value={cc.id}>
+                      {cc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                type="button"
+                onClick={() => setCostCenterSheetOpen(true)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -589,6 +642,22 @@ export function PayableSheet({
         onOpenChange={setContactSheetOpen}
         onSuccess={loadContacts}
         defaultType="supplier"
+      />
+      <CategorySheet
+        open={categorySheetOpen}
+        onOpenChange={setCategorySheetOpen}
+        onSuccess={loadCategories}
+      />
+      <SubcategorySheet
+        open={subcategorySheetOpen}
+        onOpenChange={setSubcategorySheetOpen}
+        onSuccess={reloadSubcategories}
+        defaultCategoryId={form.categoriaId}
+      />
+      <CostCenterSheet
+        open={costCenterSheetOpen}
+        onOpenChange={setCostCenterSheetOpen}
+        onSuccess={loadCostCenters}
       />
     </Sheet>
   );
