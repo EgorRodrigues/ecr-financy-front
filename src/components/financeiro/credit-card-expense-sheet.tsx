@@ -247,7 +247,10 @@ export function CreditCardExpenseSheet({
           ).map((c) => c / 100);
           const start =
             form.dataEmissao || new Date().toISOString().slice(0, 10); // Use emission date as start for credit card purchase date
-          const startDate = new Date(start);
+          
+          // Parse date parts explicitly to avoid UTC conversion issues
+          const [sYear, sMonth, sDay] = start.split("-").map(Number);
+          const startDate = new Date(sYear, sMonth - 1, sDay);
 
           const requests: Promise<unknown>[] = [];
           for (let i = 0; i < n; i++) {
@@ -256,7 +259,11 @@ export function CreditCardExpenseSheet({
               startDate.getMonth() + i,
               startDate.getDate()
             );
-            const dateStr = d.toISOString().slice(0, 10);
+            // Format as YYYY-MM-DD using local time
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const dateStr = `${year}-${month}-${day}`;
 
             const payload: CreditCardTransactionInput = {
               amount: Math.abs(amounts[i]),
