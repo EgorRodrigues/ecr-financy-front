@@ -31,12 +31,89 @@ function getBaseUrl() {
   return sanitizeApiUrl(url);
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const baseUrl = getBaseUrl();
+// Authentication Service URL
+const AUTH_API_BASE_URL = "http://localhost:3333";
+
+let accessToken: string | null = null;
+
+export function setAuthToken(token: string | null) {
+  accessToken = token;
+  if (typeof window !== "undefined") {
+    if (token) {
+      localStorage.setItem("accessToken", token);
+    } else {
+      localStorage.removeItem("accessToken");
+    }
+  }
+}
+
+if (typeof window !== "undefined") {
+  accessToken = localStorage.getItem("accessToken");
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: string): Promise<T> {
+  const baseUrl = customBaseUrl || getBaseUrl();
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(init?.headers || {}),
+  };
+
+  if (accessToken) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (headers as any)["Authorization"] = `Bearer ${accessToken}`;
+  }
+
   const res = await fetch(`${baseUrl}${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    headers,
     ...init,
   });
+
+  if (res.status === 401 && !path.includes("/login") && !path.includes("/token/refresh")) {
+    // Try to refresh token
+    try {
+      // Refresh token endpoint is likely on the Auth Service
+      const refreshRes = await fetch(`${AUTH_API_BASE_URL}/token/refresh`, {
+        method: "POST",
+      });
+      
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        setAuthToken(data.access_token);
+        
+        // Retry original request
+        const newHeaders = { ...headers, Authorization: `Bearer ${data.access_token}` };
+        const retryRes = await fetch(`${baseUrl}${path}`, {
+          headers: newHeaders,
+          ...init,
+        });
+        
+        if (!retryRes.ok) {
+           const text = await retryRes.text().catch(() => "");
+           throw new Error(`HTTP ${retryRes.status} ${retryRes.statusText} - ${text}`);
+        }
+        
+        try {
+            return (await retryRes.json()) as T;
+        } catch {
+            return undefined as unknown as T;
+        }
+      } else {
+        // Refresh failed, logout
+        setAuthToken(null);
+        if (typeof window !== "undefined") {
+             window.location.href = "/login";
+        }
+        throw new Error("Session expired");
+      }
+    } catch (e) {
+      setAuthToken(null);
+      if (typeof window !== "undefined") {
+           window.location.href = "/login";
+      }
+      throw e;
+    }
+  }
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
@@ -47,6 +124,50 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     // no content
     return undefined as unknown as T;
   }
+}
+
+export type RegisterInput = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  user?: User; // Depending on if login returns user directly or if we need to fetch /me
+};
+
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+export async function register(input: RegisterInput) {
+  return apiFetch<void>(`/register`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }, AUTH_API_BASE_URL);
+}
+
+export async function login(input: LoginInput) {
+  return apiFetch<AuthResponse>(`/login`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  }, AUTH_API_BASE_URL);
+}
+
+export async function getMe() {
+  return apiFetch<User>(`/me`, { method: "GET" }, AUTH_API_BASE_URL);
+}
+
+export async function refreshToken() {
+  return apiFetch<AuthResponse>(`/token/refresh`, { method: "POST" }, AUTH_API_BASE_URL);
 }
 
 export type CategoryInput = {

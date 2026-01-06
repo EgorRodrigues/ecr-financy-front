@@ -18,6 +18,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
   createCreditCardTransaction,
   updateCreditCardTransaction,
   getCategories,
@@ -34,6 +42,28 @@ import { CategorySheet } from "@/components/financeiro/category-sheet";
 import { SubcategorySheet } from "@/components/financeiro/subcategory-sheet";
 import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { CurrencyInput } from "@/components/ui/currency-input";
+
+const formSchema = z.object({
+  valor: z.number().min(0.01, "Informe o valor"),
+  descricao: z.string().min(1, "Informe a descrição"),
+  dataEmissao: z.string().min(1, "Informe a data da compra"),
+  categoriaId: z.string().min(1, "Informe a categoria"),
+  subcategoriaId: z.string().optional(),
+  centroCustoId: z.string().optional(),
+  fornecedorClienteId: z.string().optional(),
+  documento: z.string().optional(),
+  competencia: z.string().optional(),
+  projeto: z.string().optional(),
+  tags: z.string().optional(),
+  observacoes: z.string().optional(),
+  parcelado: z.boolean(),
+  parcelas: z.number().min(1),
+  recorrencia: z.boolean(),
+});
 
 type CreditCardExpenseSheetProps = {
   open: boolean;
@@ -44,30 +74,6 @@ type CreditCardExpenseSheetProps = {
   initialData?: CreditCardTransactionRecord | null;
 };
 
-type FormState = {
-  tipo: "despesa" | "receita";
-  valor: number;
-  dataEmissao?: string;
-  dataVencimento?: string;
-  categoria?: string;
-  categoriaId?: string;
-  subcategoria?: string;
-  subcategoriaId?: string;
-  centroCusto?: string;
-  centroCustoId?: string;
-  fornecedorCliente?: string;
-  fornecedorClienteId?: string;
-  descricao?: string;
-  documento?: string;
-  competencia?: string;
-  projeto?: string;
-  tags?: string;
-  observacoes?: string;
-  parcelado?: boolean;
-  parcelas?: number;
-  recorrencia?: boolean;
-};
-
 export function CreditCardExpenseSheet({
   open,
   onOpenChange,
@@ -76,17 +82,6 @@ export function CreditCardExpenseSheet({
   onSuccess,
   initialData,
 }: CreditCardExpenseSheetProps) {
-  const [form, setForm] = useState<FormState>({
-    tipo: "despesa",
-    valor: 0,
-    parcelado: false,
-    parcelas: 1,
-    dataEmissao: format(new Date(), "yyyy-MM-dd"),
-    dataVencimento: format(new Date(), "yyyy-MM-dd"),
-  });
-
-  const [valorText, setValorText] = useState("R$ 0,00");
-
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string }>
   >([]);
@@ -106,58 +101,89 @@ export function CreditCardExpenseSheet({
   const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false);
   const [costCenterSheetOpen, setCostCenterSheetOpen] = useState(false);
 
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      valor: 0,
+      descricao: "",
+      dataEmissao: format(new Date(), "yyyy-MM-dd"),
+      categoriaId: "",
+      subcategoriaId: "",
+      centroCustoId: "",
+      fornecedorClienteId: "",
+      documento: "",
+      competencia: "",
+      projeto: "",
+      tags: "",
+      observacoes: "",
+      parcelado: false,
+      parcelas: 1,
+      recorrencia: false,
+    },
+  });
+
+  const selectedCategoryId = useWatch({
+    control: form.control,
+    name: "categoriaId",
+  });
+
+  const isParcelado = useWatch({
+    control: form.control,
+    name: "parcelado",
+  });
+
   useEffect(() => {
     if (open) {
       loadDependencies();
       if (initialData) {
-        setForm({
-          tipo: "despesa",
+        form.reset({
           valor: initialData.amount,
-          parcelado: false, // Usually updates are for single entries
-          parcelas: 1,
-          dataEmissao: initialData.issue_date,
-          dataVencimento: initialData.due_date,
-          categoriaId: initialData.category_id,
-          subcategoriaId: initialData.subcategory_id,
-          centroCustoId: initialData.cost_center_id,
-          fornecedorClienteId: initialData.contact_id,
           descricao: initialData.description,
-          documento: initialData.document,
-          competencia: initialData.competence,
-          projeto: initialData.project,
-          tags: initialData.tags?.join(", "),
-          observacoes: initialData.notes,
-          recorrencia: initialData.recurrence,
+          dataEmissao: initialData.issue_date,
+          categoriaId: initialData.category_id || "",
+          subcategoriaId: initialData.subcategory_id || "",
+          centroCustoId: initialData.cost_center_id || "",
+          fornecedorClienteId: initialData.contact_id || "",
+          documento: initialData.document || "",
+          competencia: initialData.competence || "",
+          projeto: initialData.project || "",
+          tags: initialData.tags?.join(", ") || "",
+          observacoes: initialData.notes || "",
+          parcelado: false, // Edição geralmente é de uma parcela específica
+          parcelas: 1,
+          recorrencia: initialData.recurrence || false,
         });
-        const formatted = new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        }).format(initialData.amount);
-        setValorText(formatted);
       } else {
-        // Reset form when opening in create mode
-        setForm({
-          tipo: "despesa",
+        form.reset({
           valor: 0,
+          descricao: "",
+          dataEmissao: format(new Date(), "yyyy-MM-dd"),
+          categoriaId: "",
+          subcategoriaId: "",
+          centroCustoId: "",
+          fornecedorClienteId: "",
+          documento: "",
+          competencia: "",
+          projeto: "",
+          tags: "",
+          observacoes: "",
           parcelado: false,
           parcelas: 1,
-          dataEmissao: format(new Date(), "yyyy-MM-dd"),
-          dataVencimento: format(new Date(), "yyyy-MM-dd"),
+          recorrencia: false,
         });
-        setValorText("R$ 0,00");
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, form]);
 
   useEffect(() => {
-    if (form.categoriaId) {
-      getSubcategories(form.categoriaId)
+    if (selectedCategoryId) {
+      getSubcategories(selectedCategoryId)
         .then(setSubcategories)
         .catch(() => setSubcategories([]));
     } else {
       setSubcategories([]);
     }
-  }, [form.categoriaId]);
+  }, [selectedCategoryId]);
 
   async function loadDependencies() {
     try {
@@ -197,80 +223,59 @@ export function CreditCardExpenseSheet({
   }
 
   function reloadSubcategories() {
-    if (form.categoriaId) {
-      getSubcategories(form.categoriaId)
+    if (selectedCategoryId) {
+      getSubcategories(selectedCategoryId)
         .then(setSubcategories)
         .catch(() => setSubcategories([]));
     }
   }
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleValorChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value;
-    const digits = raw.replace(/\D/g, "");
-    const cents = digits ? parseInt(digits, 10) : 0;
-    const value = cents / 100;
-    const formatted = new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-    setValorText(formatted);
-    update("valor", value);
-  }
-
-  async function handleSubmit() {
-    if (!form.descricao || !form.valor || !form.categoriaId) return;
-
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
       if (initialData) {
         // Update mode
         const payload: CreditCardTransactionInput = {
-          amount: form.valor,
+          amount: values.valor,
           status: initialData.status, // Preserve status
-          issue_date: form.dataEmissao,
-          due_date: form.dataEmissao,
-          payment_date: form.dataEmissao,
-          original_amount: form.valor,
-          category_id: form.categoriaId,
-          subcategory_id: form.subcategoriaId,
-          cost_center_id: form.centroCustoId,
-          contact_id: form.fornecedorClienteId,
-          description: form.descricao,
-          document: form.documento,
-          // payment_method removed as it triggers validation error if set to "credit_card" and is optional
+          issue_date: values.dataEmissao,
+          due_date: values.dataEmissao,
+          payment_date: values.dataEmissao,
+          original_amount: values.valor,
+          category_id: values.categoriaId,
+          subcategory_id: values.subcategoriaId,
+          cost_center_id: values.centroCustoId,
+          contact_id: values.fornecedorClienteId,
+          description: values.descricao,
+          document: values.documento,
           account: cardId,
-          recurrence: !!form.recorrencia,
-          competence: form.competencia,
-          project: form.projeto,
-          tags: form.tags
-            ? form.tags
+          recurrence: values.recorrencia,
+          competence: values.competencia,
+          project: values.projeto,
+          tags: values.tags
+            ? values.tags
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean)
             : [],
-          notes: form.observacoes,
+          notes: values.observacoes,
           active: true,
         };
         await updateCreditCardTransaction(initialData.id, payload);
       } else {
         // Create mode
-        const isParcelado = !!form.parcelado && (form.parcelas || 1) > 1;
+        const isParcelado = values.parcelado && values.parcelas > 1;
 
         if (isParcelado) {
-          const n = Math.max(2, form.parcelas || 2);
-          const total = Math.abs(form.valor || 0);
+          const n = Math.max(2, values.parcelas);
+          const total = Math.abs(values.valor);
           const base = Math.floor((total * 100) / n);
           const amounts: number[] = Array.from({ length: n }, (_, i) =>
             i < n - 1 ? base : total * 100 - base * (n - 1)
           ).map((c) => c / 100);
           const start =
-            form.dataEmissao || new Date().toISOString().slice(0, 10); // Use emission date as start for credit card purchase date
+            values.dataEmissao || new Date().toISOString().slice(0, 10);
           
-          // Parse date parts explicitly to avoid UTC conversion issues
           const [sYear, sMonth, sDay] = start.split("-").map(Number);
           const startDate = new Date(sYear, sMonth - 1, sDay);
 
@@ -281,7 +286,6 @@ export function CreditCardExpenseSheet({
               startDate.getMonth() + i,
               startDate.getDate()
             );
-            // Format as YYYY-MM-DD using local time
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, "0");
             const day = String(d.getDate()).padStart(2, "0");
@@ -290,36 +294,35 @@ export function CreditCardExpenseSheet({
             const payload: CreditCardTransactionInput = {
               amount: Math.abs(amounts[i]),
               status: "pendente",
-              issue_date: form.dataEmissao, // Original purchase date
-              due_date: dateStr, // Shifted date for invoice allocation
-              payment_date: form.dataEmissao,
+              issue_date: values.dataEmissao,
+              due_date: dateStr,
+              payment_date: values.dataEmissao,
               original_amount: Math.abs(amounts[i]),
               interest: 0,
               fine: 0,
               discount: 0,
               total_paid: 0,
-              category_id: form.categoriaId,
-              subcategory_id: form.subcategoriaId,
-              cost_center_id: form.centroCustoId,
-              contact_id: form.fornecedorClienteId,
-              description: [form.descricao || "", `(parcela ${i + 1}/${n})`]
+              category_id: values.categoriaId,
+              subcategory_id: values.subcategoriaId,
+              cost_center_id: values.centroCustoId,
+              contact_id: values.fornecedorClienteId,
+              description: [values.descricao || "", `(parcela ${i + 1}/${n})`]
                 .filter(Boolean)
                 .join(" "),
-              document: form.documento
-                ? `${form.documento}-${i + 1}/${n}`
+              document: values.documento
+                ? `${values.documento}-${i + 1}/${n}`
                 : undefined,
-              // payment_method removed as it triggers validation error if set to "credit_card" and is optional
               account: cardId,
-              recurrence: !!form.recorrencia,
-              competence: form.competencia,
-              project: form.projeto,
-              tags: form.tags
-                ? form.tags
+              recurrence: values.recorrencia,
+              competence: values.competencia,
+              project: values.projeto,
+              tags: values.tags
+                ? values.tags
                     .split(",")
                     .map((s) => s.trim())
                     .filter(Boolean)
                 : [],
-              notes: form.observacoes,
+              notes: values.observacoes,
               active: true,
             };
             requests.push(createCreditCardTransaction(payload));
@@ -327,34 +330,34 @@ export function CreditCardExpenseSheet({
           await Promise.all(requests);
         } else {
           const payload: CreditCardTransactionInput = {
-            amount: form.valor,
+            amount: values.valor,
             status: "pendente",
-            issue_date: form.dataEmissao,
-            due_date: form.dataEmissao,
-            payment_date: form.dataEmissao,
-            original_amount: form.valor,
+            issue_date: values.dataEmissao,
+            due_date: values.dataEmissao,
+            payment_date: values.dataEmissao,
+            original_amount: values.valor,
             interest: 0,
             fine: 0,
             discount: 0,
             total_paid: 0,
-            category_id: form.categoriaId,
-            subcategory_id: form.subcategoriaId,
-            cost_center_id: form.centroCustoId,
-            contact_id: form.fornecedorClienteId,
-            description: form.descricao,
-            document: form.documento,
+            category_id: values.categoriaId,
+            subcategory_id: values.subcategoriaId,
+            cost_center_id: values.centroCustoId,
+            contact_id: values.fornecedorClienteId,
+            description: values.descricao,
+            document: values.documento,
             payment_method: "credit_card",
             account: cardId,
-            recurrence: !!form.recorrencia,
-            competence: form.competencia,
-            project: form.projeto,
-            tags: form.tags
-              ? form.tags
+            recurrence: values.recorrencia,
+            competence: values.competencia,
+            project: values.projeto,
+            tags: values.tags
+              ? values.tags
                   .split(",")
                   .map((s) => s.trim())
                   .filter(Boolean)
               : [],
-            notes: form.observacoes,
+            notes: values.observacoes,
             active: true,
           };
           await createCreditCardTransaction(payload);
@@ -378,234 +381,346 @@ export function CreditCardExpenseSheet({
             {initialData ? "Editar Despesa" : "Nova Despesa"} - {cardName}
           </SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Valor</label>
-              <Input
-                value={valorText}
-                onChange={handleValorChange}
-                className="text-lg font-bold"
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="valor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor</FormLabel>
+                    <FormControl>
+                      <CurrencyInput
+                        placeholder="R$ 0,00"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="text-lg font-bold"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dataEmissao"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data da Compra</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data da Compra</label>
-              <Input
-                type="date"
-                value={form.dataEmissao}
-                onChange={(e) => update("dataEmissao", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Descrição</label>
-            <Input
-              value={form.descricao ?? ""}
-              onChange={(e) => update("descricao", e.target.value)}
-              placeholder="Ex: Almoço, Uber, etc."
+            <FormField
+              control={form.control}
+              name="descricao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Almoço, Uber, etc." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Categoria</label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={form.categoriaId}
-                  onValueChange={(v) => update("categoriaId", v)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  type="button"
-                  onClick={() => setCategorySheetOpen(true)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Subcategoria</label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={form.subcategoriaId}
-                  onValueChange={(v) => update("subcategoriaId", v)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subcategories.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  type="button"
-                  onClick={() => setSubcategorySheetOpen(true)}
-                  disabled={!form.categoriaId}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Centro de Custo</label>
-            <div className="flex items-center gap-2">
-              <Select
-                value={form.centroCustoId}
-                onValueChange={(v) => update("centroCustoId", v)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {costCenters.map((cc) => (
-                    <SelectItem key={cc.id} value={cc.id}>
-                      {cc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                size="icon"
-                type="button"
-                onClick={() => setCostCenterSheetOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Fornecedor / Loja</label>
-            <div className="flex items-center gap-2">
-              <Combobox
-                options={contacts.map((c) => ({ value: c.id, label: c.name }))}
-                value={form.fornecedorClienteId}
-                onChange={(v) => update("fornecedorClienteId", v)}
-                placeholder="Selecione..."
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="categoriaId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Categoria</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => setCategorySheetOpen(true)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setContactSheetOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Documento/Nota</label>
-            <Input
-              value={form.documento ?? ""}
-              onChange={(e) => update("documento", e.target.value)}
+              <FormField
+                control={form.control}
+                name="subcategoriaId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Subcategoria</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={!selectedCategoryId}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {subcategories.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        type="button"
+                        onClick={() => setSubcategorySheetOpen(true)}
+                        disabled={!selectedCategoryId}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="centroCustoId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Centro de Custo</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {costCenters.map((cc) => (
+                            <SelectItem key={cc.id} value={cc.id}>
+                              {cc.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      type="button"
+                      onClick={() => setCostCenterSheetOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Competência</label>
-              <Input
-                value={form.competencia ?? ""}
-                onChange={(e) => update("competencia", e.target.value)}
-                placeholder="AAAA-MM"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Projeto</label>
-              <Input
-                value={form.projeto ?? ""}
-                onChange={(e) => update("projeto", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Tags</label>
-            <Input
-              value={form.tags ?? ""}
-              onChange={(e) => update("tags", e.target.value)}
-              placeholder="tag1, tag2"
+            <FormField
+              control={form.control}
+              name="fornecedorClienteId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fornecedor / Loja</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Combobox
+                        options={contacts.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Selecione..."
+                      />
+                    </FormControl>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      type="button"
+                      onClick={() => setContactSheetOpen(true)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Parcelado?</label>
-              <Select
-                value={form.parcelado ? "sim" : "nao"}
-                onValueChange={(v) => update("parcelado", v === "sim")}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="nao">Não</SelectItem>
-                  <SelectItem value="sim">Sim</SelectItem>
-                </SelectContent>
-              </Select>
+            <FormField
+              control={form.control}
+              name="documento"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Documento/Nota</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="competencia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Competência</FormLabel>
+                    <FormControl>
+                      <Input placeholder="AAAA-MM" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="projeto"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Projeto</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {form.parcelado && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Nº Parcelas</label>
-                <Input
-                  type="number"
-                  min={2}
-                  value={form.parcelas}
-                  onChange={(e) => update("parcelas", Number(e.target.value))}
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <FormControl>
+                    <Input placeholder="tag1, tag2" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="parcelado"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Parcelado?</FormLabel>
+                    <Select
+                      value={field.value ? "sim" : "nao"}
+                      onValueChange={(v) => field.onChange(v === "sim")}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="nao">Não</SelectItem>
+                        <SelectItem value="sim">Sim</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {isParcelado && (
+                <FormField
+                  control={form.control}
+                  name="parcelas"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nº Parcelas</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={2}
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Observações</label>
-            <Input
-              value={form.observacoes ?? ""}
-              onChange={(e) => update("observacoes", e.target.value)}
+            <FormField
+              control={form.control}
+              name="observacoes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-        </div>
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || !form.valor || !form.descricao}
-          >
-            {loading
-              ? "Salvando..."
-              : initialData
-                ? "Atualizar Despesa"
-                : "Salvar Despesa"}
-          </Button>
-        </SheetFooter>
+
+            <SheetFooter>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading
+                  ? "Salvando..."
+                  : initialData
+                  ? "Atualizar Despesa"
+                  : "Salvar Despesa"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </Form>
       </SheetContent>
       <ContactSheet
         open={contactSheetOpen}
@@ -622,7 +737,7 @@ export function CreditCardExpenseSheet({
         open={subcategorySheetOpen}
         onOpenChange={setSubcategorySheetOpen}
         onSuccess={reloadSubcategories}
-        defaultCategoryId={form.categoriaId}
+        defaultCategoryId={selectedCategoryId}
       />
       <CostCenterSheet
         open={costCenterSheetOpen}

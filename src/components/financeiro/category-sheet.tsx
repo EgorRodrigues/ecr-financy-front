@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,119 +14,152 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { createCategory } from "@/lib/api";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { createCategory, updateCategory } from "@/lib/api";
+
+const formSchema = z.object({
+  nome: z.string().min(1, "Informe o nome da categoria"),
+  descricao: z.string().optional(),
+  ativo: z.boolean(),
+});
 
 type CategorySheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: (newId?: string) => void;
-};
-
-type FormState = {
-  nome: string;
-  descricao: string;
-  ativo: boolean;
+  initialData?: { id: string; name: string; description?: string; active?: boolean } | null;
 };
 
 export function CategorySheet({
   open,
   onOpenChange,
   onSuccess,
+  initialData,
 }: CategorySheetProps) {
-  const [form, setForm] = useState<FormState>({
-    nome: "",
-    descricao: "",
-    ativo: true,
-  });
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      descricao: "",
+      ativo: true,
+    },
+  });
 
-  function salvar() {
-    if (!form.nome || !form.nome.trim()) {
-      setMensagem("Informe o nome da categoria");
-      return;
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        nome: initialData.name,
+        descricao: initialData.description || "",
+        ativo: initialData.active ?? true,
+      });
+    } else {
+      form.reset({
+        nome: "",
+        descricao: "",
+        ativo: true,
+      });
     }
-    setSalvando(true);
-    (async () => {
-      try {
-        const result = await createCategory({
-          name: form.nome.trim(),
-          description: form.descricao || undefined,
-          active: form.ativo,
-        });
+  }, [initialData, form]);
 
-        setMensagem(null);
-        setForm({
-          nome: "",
-          descricao: "",
-          ativo: true,
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setSalvando(true);
+    setMensagem(null);
+    try {
+      if (initialData?.id) {
+        await updateCategory(initialData.id, {
+          name: values.nome.trim(),
+          description: values.descricao || undefined,
+          active: values.ativo,
         });
-        // Assuming createCategory returns the created object or at least we can infer it was successful
-        // If the API returns the created object with ID, we could pass it to onSuccess
-        onSuccess?.(); 
-        onOpenChange(false);
-      } catch (error) {
-        console.error(error);
-        setMensagem("Falha ao salvar categoria");
-      } finally {
-        setSalvando(false);
+      } else {
+        await createCategory({
+          name: values.nome.trim(),
+          description: values.descricao || undefined,
+          active: values.ativo,
+        });
       }
-    })();
+
+      form.reset();
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      setMensagem("Falha ao salvar categoria");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md h-full overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Nova Categoria</SheetTitle>
+          <SheetTitle>{initialData ? "Editar Categoria" : "Nova Categoria"}</SheetTitle>
         </SheetHeader>
 
-        <div className="grid gap-4 py-4">
-          {mensagem && (
-            <div className="text-sm text-red-600 font-medium">{mensagem}</div>
-          )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            {mensagem && (
+              <div className="text-sm text-red-600 font-medium">{mensagem}</div>
+            )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nome</label>
-            <Input
-              value={form.nome}
-              onChange={(e) => update("nome", e.target.value)}
-              placeholder="Ex: Despesas Administrativas"
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Despesas Administrativas" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Descrição</label>
-            <Textarea
-              value={form.descricao}
-              onChange={(e) => update("descricao", e.target.value)}
-              placeholder="Opcional"
+            <FormField
+              control={form.control}
+              name="descricao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Descrição opcional"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="flex items-center gap-2">
-             <label className="text-sm font-medium">Ativo?</label>
-             <input 
-                type="checkbox" 
-                checked={form.ativo} 
-                onChange={(e) => update("ativo", e.target.checked)}
-                className="h-4 w-4"
-             />
-          </div>
-        </div>
-
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={salvar} disabled={salvando}>
-            {salvando ? "Salvando..." : "Salvar"}
-          </Button>
-        </SheetFooter>
+            <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={salvando}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={salvando}>
+                {salvando ? "Salvando..." : "Salvar"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );

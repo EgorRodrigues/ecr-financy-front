@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Plus, Calendar, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { Plus, Calendar, Pencil, Trash2, ArrowUpDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -36,6 +36,7 @@ import {
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet";
+import { useSort } from "@/hooks/use-sort";
 
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([]);
@@ -158,6 +159,21 @@ export default function CreditCardPage() {
     ? cardExpenses.filter((expense) => expense.invoice_id === selectedInvoiceId)
     : cardExpenses;
 
+  const displayExpenses = useMemo(() => {
+    return filteredExpenses.map((e) => {
+      const cat = categories.find((c) => c.id === e.category_id);
+      return {
+        ...e,
+        displayDate: e.issue_date,
+        displayDescription: e.description,
+        displayCategory: cat?.name || "-",
+        displayAmount: e.amount,
+      };
+    });
+  }, [filteredExpenses, categories]);
+
+  const { items: sortedExpenses, requestSort, sortConfig } = useSort(displayExpenses);
+
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
       {/* Main Content */}
@@ -206,15 +222,47 @@ export default function CreditCardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => requestSort("displayDate")}
+                    >
+                      Data{" "}
+                      {sortConfig?.key === "displayDate" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => requestSort("displayDescription")}
+                    >
+                      Descrição{" "}
+                      {sortConfig?.key === "displayDescription" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => requestSort("displayCategory")}
+                    >
+                      Categoria{" "}
+                      {sortConfig?.key === "displayCategory" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => requestSort("displayAmount")}
+                    >
+                      Valor{" "}
+                      {sortConfig?.key === "displayAmount" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
                     <TableHead className="w-[100px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredExpenses.length === 0 ? (
+                  {sortedExpenses.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-4">
                         {selectedInvoiceId
@@ -223,7 +271,7 @@ export default function CreditCardPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredExpenses.map((expense) => (
+                    sortedExpenses.map((expense) => (
                       <TableRow key={expense.id}>
                         <TableCell>
                           {expense.issue_date

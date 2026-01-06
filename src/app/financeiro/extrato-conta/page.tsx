@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,6 +39,7 @@ import { format, parseISO, compareDesc } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { PayableSheet } from "@/components/financeiro/payable-sheet";
 import { ReceivableSheet } from "@/components/financeiro/receivable-sheet";
+import { useSort } from "@/hooks/use-sort";
 
 type Transaction = (ExpenseRecord | IncomeRecord) & {
   type: "expense" | "income";
@@ -175,6 +176,31 @@ export default function AccountStatementPage() {
     return initialBalance + totalIncome - totalExpense;
   }, [selectedAccount, transactions]);
 
+  const displayTransactions = useMemo(() => {
+    return transactions.map((t) => {
+      const categoryName =
+        categories.find((c) => c.id === t.category_id)?.name || "-";
+      
+      // Prefer payment_date, then issue_date. Ignore due_date for statement.
+      const dateStr = t.payment_date || t.issue_date;
+      const amount = t.type === "expense" ? (t.total_paid || 0) : (t.total_received || 0);
+      
+      return {
+        ...t,
+        displayDate: dateStr,
+        displayDescription: t.description || "-",
+        displayCategory: categoryName,
+        displayAmount: amount,
+        displayStatus: t.status,
+      };
+    });
+  }, [transactions, categories]);
+
+  const { items: sortedTransactions, requestSort, sortConfig } = useSort(
+    displayTransactions,
+    { key: "displayDate", direction: "desc" }
+  );
+
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
       {/* Main Content */}
@@ -258,29 +284,64 @@ export default function AccountStatementPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => requestSort("displayDate")}
+                  >
+                    Data{" "}
+                    {sortConfig?.key === "displayDate" && (
+                      <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => requestSort("displayDescription")}
+                  >
+                    Descrição{" "}
+                    {sortConfig?.key === "displayDescription" && (
+                      <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => requestSort("displayCategory")}
+                  >
+                    Categoria{" "}
+                    {sortConfig?.key === "displayCategory" && (
+                      <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => requestSort("displayAmount")}
+                  >
+                    Valor{" "}
+                    {sortConfig?.key === "displayAmount" && (
+                      <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => requestSort("displayStatus")}
+                  >
+                    Status{" "}
+                    {sortConfig?.key === "displayStatus" && (
+                      <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                    )}
+                  </TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.length === 0 ? (
+                {sortedTransactions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center">
                       Nenhuma transação encontrada.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  transactions.map((transaction) => {
-                    const categoryName =
-                      categories.find((c) => c.id === transaction.category_id)
-                        ?.name || "-";
-                    
-                    // Prefer payment_date, then issue_date. Ignore due_date for statement.
-                    const dateStr = transaction.payment_date || transaction.issue_date;
+                  sortedTransactions.map((transaction) => {
+                    const dateStr = transaction.displayDate;
                     const date = dateStr ? parseISO(dateStr) : new Date();
 
                     return (
@@ -288,14 +349,14 @@ export default function AccountStatementPage() {
                         <TableCell>
                           {format(date, "dd/MM/yyyy", { locale: ptBR })}
                         </TableCell>
-                        <TableCell>{transaction.description || "-"}</TableCell>
-                        <TableCell>{categoryName}</TableCell>
+                        <TableCell>{transaction.displayDescription}</TableCell>
+                        <TableCell>{transaction.displayCategory}</TableCell>
                         <TableCell className={transaction.type === "income" ? "text-green-600" : "text-red-600"}>
                           {transaction.type === "expense" ? "-" : "+"}
                           {new Intl.NumberFormat("pt-BR", {
                             style: "currency",
                             currency: "BRL",
-                          }).format(transaction.type === "expense" ? (transaction.total_paid || 0) : (transaction.total_received || 0))}
+                          }).format(transaction.displayAmount)}
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs ${

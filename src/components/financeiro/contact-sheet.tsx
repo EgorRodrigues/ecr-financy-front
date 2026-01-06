@@ -1,8 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -10,26 +14,42 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { createContact } from "@/lib/api";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { createContact, updateContact, type Contact } from "@/lib/api";
+
+const formSchema = z.object({
+  tipo: z.enum(["fornecedor", "cliente"]),
+  pessoa: z.enum(["fisica", "juridica"]),
+  nome: z.string().min(1, "Informe o nome"),
+  cpf: z.string().optional(),
+  cnpj: z.string().optional(),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  observacoes: z.string().optional(),
+  ativo: z.boolean().default(true),
+});
 
 type ContactSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   defaultType?: "supplier" | "customer";
-};
-
-type FormState = {
-  tipo: "fornecedor" | "cliente";
-  pessoa: "fisica" | "juridica";
-  nome: string;
-  cpf?: string;
-  cnpj?: string;
-  email?: string;
-  telefone?: string;
-  endereco?: string;
-  observacoes?: string;
-  ativo: boolean;
+  initialData?: Contact | null;
 };
 
 export function ContactSheet({
@@ -37,19 +57,60 @@ export function ContactSheet({
   onOpenChange,
   onSuccess,
   defaultType = "supplier",
+  initialData,
 }: ContactSheetProps) {
-  const [form, setForm] = useState<FormState>({
-    tipo: defaultType === "supplier" ? "fornecedor" : "cliente",
-    pessoa: "fisica",
-    nome: "",
-    ativo: true,
-  });
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      tipo: defaultType === "supplier" ? "fornecedor" : ("cliente" as "fornecedor" | "cliente"),
+      pessoa: "fisica" as "fisica" | "juridica",
+      nome: "",
+      cpf: "",
+      cnpj: "",
+      email: "",
+      telefone: "",
+      endereco: "",
+      observacoes: "",
+      ativo: true,
+    },
+  });
+
+  // Reset form when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        tipo: initialData.type === "supplier" ? "fornecedor" : "cliente",
+        pessoa: initialData.person_type === "individual" ? "fisica" : "juridica",
+        nome: initialData.name,
+        cpf: initialData.person_type === "individual" ? initialData.document || "" : "",
+        cnpj: initialData.person_type === "company" ? initialData.document || "" : "",
+        email: initialData.email || "",
+        telefone: initialData.phone_local || "", // Prefer local phone for display if available
+        endereco: initialData.address || "",
+        observacoes: initialData.notes || "",
+        ativo: initialData.active ?? true,
+      });
+    } else {
+      form.reset({
+        tipo: defaultType === "supplier" ? "fornecedor" : "cliente",
+        pessoa: "fisica",
+        nome: "",
+        cpf: "",
+        cnpj: "",
+        email: "",
+        telefone: "",
+        endereco: "",
+        observacoes: "",
+        ativo: true,
+      });
+    }
+  }, [initialData, defaultType, form]);
+
+  const pessoa = form.watch("pessoa");
+  const tipo = form.watch("tipo");
 
   function formatCPF(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -113,54 +174,69 @@ export function ContactSheet({
     return `+${cc} (${area}) ${part1}-${part2}`;
   }
 
-  function salvar() {
-    if (!form.nome || !form.nome.trim()) {
-      setMensagem("Informe o nome");
-      return;
-    }
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setSalvando(true);
-    (async () => {
-      try {
-        const onlyDigits = (s?: string) => (s || "").replace(/\D/g, "");
-        const type = form.tipo === "fornecedor" ? "supplier" : "customer";
-        const person_type = form.pessoa === "fisica" ? "individual" : "company";
-        const document =
-          form.pessoa === "fisica"
-            ? onlyDigits(form.cpf)
-            : onlyDigits(form.cnpj);
-        const phoneLocal = form.telefone || "";
-        const phoneE164 = phoneLocal.startsWith("+")
-          ? `+${onlyDigits(phoneLocal)}`
-          : undefined;
+    setMensagem(null);
+    try {
+      const onlyDigits = (s?: string) => (s || "").replace(/\D/g, "");
+      const type = values.tipo === "fornecedor" ? "supplier" : "customer";
+      const person_type = values.pessoa === "fisica" ? "individual" : "company";
+      const document =
+        values.pessoa === "fisica"
+          ? onlyDigits(values.cpf)
+          : onlyDigits(values.cnpj);
+      const phoneLocal = values.telefone || "";
+      const phoneE164 = phoneLocal.startsWith("+")
+        ? `+${onlyDigits(phoneLocal)}`
+        : undefined;
 
+      if (initialData?.id) {
+        await updateContact(initialData.id, {
+          type,
+          person_type,
+          name: values.nome.trim(),
+          document: document || undefined,
+          email: values.email || undefined,
+          phone_e164: phoneE164,
+          phone_local: phoneLocal || undefined,
+          address: values.endereco || undefined,
+          notes: values.observacoes || undefined,
+          active: values.ativo,
+        });
+      } else {
         await createContact({
           type,
           person_type,
-          name: form.nome.trim(),
+          name: values.nome.trim(),
           document: document || undefined,
-          email: form.email || undefined,
+          email: values.email || undefined,
           phone_e164: phoneE164,
           phone_local: phoneLocal || undefined,
-          address: form.endereco || undefined,
-          notes: form.observacoes || undefined,
-          active: form.ativo,
+          address: values.endereco || undefined,
+          notes: values.observacoes || undefined,
+          active: values.ativo,
         });
+      }
 
-        setMensagem(null);
-        setForm({
+      form.reset({
           tipo: defaultType === "supplier" ? "fornecedor" : "cliente",
           pessoa: "fisica",
           nome: "",
+          cpf: "",
+          cnpj: "",
+          email: "",
+          telefone: "",
+          endereco: "",
+          observacoes: "",
           ativo: true,
-        });
-        onSuccess?.();
-        onOpenChange(false);
-      } catch {
-        setMensagem("Falha ao salvar");
-      } finally {
-        setSalvando(false);
-      }
-    })();
+      });
+      onSuccess?.();
+      onOpenChange(false);
+    } catch {
+      setMensagem("Falha ao salvar");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -168,131 +244,211 @@ export function ContactSheet({
       <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
         <SheetHeader>
           <SheetTitle>
-            Novo {form.tipo === "fornecedor" ? "Fornecedor" : "Cliente"}
+            {initialData
+              ? `Editar ${tipo === "fornecedor" ? "Fornecedor" : "Cliente"}`
+              : `Novo ${tipo === "fornecedor" ? "Fornecedor" : "Cliente"}`}
           </SheetTitle>
         </SheetHeader>
 
-        <div className="grid grid-cols-1 gap-4 p-4 text-sm md:grid-cols-2">
-          {mensagem && (
-            <div className="col-span-2 text-xs text-red-600">{mensagem}</div>
-          )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            {mensagem && (
+              <div className="text-sm text-red-600 font-medium">{mensagem}</div>
+            )}
 
-          <div>
-            <label className="text-xs">Tipo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.tipo}
-              onChange={(e) =>
-                update("tipo", e.target.value as FormState["tipo"])
-              }
-            >
-              <option value="fornecedor">Fornecedor</option>
-              <option value="cliente">Cliente</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs">Pessoa</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.pessoa}
-              onChange={(e) =>
-                update("pessoa", e.target.value as FormState["pessoa"])
-              }
-            >
-              <option value="fisica">Pessoa Física</option>
-              <option value="juridica">Pessoa Jurídica</option>
-            </select>
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs">Nome</label>
-            <Input
-              value={form.nome}
-              onChange={(e) => update("nome", e.target.value)}
-            />
-          </div>
-
-          {form.pessoa === "fisica" && (
-            <div>
-              <label className="text-xs">CPF</label>
-              <Input
-                inputMode="numeric"
-                value={form.cpf ?? ""}
-                onChange={(e) => update("cpf", formatCPF(e.target.value))}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="tipo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                        <SelectItem value="cliente">Cliente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
 
-          {form.pessoa === "juridica" && (
-            <div>
-              <label className="text-xs">CNPJ</label>
-              <Input
-                inputMode="numeric"
-                value={form.cnpj ?? ""}
-                onChange={(e) => update("cnpj", formatCNPJ(e.target.value))}
+              <FormField
+                control={form.control}
+                name="pessoa"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pessoa</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="fisica">Física</SelectItem>
+                        <SelectItem value="juridica">Jurídica</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
+
+              <div className="col-span-1 md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="nome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nome completo ou Razão Social" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {pessoa === "fisica" ? (
+                <FormField
+                  control={form.control}
+                  name="cpf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="000.000.000-00"
+                          {...field}
+                          onChange={(e) => field.onChange(formatCPF(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="cnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNPJ</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="00.000.000/0000-00"
+                          {...field}
+                          onChange={(e) => field.onChange(formatCNPJ(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="(00) 00000-0000"
+                        {...field}
+                        onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="col-span-1 md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>E-mail</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="email@exemplo.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="endereco"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Endereço</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Rua, Número, Bairro, Cidade - UF" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="observacoes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Observações</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Notas adicionais"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
-          )}
 
-          <div>
-            <label className="text-xs">E-mail</label>
-            <Input
-              type="email"
-              value={form.email ?? ""}
-              onChange={(e) => update("email", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs">Telefone</label>
-            <Input
-              inputMode="tel"
-              value={form.telefone ?? ""}
-              onChange={(e) => update("telefone", formatPhone(e.target.value))}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs">Endereço</label>
-            <Input
-              value={form.endereco ?? ""}
-              onChange={(e) => update("endereco", e.target.value)}
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label className="text-xs">Observações</label>
-            <textarea
-              className="bg-background h-24 w-full rounded-md border px-2 py-2 text-sm"
-              value={form.observacoes ?? ""}
-              onChange={(e) => update("observacoes", e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="text-xs">Ativo</label>
-            <select
-              className="bg-background h-10 w-full rounded-md border px-2"
-              value={form.ativo ? "true" : "false"}
-              onChange={(e) => update("ativo", e.target.value === "true")}
-            >
-              <option value="true">Sim</option>
-              <option value="false">Não</option>
-            </select>
-          </div>
-        </div>
-
-        <SheetFooter>
-          <div className="flex gap-2">
-            <Button onClick={salvar} disabled={salvando || !form.nome.trim()}>
-              Salvar
-            </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </SheetFooter>
+            <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={salvando}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={salvando}>
+                {salvando ? "Salvando..." : "Salvar"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );
