@@ -73,15 +73,16 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
     try {
       // Refresh token endpoint is likely on the Auth Service
       const refreshRes = await fetch(`${AUTH_API_BASE_URL}/token/refresh`, {
-        method: "POST",
+        method: "PATCH",
+        credentials: "include",
       });
       
       if (refreshRes.ok) {
         const data = await refreshRes.json();
-        setAuthToken(data.access_token);
+        setAuthToken(data.token);
         
         // Retry original request
-        const newHeaders = { ...headers, Authorization: `Bearer ${data.access_token}` };
+        const newHeaders = { ...headers, Authorization: `Bearer ${data.token}` };
         const retryRes = await fetch(`${baseUrl}${path}`, {
           headers: newHeaders,
           ...init,
@@ -138,14 +139,14 @@ export type LoginInput = {
 };
 
 export type AuthResponse = {
-  access_token: string;
-  user?: User; // Depending on if login returns user directly or if we need to fetch /me
+  token: string;
 };
 
 export type User = {
   id: string;
   name: string;
   email: string;
+  avatar_url?: string;
 };
 
 export async function register(input: RegisterInput) {
@@ -159,15 +160,12 @@ export async function login(input: LoginInput) {
   return apiFetch<AuthResponse>(`/login`, {
     method: "POST",
     body: JSON.stringify(input),
+    credentials: "include", // To set the cookie
   }, AUTH_API_BASE_URL);
 }
 
 export async function getMe() {
   return apiFetch<User>(`/me`, { method: "GET" }, AUTH_API_BASE_URL);
-}
-
-export async function refreshToken() {
-  return apiFetch<AuthResponse>(`/token/refresh`, { method: "POST" }, AUTH_API_BASE_URL);
 }
 
 export type CategoryInput = {
