@@ -3,53 +3,19 @@
 import { useEffect, useState, startTransition, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  createCostCenter,
   getCostCenters,
-  updateCostCenter,
   deleteCostCenter,
-  type CostCenterInput,
 } from "@/lib/api";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
 import { useSort } from "@/hooks/use-sort";
-import { ArrowUpDown, Pencil, Trash2 } from "lucide-react";
-
-type CostCenter = {
-  id: string;
-  codigo?: string;
-  nome: string;
-  descricao?: string;
-  ativo: boolean;
-};
+import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react";
+import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
 
 export default function CadastroCentroCustosPage() {
-  const [form, setForm] = useState<CostCenter>({
-    id: "",
-    codigo: "",
-    nome: "",
-    descricao: "",
-    ativo: true,
-  });
-  const [mensagem, setMensagem] = useState<string | null>(null);
   const [items, setItems] = useState<
     Array<{ id: string; name: string; code?: string; active?: boolean }>
   >([]);
-  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [selected, setSelected] = useState<{
     id: string;
     name: string;
@@ -57,17 +23,15 @@ export default function CadastroCentroCustosPage() {
     description?: string;
     active?: boolean;
   } | null>(null);
-  const [edit, setEdit] = useState<CostCenterInput | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setMensagem(null), 3000);
-    return () => clearTimeout(t);
-  }, [mensagem]);
-
-  useEffect(() => {
+  function loadCostCenters() {
     getCostCenters()
       .then((list) => startTransition(() => setItems(list)))
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadCostCenters();
   }, []);
 
   const displayItems = useMemo(() => {
@@ -79,59 +43,26 @@ export default function CadastroCentroCustosPage() {
 
   const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems);
 
-  function update<K extends keyof CostCenter>(key: K, value: CostCenter[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function salvar() {
-    try {
-      await createCostCenter({
-        code: form.codigo,
-        name: form.nome,
-        description: form.descricao,
-        active: form.ativo,
-      });
-      setMensagem("Centro de custos salvo");
-      setForm({ id: "", codigo: "", nome: "", descricao: "", ativo: true });
-      try {
-        const list = await getCostCenters();
-        startTransition(() => setItems(list));
-      } catch {}
-    } catch {
-      setMensagem("Falha ao salvar");
-    }
+  function openNew() {
+    setSelected(null);
+    setSheetOpen(true);
   }
 
   function openEdit(id: string) {
     const rec = items.find((i) => i.id === id) || null;
+    // CostCenter type in API might differ slightly from local usage, ensuring fields match
     setSelected(
       rec
-        ? { id: rec.id, name: rec.name, code: rec.code, active: rec.active }
-        : null
-    );
-    setEdit(
-      rec
         ? {
+            id: rec.id,
             name: rec.name,
             code: rec.code,
-            description: undefined,
-            active: rec.active ?? true,
+            active: rec.active,
+            description: undefined, // Add description if API returns it, for now assuming basic fields
           }
         : null
     );
-    setOpen(true);
-  }
-
-  async function saveEdit() {
-    if (!selected || !edit) return;
-    await updateCostCenter(selected.id, edit);
-    setOpen(false);
-    setSelected(null);
-    setEdit(null);
-    try {
-      const list = await getCostCenters();
-      startTransition(() => setItems(list));
-    } catch {}
+    setSheetOpen(true);
   }
 
   async function remove(id: string) {
@@ -139,69 +70,20 @@ export default function CadastroCentroCustosPage() {
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
     await deleteCostCenter(id);
-    try {
-      const list = await getCostCenters();
-      setItems(list);
-    } catch {}
+    loadCostCenters();
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">Cadastro de Centro de Custos</h2>
-        <div className="flex gap-2">
-          <Button onClick={salvar}>Salvar</Button>
-        </div>
+        <Button onClick={openNew}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Centro de Custos
+        </Button>
       </div>
 
-      {mensagem && <div className="text-xs text-emerald-600">{mensagem}</div>}
-
       <Card className="p-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-xs">Código</label>
-            <Input
-              value={form.codigo ?? ""}
-              onChange={(e) => update("codigo", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs">Nome</label>
-            <Input
-              value={form.nome}
-              onChange={(e) => update("nome", e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="text-xs">Ativo</label>
-            <Select
-              value={form.ativo ? "true" : "false"}
-              onValueChange={(v) => update("ativo", v === "true")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="true">Sim</SelectItem>
-                <SelectItem value="false">Não</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-xs">Descrição</label>
-            <Textarea
-              className="h-24 resize-none"
-              value={form.descricao}
-              onChange={(e) => update("descricao", e.target.value)}
-            />
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-4">
-        <div className="mb-2 text-sm font-medium">
-          Centros de custos cadastrados
-        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -237,37 +119,35 @@ export default function CadastroCentroCustosPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedItems.map((i) => (
-                <tr key={i.id} className="border-b">
-                  <td className="p-2">{i.code || "-"}</td>
-                  <td className="p-2">{i.name}</td>
-                  <td className="p-2">{i.displayActive}</td>
-                  <td className="p-2">
-                    <div className="flex justify-end gap-2">
+              {sortedItems.map((item) => (
+                <tr key={item.id} className="border-b hover:bg-muted/50">
+                  <td className="p-2">{item.code}</td>
+                  <td className="p-2">{item.name}</td>
+                  <td className="p-2">{item.displayActive}</td>
+                  <td className="p-2 text-right">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEdit(i.id)}
+                        onClick={() => openEdit(item.id)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => remove(i.id)}
+                        className="text-red-500 hover:text-red-600"
+                        onClick={() => remove(item.id)}
                       >
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {items.length === 0 && (
+              {sortedItems.length === 0 && (
                 <tr>
-                  <td
-                    className="p-2 text-center text-muted-foreground"
-                    colSpan={4}
-                  >
+                  <td colSpan={4} className="p-4 text-center text-muted-foreground">
                     Nenhum centro de custos cadastrado
                   </td>
                 </tr>
@@ -277,66 +157,12 @@ export default function CadastroCentroCustosPage() {
         </div>
       </Card>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full sm:max-w-xl h-full overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Editar Centro de Custos</SheetTitle>
-          </SheetHeader>
-          {edit && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 text-sm">
-              <div>
-                <div className="text-muted-foreground">Código</div>
-                <Input
-                  value={edit.code || ""}
-                  onChange={(e) => setEdit({ ...edit, code: e.target.value })}
-                />
-              </div>
-              <div>
-                <div className="text-muted-foreground">Nome</div>
-                <Input
-                  value={edit.name}
-                  onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-                />
-              </div>
-              <div className="col-span-1 sm:col-span-2">
-                <div className="text-muted-foreground">Descrição</div>
-                <Textarea
-                  className="h-24 resize-none"
-                  value={edit.description || ""}
-                  onChange={(e) =>
-                    setEdit({ ...edit, description: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <div className="text-muted-foreground">Ativo</div>
-                <Select
-                  value={String(edit.active)}
-                  onValueChange={(v) =>
-                    setEdit({ ...edit, active: v === "true" })
-                  }
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Sim</SelectItem>
-                    <SelectItem value="false">Não</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          <SheetFooter>
-            <div className="flex gap-2">
-              <Button onClick={saveEdit}>Salvar</Button>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Fechar
-              </Button>
-            </div>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <CostCenterSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onSuccess={loadCostCenters}
+        initialData={selected}
+      />
     </div>
   );
 }

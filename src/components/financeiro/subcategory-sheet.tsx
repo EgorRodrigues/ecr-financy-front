@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, startTransition } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,20 +21,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createSubcategory, getCategories } from "@/lib/api";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { createSubcategory, updateSubcategory, getCategories } from "@/lib/api";
+
+const formSchema = z.object({
+  nome: z.string().min(1, "Informe o nome da subcategoria"),
+  descricao: z.string().optional(),
+  categoriaId: z.string().min(1, "Selecione uma categoria pai"),
+  ativo: z.boolean(),
+});
 
 type SubcategorySheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   defaultCategoryId?: string;
-};
-
-type FormState = {
-  nome: string;
-  descricao: string;
-  categoriaId: string;
-  ativo: boolean;
+  initialData?: { id: string; name: string; description?: string; active?: boolean; category_id?: string } | null;
 };
 
 export function SubcategorySheet({
@@ -39,140 +51,175 @@ export function SubcategorySheet({
   onOpenChange,
   onSuccess,
   defaultCategoryId,
+  initialData,
 }: SubcategorySheetProps) {
-  const [form, setForm] = useState<FormState>({
-    nome: "",
-    descricao: "",
-    categoriaId: defaultCategoryId || "",
-    ativo: true,
-  });
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      descricao: "",
+      categoriaId: defaultCategoryId || "",
+      ativo: true,
+    },
+  });
 
   useEffect(() => {
     if (open) {
       getCategories()
         .then((list) => startTransition(() => setCategories(list)))
         .catch(() => {});
-        
-      if (defaultCategoryId) {
-        update("categoriaId", defaultCategoryId);
-      }
     }
-  }, [open, defaultCategoryId]);
+  }, [open]);
 
-  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function salvar() {
-    if (!form.nome || !form.nome.trim()) {
-      setMensagem("Informe o nome da subcategoria");
-      return;
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        nome: initialData.name,
+        descricao: initialData.description || "",
+        categoriaId: initialData.category_id || defaultCategoryId || "",
+        ativo: initialData.active ?? true,
+      });
+    } else {
+      form.reset({
+        nome: "",
+        descricao: "",
+        categoriaId: defaultCategoryId || "",
+        ativo: true,
+      });
     }
-    if (!form.categoriaId) {
-        setMensagem("Selecione uma categoria pai");
-        return;
-    }
+  }, [initialData, defaultCategoryId, form]);
 
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setSalvando(true);
-    (async () => {
-      try {
+    setMensagem(null);
+    try {
+      if (initialData?.id && initialData.category_id) {
+        await updateSubcategory(initialData.category_id, initialData.id, {
+          name: values.nome.trim(),
+          description: values.descricao || undefined,
+          active: values.ativo,
+          category_id: values.categoriaId,
+        });
+      } else {
         await createSubcategory({
-          name: form.nome.trim(),
-          description: form.descricao || undefined,
-          active: form.ativo,
-          category_id: form.categoriaId,
+          name: values.nome.trim(),
+          description: values.descricao || undefined,
+          active: values.ativo,
+          category_id: values.categoriaId,
         });
-
-        setMensagem(null);
-        setForm({
-          nome: "",
-          descricao: "",
-          categoriaId: defaultCategoryId || "",
-          ativo: true,
-        });
-        onSuccess?.();
-        onOpenChange(false);
-      } catch (error) {
-        console.error(error);
-        setMensagem("Falha ao salvar subcategoria");
-      } finally {
-        setSalvando(false);
       }
-    })();
+
+      form.reset({
+        nome: "",
+        descricao: "",
+        categoriaId: defaultCategoryId || "",
+        ativo: true,
+      });
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (error) {
+      console.error(error);
+      setMensagem("Falha ao salvar subcategoria");
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md h-full overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Nova Subcategoria</SheetTitle>
+          <SheetTitle>{initialData ? "Editar Subcategoria" : "Nova Subcategoria"}</SheetTitle>
         </SheetHeader>
 
-        <div className="grid gap-4 py-4">
-          {mensagem && (
-            <div className="text-sm text-red-600 font-medium">{mensagem}</div>
-          )}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+            {mensagem && (
+              <div className="text-sm text-red-600 font-medium">{mensagem}</div>
+            )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Categoria Pai</label>
-            <Select
-                value={form.categoriaId}
-                onValueChange={(v) => update("categoriaId", v)}
-                disabled={!!defaultCategoryId} 
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Combustível" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="categoriaId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria Pai</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    value={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="descricao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Descrição opcional"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={salvando}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nome</label>
-            <Input
-              value={form.nome}
-              onChange={(e) => update("nome", e.target.value)}
-              placeholder="Ex: Manutenção Predial"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Descrição</label>
-            <Textarea
-              value={form.descricao}
-              onChange={(e) => update("descricao", e.target.value)}
-              placeholder="Opcional"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-             <label className="text-sm font-medium">Ativo?</label>
-             <input 
-                type="checkbox" 
-                checked={form.ativo} 
-                onChange={(e) => update("ativo", e.target.checked)}
-                className="h-4 w-4"
-             />
-          </div>
-        </div>
-
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={salvar} disabled={salvando}>
-            {salvando ? "Salvando..." : "Salvar"}
-          </Button>
-        </SheetFooter>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={salvando}>
+                {salvando ? "Salvando..." : "Salvar"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );
