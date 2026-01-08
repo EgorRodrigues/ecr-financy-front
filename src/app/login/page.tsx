@@ -130,7 +130,10 @@ export default function LoginPage() {
                 className="w-full"
                 type="button"
                 onClick={() => {
-                  window.location.href = "http://localhost:3333/auth/google";
+                  const base =
+                    process.env.NEXT_PUBLIC_AUTH_API_BASE_URL ||
+                    "http://localhost:3333";
+                  window.location.href = `${base}/auth/google`;
                 }}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
