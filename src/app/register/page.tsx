@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +56,13 @@ export default function RegisterPage() {
       router.push("/login");
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        if (err.message.includes("409") && err.message.includes("User already exists")) {
+          setError(
+            "Este e-mail já está cadastrado. Por favor, utilize outro e-mail ou faça login."
+          );
+        } else {
+          setError(err.message);
+        }
       } else {
         setError("Ocorreu um erro ao criar a conta");
       }
@@ -118,8 +124,9 @@ export default function RegisterPage() {
               />
               
               {error && (
-                <div className="text-sm text-red-500 font-medium text-center">
-                  {error}
+                <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
                 </div>
               )}
 
