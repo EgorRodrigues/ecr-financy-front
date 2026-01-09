@@ -33,7 +33,7 @@ function getBaseUrl() {
 }
 
 // Authentication Service URL
-function getAuthBaseUrl() {
+export function getAuthBaseUrl() {
   let url: string | undefined;
   if (
     typeof window !== "undefined" &&

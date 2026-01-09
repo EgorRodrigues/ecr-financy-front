@@ -19,7 +19,10 @@ function CallbackContent() {
       }
       
       // 2. Exibir mensagem de sucesso
-      setStatus("Login realizado com sucesso!");
+      // Usamos setTimeout para evitar setState síncrono no useEffect
+      setTimeout(() => {
+        setStatus("Login realizado com sucesso!");
+      }, 0);
       
       // 3. Aguardar um pouco para o usuário ver a mensagem antes de redirecionar
       const timer = setTimeout(() => {
