@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAuthBaseUrl } from "@/lib/api";
 
 const formSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -130,10 +131,7 @@ export default function LoginPage() {
                 className="w-full"
                 type="button"
                 onClick={() => {
-                  const base =
-                    process.env.NEXT_PUBLIC_AUTH_API_BASE_URL ||
-                    "http://localhost:3333";
-                  window.location.href = `${base}/auth/google`;
+                  window.location.href = `${getAuthBaseUrl()}/auth/google`;
                 }}
               >
                 <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
