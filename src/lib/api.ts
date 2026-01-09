@@ -56,6 +56,7 @@ export function getAuthBaseUrl() {
 const AUTH_API_BASE_URL = getAuthBaseUrl();
 
 let accessToken: string | null = null;
+let refreshInFlight: Promise<string> | null = null;
 
 export function setAuthToken(token: string | null) {
   accessToken = token;
@@ -65,11 +66,64 @@ export function setAuthToken(token: string | null) {
     } else {
       localStorage.removeItem("accessToken");
     }
+    window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: token }));
   }
 }
 
 if (typeof window !== "undefined") {
   accessToken = localStorage.getItem("accessToken");
+}
+
+function decodeJwtExpMs(token: string): number | null {
+  const parts = token.split(".");
+  if (parts.length < 2) return null;
+  const payload = parts[1]
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+  try {
+    const json = JSON.parse(atob(payload)) as { exp?: number };
+    if (typeof json.exp !== "number") return null;
+    return json.exp * 1000;
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAuthTokenInternal(): Promise<string> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    const refreshRes = await fetch(`${AUTH_API_BASE_URL}/token/refresh`, {
+      method: "PATCH",
+      credentials: "include",
+    });
+
+    if (!refreshRes.ok) {
+      throw new Error("Session expired");
+    }
+
+    const data = await refreshRes.json();
+    if (!data?.token) {
+      throw new Error("Session expired");
+    }
+    setAuthToken(data.token);
+    return data.token as string;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
+export async function refreshAuthToken(): Promise<string> {
+  return refreshAuthTokenInternal();
+}
+
+export function getAccessTokenExpMs(): number | null {
+  if (!accessToken) return null;
+  return decodeJwtExpMs(accessToken);
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: string): Promise<T> {
@@ -92,18 +146,9 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
   if (res.status === 401 && !path.includes("/login") && !path.includes("/token/refresh")) {
     // Try to refresh token
     try {
-      // Refresh token endpoint is likely on the Auth Service
-      const refreshRes = await fetch(`${AUTH_API_BASE_URL}/token/refresh`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      
-      if (refreshRes.ok) {
-        const data = await refreshRes.json();
-        setAuthToken(data.token);
-        
-        // Retry original request
-        const newHeaders = { ...headers, Authorization: `Bearer ${data.token}` };
+      const newToken = await refreshAuthTokenInternal();
+      // Retry original request
+      const newHeaders = { ...headers, Authorization: `Bearer ${newToken}` };
         const retryRes = await fetch(`${baseUrl}${path}`, {
           headers: newHeaders,
           ...init,
@@ -119,18 +164,10 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
         } catch {
             return undefined as unknown as T;
         }
-      } else {
-        // Refresh failed, logout
-        setAuthToken(null);
-        if (typeof window !== "undefined") {
-             window.location.href = "/login";
-        }
-        throw new Error("Session expired");
-      }
     } catch (e) {
       setAuthToken(null);
       if (typeof window !== "undefined") {
-           window.location.href = "/login";
+        window.dispatchEvent(new CustomEvent("auth:session-expired"));
       }
       throw e;
     }

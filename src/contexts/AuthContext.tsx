@@ -12,6 +12,8 @@ import {
   login as apiLogin,
   getMe,
   setAuthToken,
+  refreshAuthToken,
+  getAccessTokenExpMs,
   LoginInput,
   User,
 } from "@/lib/api";
@@ -30,13 +32,28 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setTokenState] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     async function loadUser() {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        setAuthToken(token);
+      let localToken: string | null = null;
+      try {
+        localToken = localStorage.getItem("accessToken");
+      } catch {
+        localToken = null;
+      }
+
+      if (!localToken) {
+        try {
+          localToken = await refreshAuthToken();
+        } catch {
+          localToken = null;
+        }
+      }
+
+      if (localToken) {
+        setAuthToken(localToken);
         try {
           const userData = await getMe();
           setUser(userData);
@@ -46,11 +63,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       }
+
+      setTokenState(localToken);
       setIsLoading(false);
     }
 
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onTokenChanged = (e: Event) => {
+      const custom = e as CustomEvent<string | null>;
+      setTokenState(custom.detail ?? null);
+    };
+    const onSessionExpired = () => {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      setAuthToken(null);
+      setUser(null);
+      router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+    };
+
+    window.addEventListener("auth:token-changed", onTokenChanged as EventListener);
+    window.addEventListener("auth:session-expired", onSessionExpired);
+    return () => {
+      window.removeEventListener("auth:token-changed", onTokenChanged as EventListener);
+      window.removeEventListener("auth:session-expired", onSessionExpired);
+    };
+  }, [router]);
+
+  useEffect(() => {
+    if (!token) return;
+    const expMs = getAccessTokenExpMs();
+    if (!expMs) return;
+
+    const refreshAheadMs = 60_000;
+    const delayMs = Math.max(0, expMs - Date.now() - refreshAheadMs);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        await refreshAuthToken();
+      } catch (err) {
+        // Se o refresh proativo falhar (ex: erro de rede), não deslogamos forçadamente.
+        // Deixamos o token expirar e o interceptor do apiFetch tentará novamente.
+        console.warn("Proactive refresh failed", err);
+      }
+    }, delayMs);
+
+    return () => window.clearTimeout(timer);
+  }, [token]);
 
   async function signIn(input: LoginInput) {
     try {
