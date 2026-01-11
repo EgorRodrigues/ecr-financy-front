@@ -24,7 +24,7 @@ type AuthContextType = {
   isLoading: boolean;
   signIn: (input: LoginInput) => Promise<void>;
   signOut: () => void;
-  setToken: (token: string) => void;
+  setToken: (token: string, refreshToken?: string | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(input: LoginInput) {
     try {
       const { token, refreshToken } = await apiLogin(input);
-      setAuthSession(token, refreshToken);
+      setAuthSession(token, refreshToken ?? null);
       const userData = await getMe();
       setUser(userData);
       router.push("/financeiro");

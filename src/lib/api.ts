@@ -221,6 +221,7 @@ export type LoginInput = {
 
 export type AuthResponse = {
   token: string;
+  refreshToken?: string;
 };
 
 export type User = {
