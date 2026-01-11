@@ -56,22 +56,35 @@ export function getAuthBaseUrl() {
 const AUTH_API_BASE_URL = getAuthBaseUrl();
 
 let accessToken: string | null = null;
-let refreshInFlight: Promise<string> | null = null;
+let refreshToken: string | null = null;
+let refreshInFlight: Promise<AuthResponse> | null = null;
 
-export function setAuthToken(token: string | null) {
+export function setAuthSession(token: string | null, refresh: string | null) {
   accessToken = token;
+  refreshToken = refresh;
   if (typeof window !== "undefined") {
     if (token) {
       localStorage.setItem("accessToken", token);
     } else {
       localStorage.removeItem("accessToken");
     }
+    if (refresh) {
+      localStorage.setItem("refreshToken", refresh);
+    } else {
+      localStorage.removeItem("refreshToken");
+    }
     window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: token }));
   }
 }
 
+// Deprecated: use setAuthSession instead
+export function setAuthToken(token: string | null) {
+  setAuthSession(token, refreshToken);
+}
+
 if (typeof window !== "undefined") {
   accessToken = localStorage.getItem("accessToken");
+  refreshToken = localStorage.getItem("refreshToken");
 }
 
 function decodeJwtExpMs(token: string): number | null {
@@ -91,11 +104,20 @@ function decodeJwtExpMs(token: string): number | null {
 }
 
 async function refreshAuthTokenInternal(): Promise<string> {
-  if (refreshInFlight) return refreshInFlight;
+  if (refreshInFlight) {
+    const res = await refreshInFlight;
+    return res.token;
+  }
   refreshInFlight = (async () => {
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
     const refreshRes = await fetch(`${AUTH_API_BASE_URL}/token/refresh`, {
       method: "PATCH",
-      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refreshToken }),
     });
 
     if (!refreshRes.ok) {
@@ -103,15 +125,16 @@ async function refreshAuthTokenInternal(): Promise<string> {
     }
 
     const data = await refreshRes.json();
-    if (!data?.token) {
+    if (!data?.token || !data?.refreshToken) {
       throw new Error("Session expired");
     }
-    setAuthToken(data.token);
-    return data.token as string;
+    setAuthSession(data.token, data.refreshToken);
+    return data as AuthResponse;
   })();
 
   try {
-    return await refreshInFlight;
+    const res = await refreshInFlight;
+    return res.token;
   } finally {
     refreshInFlight = null;
   }

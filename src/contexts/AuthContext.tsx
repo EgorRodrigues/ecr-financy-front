@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import {
   login as apiLogin,
   getMe,
-  setAuthToken,
+  setAuthSession,
   refreshAuthToken,
   getAccessTokenExpMs,
   LoginInput,
@@ -38,28 +38,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadUser() {
       let localToken: string | null = null;
+      let localRefreshToken: string | null = null;
       try {
         localToken = localStorage.getItem("accessToken");
+        localRefreshToken = localStorage.getItem("refreshToken");
       } catch {
         localToken = null;
+        localRefreshToken = null;
       }
 
       if (!localToken) {
         try {
           localToken = await refreshAuthToken();
+          localRefreshToken = localStorage.getItem("refreshToken");
         } catch {
           localToken = null;
         }
       }
 
       if (localToken) {
-        setAuthToken(localToken);
+        setAuthSession(localToken, localRefreshToken);
         try {
           const userData = await getMe();
           setUser(userData);
         } catch (error) {
           console.error("Failed to load user", error);
-          setAuthToken(null);
+          setAuthSession(null, null);
           setUser(null);
         }
       }
@@ -80,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     const onSessionExpired = () => {
       const returnTo = `${window.location.pathname}${window.location.search}`;
-      setAuthToken(null);
+      setAuthSession(null, null);
       setUser(null);
       router.push(`/login?returnTo=${encodeURIComponent(returnTo)}`);
     };
@@ -116,8 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function signIn(input: LoginInput) {
     try {
-      const { token } = await apiLogin(input);
-      setAuthToken(token);
+      const { token, refreshToken } = await apiLogin(input);
+      setAuthSession(token, refreshToken);
       const userData = await getMe();
       setUser(userData);
       router.push("/financeiro");
@@ -127,13 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function signOut() {
-    setAuthToken(null);
+    setAuthSession(null, null);
     setUser(null);
     router.push("/login");
   }
 
-  function setToken(token: string) {
-    setAuthToken(token);
+  function setToken(token: string, refreshToken?: string | null) {
+    setAuthSession(token, refreshToken ?? null);
     getMe()
       .then((userData) => {
         setUser(userData);

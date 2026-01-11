@@ -12,10 +12,15 @@ function CallbackContent() {
 
   useEffect(() => {
     const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refreshToken");
+
     if (token) {
       // 1. Salvar no localStorage (redundante pois setToken faz isso, mas garante o requisito explícito)
       if (typeof window !== "undefined") {
         localStorage.setItem("accessToken", token);
+        if (refreshToken) {
+          localStorage.setItem("refreshToken", refreshToken);
+        }
       }
       
       // 2. Exibir mensagem de sucesso
@@ -26,7 +31,7 @@ function CallbackContent() {
       
       // 3. Aguardar um pouco para o usuário ver a mensagem antes de redirecionar
       const timer = setTimeout(() => {
-        setToken(token);
+        setToken(token, refreshToken);
       }, 1500);
       
       return () => clearTimeout(timer);
