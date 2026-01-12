@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 import {
   Popover,
@@ -25,6 +26,7 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const { signOut } = useAuth();
 
   return (
     <SidebarMenu>
@@ -68,10 +70,13 @@ export function NavUser({
                   <span>Configurações</span>
                 </div>
               </Link>
-              <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-destructive">
+              <button
+                onClick={signOut}
+                className="w-full flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-destructive text-left"
+              >
                 <LogOut className="h-4 w-4" />
                 <span>Sair</span>
-              </div>
+              </button>
             </div>
           </PopoverContent>
         </Popover>
