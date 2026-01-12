@@ -2,14 +2,6 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -17,8 +9,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getDashboard, getAccounts } from "@/lib/api";
-import { useSort } from "@/hooks/use-sort";
-import { ArrowUpDown } from "lucide-react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -30,14 +20,6 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-
-type Transaction = {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  status: "aprovado" | "pendente" | "falhou";
-};
 
 type MonthlyAgg = {
   monthLabel: string;
@@ -151,13 +133,10 @@ export default function DashboardPage() {
   const [pendentes, setPendentes] = useState<number>(0);
   const [falhou, setFalhou] = useState<number>(0);
   const [monthly, setMonthly] = useState<MonthlyAgg[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  const { items: sortedItems, requestSort, sortConfig } = useSort(transactions);
 
   useEffect(() => {
     Promise.all([
-      getDashboard(Number(monthsCount), 1000),
+      getDashboard(Number(monthsCount), 0),
       getAccounts(),
     ])
       .then(([dashboardRes, accountsRes]) => {
@@ -181,24 +160,6 @@ export default function DashboardPage() {
           };
         });
         setMonthly(monthlyAgg);
-        const txs: Transaction[] = (dashboardRes.recent_transactions || []).map(
-          (t) => ({
-            id: t.id,
-            date: t.date,
-            description: t.description,
-            amount:
-              t.type === "expense"
-                ? -Math.abs(t.amount || 0)
-                : Math.abs(t.amount || 0),
-            status:
-              t.status === "pending"
-                ? "pendente"
-                : t.status === "canceled"
-                  ? "falhou"
-                  : "aprovado",
-          })
-        );
-        setTransactions(txs);
       })
       .catch(() => {});
   }, [monthsCount]);
@@ -253,80 +214,6 @@ export default function DashboardPage() {
         <MonthlyBarChart data={monthly} />
       </Card>
 
-      <Card className="p-4">
-        <div className="mb-3 text-sm font-medium">Transações recentes</div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead
-                  onClick={() => requestSort("date")}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  Data{" "}
-                  {sortConfig?.key === "date" && (
-                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                  )}
-                </TableHead>
-                <TableHead
-                  onClick={() => requestSort("description")}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  Descrição{" "}
-                  {sortConfig?.key === "description" && (
-                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                  )}
-                </TableHead>
-                <TableHead
-                  className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => requestSort("amount")}
-                >
-                  Valor{" "}
-                  {sortConfig?.key === "amount" && (
-                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                  )}
-                </TableHead>
-                <TableHead
-                  onClick={() => requestSort("status")}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  Status{" "}
-                  {sortConfig?.key === "status" && (
-                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                  )}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedItems.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell>{t.date}</TableCell>
-                  <TableCell>{t.description}</TableCell>
-                  <TableCell className="text-right">
-                    {t.amount.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={
-                        t.status === "aprovado"
-                          ? "text-emerald-600"
-                          : t.status === "pendente"
-                            ? "text-amber-600"
-                            : "text-rose-600"
-                      }
-                    >
-                      {t.status}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
     </div>
   );
 }
