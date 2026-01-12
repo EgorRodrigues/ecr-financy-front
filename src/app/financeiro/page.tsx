@@ -19,6 +19,17 @@ import {
 import { getDashboard, getAccounts } from "@/lib/api";
 import { useSort } from "@/hooks/use-sort";
 import { ArrowUpDown } from "lucide-react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 type Transaction = {
   id: string;
@@ -35,135 +46,100 @@ type MonthlyAgg = {
 };
 
 function MonthlyBarChart({ data }: { data: MonthlyAgg[] }) {
-  const width = 700;
-  const height = 260;
-  const padding = 24;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-  const maxValue = Math.max(
-    1,
-    ...data.map((d) => Math.max(d.entradas, d.saidas))
-  );
-  const groupWidth = chartWidth / data.length;
-  const innerGap = 12;
-  const barWidth = Math.max(6, (groupWidth - innerGap) / 2);
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+        Nenhum dado para exibir no gráfico neste período
+      </div>
+    );
+  }
+
+  const chartData = data.map((d) => ({
+    label: d.monthLabel,
+    income: d.entradas,
+    expense: d.saidas,
+    balance: d.entradas - d.saidas,
+  }));
+
   return (
-    <div className="w-full overflow-x-auto">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-[260px] min-w-[700px]"
-      >
-        <rect
-          x={padding}
-          y={padding}
-          width={chartWidth}
-          height={chartHeight}
-          fill="#ffffff"
-        />
-        {data.map((d, i) => {
-          const gx = padding + i * groupWidth;
-          const eH = (d.entradas / maxValue) * chartHeight;
-          const sH = (d.saidas / maxValue) * chartHeight;
-          const eX = gx;
-          const sX = gx + barWidth + innerGap;
-          const eY = padding + chartHeight - eH;
-          const sY = padding + chartHeight - sH;
-          return (
-            <g key={i}>
-              <rect
-                x={eX}
-                y={eY}
-                width={barWidth}
-                height={eH}
-                rx={3}
-                fill="#059669"
-              />
-              <rect
-                x={sX}
-                y={sY}
-                width={barWidth}
-                height={sH}
-                rx={3}
-                fill="#e11d48"
-              />
-              <text
-                x={gx + groupWidth / 2}
-                y={height - 6}
-                textAnchor="middle"
-                fontSize={11}
-                fill="#6b7280"
-              >
-                {d.monthLabel}
-              </text>
-              {d.entradas > 0 && (
-                <text
-                  x={eX + barWidth / 2}
-                  y={eY - 4}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="#374151"
-                >
-                  {d.entradas.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </text>
-              )}
-              {d.saidas > 0 && (
-                <text
-                  x={sX + barWidth / 2}
-                  y={sY - 4}
-                  textAnchor="middle"
-                  fontSize={10}
-                  fill="#374151"
-                >
-                  {d.saidas.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        <g>
-          <rect
-            x={width - padding - 160}
-            y={padding}
-            width={160}
-            height={22}
-            fill="#ffffff"
+    <div className="w-full h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={chartData}
+          margin={{
+            top: 20,
+            right: 20,
+            bottom: 20,
+            left: 20,
+          }}
+        >
+          <defs>
+            <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={10}
+            fontSize={12}
+            stroke="#6b7280"
           />
-          <circle
-            cx={width - padding - 140}
-            cy={padding + 11}
-            r={5}
-            fill="#059669"
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) =>
+              value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                notation: "compact",
+              })
+            }
+            fontSize={12}
+            stroke="#6b7280"
           />
-          <text
-            x={width - padding - 128}
-            y={padding + 15}
-            fontSize={11}
-            fill="#374151"
-          >
-            Entradas
-          </text>
-          <circle
-            cx={width - padding - 70}
-            cy={padding + 11}
-            r={5}
-            fill="#e11d48"
+          <Tooltip
+            formatter={(value: number | undefined) =>
+              Number(value || 0).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })
+            }
+            contentStyle={{ borderRadius: "8px" }}
           />
-          <text
-            x={width - padding - 58}
-            y={padding + 15}
-            fontSize={11}
-            fill="#374151"
-          >
-            Saídas
-          </text>
-        </g>
-      </svg>
+          <Legend />
+          <Bar
+            dataKey="income"
+            name="Receitas"
+            fill="#10b981"
+            radius={[4, 4, 0, 0]}
+            barSize={20}
+          />
+          <Bar
+            dataKey="expense"
+            name="Despesas"
+            fill="#ef4444"
+            radius={[4, 4, 0, 0]}
+            barSize={20}
+          />
+          <Line
+            type="monotone"
+            dataKey="balance"
+            name="Saldo"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{ r: 4, strokeWidth: 2 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }
@@ -181,7 +157,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      getDashboard(Number(monthsCount), 100),
+      getDashboard(Number(monthsCount), 1000),
       getAccounts(),
     ])
       .then(([dashboardRes, accountsRes]) => {
