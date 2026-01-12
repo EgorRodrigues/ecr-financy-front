@@ -23,22 +23,17 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuSkeleton,
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/layout/nav-user";
 import { SearchForm } from "@/components/layout/search-form";
-
-const data = {
-  user: {
-    name: "Usuario",
-    email: "usuario@exemplo.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-};
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppSidebar() {
   const { setOpenMobile, isMobile } = useSidebar();
+  const { user } = useAuth();
   const pathname = usePathname();
 
   const handleLinkClick = () => {
@@ -258,7 +253,19 @@ export function AppSidebar() {
 
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {user ? (
+          <NavUser
+            user={{
+              name: user.name || "Usuário",
+              email: user.email || "",
+              avatar: user.avatar_url,
+            }}
+          />
+        ) : (
+          <div className="p-2">
+            <SidebarMenuSkeleton showIcon />
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );

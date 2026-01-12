@@ -10,10 +10,12 @@ import {
 import { useRouter } from "next/navigation";
 import {
   login as apiLogin,
+  logout as apiLogout,
   getMe,
   setAuthSession,
   refreshAuthToken,
   getAccessTokenExpMs,
+  decodeJwt,
   LoginInput,
   User,
 } from "@/lib/api";
@@ -58,9 +60,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (localToken) {
         setAuthSession(localToken, localRefreshToken);
+
+        // Optimistically set user from token
+        try {
+          const payload = decodeJwt<{
+            sub: string;
+            name: string;
+            email: string;
+            // Support other common claims
+            username?: string;
+            given_name?: string;
+            family_name?: string;
+          }>(localToken);
+
+          if (payload) {
+            const name =
+              payload.name ||
+              payload.username ||
+              (payload.given_name
+                ? `${payload.given_name} ${payload.family_name || ""}`
+                : "") ||
+              payload.email ||
+              "Usuário";
+            
+            setUser({
+              id: payload.sub || "",
+              name: name.trim(),
+              email: payload.email || "",
+            });
+          } else {
+            console.warn("AuthContext: Payload nulo após decodificação.");
+          }
+        } catch (e) {
+          console.error("Error decoding token for optimistic user", e);
+        }
+
         try {
           const userData = await getMe();
-          setUser(userData);
+          if (userData) {
+            setUser((prev) => {
+              // Se não tínhamos dados anteriores, usamos o que veio da API
+              if (!prev) return userData;
+
+              // Fazemos o merge: preferência para dados da API, mas se estiverem faltando, usamos do token (prev)
+              return {
+                ...prev, // Mantém o que já tinha (ex: dados do token)
+                ...userData, // Sobrescreve com dados da API
+                // Garante que campos críticos não fiquem undefined se a API retornou vazio mas o token tinha
+                name: userData.name || prev.name || "Usuário",
+                email: userData.email || prev.email,
+                avatar_url: userData.avatar_url || prev.avatar_url,
+              };
+            });
+          }
         } catch (error) {
           console.error("Failed to load user", error);
           setAuthSession(null, null);
@@ -122,31 +174,143 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { token, refreshToken } = await apiLogin(input);
       setAuthSession(token, refreshToken ?? null);
-      const userData = await getMe();
-      setUser(userData);
+
+      // Decodificação otimista do token
+      let optimisticUser: User | null = null;
+      try {
+        const payload = decodeJwt<{
+          sub: string;
+          name: string;
+          email: string;
+          username?: string;
+          given_name?: string;
+          family_name?: string;
+        }>(token);
+
+        if (payload) {
+          const name =
+            payload.name ||
+            payload.username ||
+            (payload.given_name
+              ? `${payload.given_name} ${payload.family_name || ""}`
+              : "") ||
+            payload.email ||
+            "Usuário";
+
+          optimisticUser = {
+            id: payload.sub || "",
+            name: name.trim(),
+            email: payload.email || "",
+          };
+          setUser(optimisticUser);
+        }
+      } catch (e) {
+        console.error("Error decoding token in signIn", e);
+      }
+
+      try {
+        const userData = await getMe();
+        if (userData) {
+          setUser((prev) => {
+             // Merge com dados do token se API retornar incompleto
+             const base = prev || optimisticUser;
+             if (!base) return userData;
+
+             return {
+               ...base,
+               ...userData,
+               name: userData.name || base.name || "Usuário",
+               email: userData.email || base.email,
+               avatar_url: userData.avatar_url || base.avatar_url,
+             };
+          });
+        }
+      } catch (e) {
+        console.warn("Failed to fetch full user profile in signIn, using optimistic data", e);
+      }
+      
       router.push("/financeiro");
     } catch (error) {
       throw error;
     }
   }
 
-  function signOut() {
-    setAuthSession(null, null);
-    setUser(null);
-    router.push("/login");
+  async function signOut() {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (refreshToken) {
+        await apiLogout(refreshToken);
+      }
+    } catch (error) {
+      console.error("Logout API failed", error);
+    } finally {
+      setAuthSession(null, null);
+      setUser(null);
+      router.push("/login");
+    }
   }
 
-  function setToken(token: string, refreshToken?: string | null) {
+  async function setToken(token: string, refreshToken?: string | null) {
     setAuthSession(token, refreshToken ?? null);
-    getMe()
-      .then((userData) => {
-        setUser(userData);
+    
+    // Decodificação otimista
+    let optimisticUser: User | null = null;
+    try {
+        const payload = decodeJwt<{
+          sub: string;
+          name: string;
+          email: string;
+          username?: string;
+          given_name?: string;
+          family_name?: string;
+        }>(token);
+
+        if (payload) {
+          const name =
+            payload.name ||
+            payload.username ||
+            (payload.given_name
+              ? `${payload.given_name} ${payload.family_name || ""}`
+              : "") ||
+            payload.email ||
+            "Usuário";
+
+          optimisticUser = {
+            id: payload.sub || "",
+            name: name.trim(),
+            email: payload.email || "",
+          };
+          setUser(optimisticUser);
+        }
+    } catch (e) {
+       console.error("Error decoding token in setToken", e);
+    }
+
+    try {
+        const userData = await getMe();
+        setUser((prev) => {
+             const base = prev || optimisticUser;
+             if (!base) return userData;
+
+             return {
+               ...base,
+               ...userData,
+               name: userData.name || base.name || "Usuário",
+               email: userData.email || base.email,
+               avatar_url: userData.avatar_url || base.avatar_url,
+             };
+        });
         router.push("/");
-      })
-      .catch((error) => {
+    } catch (error) {
         console.error("Failed to load user after setting token", error);
-        signOut();
-      });
+        if (!optimisticUser) {
+            signOut();
+        } else {
+             // Se falhar a API mas temos token, permitimos (ou podemos decidir deslogar)
+             // Neste caso, se o token é válido, melhor manter logado
+             router.push("/");
+        }
+    }
   }
 
   return (

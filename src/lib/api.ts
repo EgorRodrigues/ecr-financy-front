@@ -87,20 +87,31 @@ if (typeof window !== "undefined") {
   refreshToken = localStorage.getItem("refreshToken");
 }
 
-function decodeJwtExpMs(token: string): number | null {
+export function decodeJwt<T>(token: string): T | null {
+  console.log("decodeJwt: Iniciando decodificação do token...");
   const parts = token.split(".");
-  if (parts.length < 2) return null;
+  if (parts.length < 2) {
+    console.error("decodeJwt: Token inválido, menos de 2 partes.");
+    return null;
+  }
   const payload = parts[1]
     .replace(/-/g, "+")
     .replace(/_/g, "/")
     .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
   try {
-    const json = JSON.parse(atob(payload)) as { exp?: number };
-    if (typeof json.exp !== "number") return null;
-    return json.exp * 1000;
-  } catch {
+    const decoded = JSON.parse(atob(payload)) as T;
+    console.log("decodeJwt: Decodificação bem-sucedida.", decoded);
+    return decoded;
+  } catch (e) {
+    console.error("decodeJwt: Erro ao fazer parse do payload.", e);
     return null;
   }
+}
+
+function decodeJwtExpMs(token: string): number | null {
+  const json = decodeJwt<{ exp?: number }>(token);
+  if (!json || typeof json.exp !== "number") return null;
+  return json.exp * 1000;
 }
 
 async function refreshAuthTokenInternal(): Promise<string> {
@@ -243,6 +254,13 @@ export async function login(input: LoginInput) {
     method: "POST",
     body: JSON.stringify(input),
     credentials: "include", // To set the cookie
+  }, AUTH_API_BASE_URL);
+}
+
+export async function logout(refreshToken: string) {
+  return apiFetch<void>(`/logout`, {
+    method: "POST",
+    body: JSON.stringify({ refreshToken }),
   }, AUTH_API_BASE_URL);
 }
 
