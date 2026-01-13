@@ -20,6 +20,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import { FinancialCharts } from "@/components/financeiro/financial-charts";
 
 type MonthlyAgg = {
   monthLabel: string;
@@ -213,6 +214,9 @@ export default function DashboardPage() {
         </div>
         <MonthlyBarChart data={monthly} />
       </Card>
+
+      {/* New Financial Charts Section */}
+      <FinancialCharts />
 
     </div>
   );

@@ -187,12 +187,12 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
           headers: newHeaders,
           ...init,
         });
-        
+
         if (!retryRes.ok) {
            const text = await retryRes.text().catch(() => "");
            throw new Error(`HTTP ${retryRes.status} ${retryRes.statusText} - ${text}`);
         }
-        
+
         try {
             return (await retryRes.json()) as T;
         } catch {
@@ -516,6 +516,8 @@ export async function getExpenses(params?: {
   account?: string;
   account_type?: string;
   status?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Array<ExpenseRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>
@@ -705,4 +707,81 @@ export async function getFinancialForecast(
     `/financial-forecast/?startDate=${startDate}&endDate=${endDate}`,
     { method: "GET" }
   );
+}
+
+// Types for aggregated data
+export type ExpenseByCategory = {
+  category_id: string;
+  category_name: string;
+  total_amount: number;
+};
+
+export type ExpenseByCategoryAndAccount = {
+  category_id: string;
+  category_name: string;
+  account_id: string;
+  account_name: string;
+  total_amount: number;
+};
+
+export type IncomeByCustomer = {
+  contact_id: string;
+  contact_name: string;
+  total_amount: number;
+};
+
+// API functions for aggregated data
+export async function getExpensesByCategory(
+  startDate?: string,
+  endDate?: string
+): Promise<ExpenseByCategory[]> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return await apiFetch(`/reports/expenses-by-category?${params.toString()}`, { method: "GET" });
+  } catch (error) {
+    console.error("Error fetching expenses by category:", error);
+    // Return empty array in case of error
+    return [];
+  }
+}
+
+export async function getExpensesByCategoryAndAccount(
+  startDate?: string,
+  endDate?: string
+): Promise<ExpenseByCategoryAndAccount[]> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return await apiFetch(`/reports/expenses-by-category-account?${params.toString()}`, { method: "GET" });
+  } catch (error) {
+    console.error("Error fetching expenses by category and account:", error);
+    // Return empty array in case of error
+    return [];
+  }
+}
+
+export async function getIncomesByCustomer(
+  startDate?: string,
+  endDate?: string
+): Promise<IncomeByCustomer[]> {
+  try {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    const url = `/reports/incomes-by-customer?${params.toString()}`;
+    console.log("Fetching incomes by customer from:", url);
+    const result = await apiFetch<IncomeByCustomer[]>(url, { method: "GET" });
+    console.log("Incomes by customer result:", result);
+    return result;
+  } catch (error) {
+    console.error("Error fetching incomes by customer:", error);
+    // Return empty array in case of error
+    return [];
+  }
 }
