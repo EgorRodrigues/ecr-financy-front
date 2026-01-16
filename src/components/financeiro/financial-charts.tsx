@@ -10,9 +10,6 @@ import {
 import {
   ResponsiveContainer,
   BarChart,
-  PieChart,
-  Pie,
-  Cell,
   Bar,
   XAxis,
   YAxis,
@@ -22,11 +19,7 @@ import {
 } from "recharts";
 import {
   getExpensesByCategory,
-  getExpensesByCategoryAndAccount,
   getIncomesByCustomer,
-  ExpenseByCategory,
-  ExpenseByCategoryAndAccount,
-  IncomeByCustomer,
 } from "@/lib/api";
 
 // Chart components
@@ -35,9 +28,25 @@ type ChartDataItem = {
   value: number;
 };
 
+type CostCenterChartDataItem = {
+  name: string;
+  value: number;
+};
+
+type SortOrder = "asc" | "desc";
+
+const MOCK_COST_CENTER_EXPENSES: CostCenterChartDataItem[] = [
+  { name: "Administrativo", value: 12500 },
+  { name: "Comercial", value: 9800 },
+  { name: "Operações", value: 15200 },
+  { name: "Marketing", value: 7300 },
+  { name: "TI", value: 6400 },
+];
+
 function ExpensesByCategoryChart({ startDate, endDate }: { startDate?: string; endDate?: string }) {
   const [data, setData] = useState<ChartDataItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,110 +85,29 @@ function ExpensesByCategoryChart({ startDate, endDate }: { startDate?: string; e
     );
   }
 
-  // Define colors for the pie chart
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658'];
-
-  return (
-    <div className="w-full h-[300px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={true}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''}: ${((percent || 0) * 100).toFixed(0)}%`}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip
-            formatter={(value: number | undefined) =>
-              (value || 0).toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })
-            }
-            contentStyle={{ borderRadius: "8px" }}
-          />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function ExpensesByCategoryAndAccountChart({ startDate, endDate }: { startDate?: string; endDate?: string }) {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const result = await getExpensesByCategoryAndAccount(startDate, endDate);
-        
-        // Group data by category and account
-        const groupedData: Record<string, Record<string, number>> = {};
-        
-        result.forEach(item => {
-          if (!groupedData[item.category_name]) {
-            groupedData[item.category_name] = {};
-          }
-          groupedData[item.category_name][item.account_name] = item.total_amount;
-        });
-        
-        // Convert to chart format
-        const chartData = Object.entries(groupedData).map(([category, accounts]) => {
-          const entry: any = { name: category };
-          Object.entries(accounts).forEach(([account, amount]) => {
-            entry[account] = amount;
-          });
-          return entry;
-        });
-        
-        setData(chartData);
-      } catch (error) {
-        console.error("Error fetching expenses by category and account:", error);
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [startDate, endDate]);
-
-  if (loading) {
-    return (
-      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Carregando dados...
-      </div>
-    );
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Nenhum dado para exibir no gráfico neste período
-      </div>
-    );
-  }
-
-  // Get all unique account names for the legend
-  const accountNames = Array.from(
-    new Set(data.flatMap(item => Object.keys(item).filter(key => key !== 'name')))
+  const sortedData = [...data].sort((a, b) =>
+    sortOrder === "desc" ? b.value - a.value : a.value - b.value
   );
 
   return (
     <div className="w-full h-[300px]">
+      <div className="mb-2 flex justify-end">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Ordenar</span>
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
+            <SelectTrigger className="h-7 w-[140px] text-xs">
+              <SelectValue placeholder="Ordenação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Maior → Menor</SelectItem>
+              <SelectItem value="asc">Menor → Maior</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={data}
+          data={sortedData}
           margin={{
             top: 20,
             right: 30,
@@ -206,7 +134,6 @@ function ExpensesByCategoryAndAccountChart({ startDate, endDate }: { startDate?:
               value.toLocaleString("pt-BR", {
                 style: "currency",
                 currency: "BRL",
-                notation: "compact",
               })
             }
             fontSize={12}
@@ -217,21 +144,107 @@ function ExpensesByCategoryAndAccountChart({ startDate, endDate }: { startDate?:
               (value || 0).toLocaleString("pt-BR", {
                 style: "currency",
                 currency: "BRL",
-                notation: "compact",
               })
             }
             contentStyle={{ borderRadius: "8px" }}
           />
           <Legend />
-          {accountNames.map((accountName, index) => (
-            <Bar
-              key={accountName}
-              dataKey={accountName}
-              name={accountName}
-              fill={`hsl(${(index * 137.5) % 360}, 70%, 50%)`}
-              radius={[4, 4, 0, 0]}
-            />
-          ))}
+          <Bar
+            dataKey="value"
+            name="Despesas"
+            fill="#ef4444"
+            radius={[4, 4, 0, 0]}
+            barSize={24}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ExpensesByCostCenterChart() {
+  const data = MOCK_COST_CENTER_EXPENSES;
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[300px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
+        Nenhum dado para exibir no gráfico neste período
+      </div>
+    );
+  }
+
+  const sortedData = [...data].sort((a, b) =>
+    sortOrder === "desc" ? b.value - a.value : a.value - b.value
+  );
+
+  return (
+    <div className="w-full h-[300px]">
+      <div className="mb-2 flex justify-end">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Ordenar</span>
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
+            <SelectTrigger className="h-7 w-[140px] text-xs">
+              <SelectValue placeholder="Ordenação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Maior → Menor</SelectItem>
+              <SelectItem value="asc">Menor → Maior</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={sortedData}
+          margin={{
+            top: 20,
+            right: 30,
+            left: 20,
+            bottom: 60,
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={10}
+            fontSize={12}
+            stroke="#6b7280"
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) =>
+              value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })
+            }
+            fontSize={12}
+            stroke="#6b7280"
+          />
+          <Tooltip
+            formatter={(value: number | undefined) =>
+              (value || 0).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })
+            }
+            contentStyle={{ borderRadius: "8px" }}
+          />
+          <Legend />
+          <Bar
+            dataKey="value"
+            name="Despesas"
+            fill="#ef4444"
+            radius={[4, 4, 0, 0]}
+            barSize={24}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -241,6 +254,7 @@ function ExpensesByCategoryAndAccountChart({ startDate, endDate }: { startDate?:
 function IncomesByCustomerChart({ startDate, endDate }: { startDate?: string; endDate?: string }) {
   const [data, setData] = useState<ChartDataItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -281,27 +295,60 @@ function IncomesByCustomerChart({ startDate, endDate }: { startDate?: string; en
     );
   }
 
-  // Define colors for the pie chart
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658'];
+  const sortedData = [...data].sort((a, b) =>
+    sortOrder === "desc" ? b.value - a.value : a.value - b.value
+  );
 
   return (
     <div className="w-full h-[300px]">
+      <div className="mb-2 flex justify-end">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Ordenar</span>
+          <Select value={sortOrder} onValueChange={(value) => setSortOrder(value as SortOrder)}>
+            <SelectTrigger className="h-7 w-[140px] text-xs">
+              <SelectValue placeholder="Ordenação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Maior → Menor</SelectItem>
+              <SelectItem value="asc">Menor → Maior</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={true}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''}: ${((percent || 0) * 100).toFixed(0)}%`}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
+        <BarChart
+          data={sortedData}
+          margin={{
+            top: 20,
+            right: 30,
+            left: 20,
+            bottom: 60,
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={10}
+            fontSize={12}
+            stroke="#6b7280"
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) =>
+              value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+              })
+            }
+            fontSize={12}
+            stroke="#6b7280"
+          />
           <Tooltip
             formatter={(value: number | undefined) =>
               (value || 0).toLocaleString("pt-BR", {
@@ -312,7 +359,14 @@ function IncomesByCustomerChart({ startDate, endDate }: { startDate?: string; en
             contentStyle={{ borderRadius: "8px" }}
           />
           <Legend />
-        </PieChart>
+          <Bar
+            dataKey="value"
+            name="Receitas"
+            fill="#10b981"
+            radius={[4, 4, 0, 0]}
+            barSize={24}
+          />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
@@ -383,15 +437,14 @@ export function FinancialCharts() {
         <ExpensesByCategoryChart startDate={startDate} endDate={endDate} />
       </Card>
 
-      {/* Expenses by Category and Account Chart */}
       <Card className="p-4">
         <div className="mb-3">
-          <div className="text-sm font-medium">Acumulado de Gastos por Categoria e Conta</div>
+          <div className="text-sm font-medium">Acumulado de Gastos por Centro de Custos</div>
           <div className="text-xs text-muted-foreground mt-1">
             Período: {startDate} a {endDate}
           </div>
         </div>
-        <ExpensesByCategoryAndAccountChart startDate={startDate} endDate={endDate} />
+        <ExpensesByCostCenterChart />
       </Card>
 
       {/* Incomes by Customer Chart */}
