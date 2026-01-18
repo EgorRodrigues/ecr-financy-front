@@ -636,9 +636,65 @@ export type Invoice = {
   due_date: string;
   amount: number;
   status: string;
+  payment_date: string | null;
+  interest: number | null;
+  fine: number | null;
+  discount: number | null;
+  total_paid: number | null;
+  expense_id: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type CreditCardInvoiceInput = {
+  account_id?: string;
+  period_start?: string;
+  period_end?: string;
+  due_date?: string;
+  amount?: number;
+  status?: string;
+  payment_date?: string | null;
+  interest?: number | null;
+  fine?: number | null;
+  discount?: number | null;
+  total_paid?: number | null;
+  expense_id?: string | null;
+};
+
+export async function getCreditCardInvoices(params?: {
+  account_id?: string;
+  status?: string;
+}): Promise<Invoice[]> {
+  const query = params
+    ? `?${new URLSearchParams(params as Record<string, string>).toString()}`
+    : "";
+  return apiFetch(`/credit-card-invoices/${query}`, { method: "GET" });
+}
+
+export async function getCreditCardInvoice(id: string): Promise<Invoice> {
+  return apiFetch(`/credit-card-invoices/${id}`, { method: "GET" });
+}
+
+export async function createCreditCardInvoice(input: CreditCardInvoiceInput) {
+  return apiFetch(`/credit-card-invoices/`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateCreditCardInvoice(
+  id: string,
+  input: CreditCardInvoiceInput
+) {
+  return apiFetch(`/credit-card-invoices/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteCreditCardInvoice(id: string) {
+  return apiFetch(`/credit-card-invoices/${id}`, { method: "DELETE" });
+}
 
 export type CreditCardSummaryResponse = {
   total_limit: number;

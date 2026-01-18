@@ -64,9 +64,25 @@ type Subcategory = {
   name: string;
 };
 
+type ReportExpenseRecord = ExpenseRecord & {
+  category_name?: string;
+  contact_name?: string;
+  account_name?: string;
+};
+
+type ExpenseFiltersParams = {
+  account?: string;
+  account_type?: string;
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  category_id?: string;
+  subcategory_id?: string;
+};
+
 export default function RelatorioDespesasPage() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ExpenseRecord[]>([]);
+  const [items, setItems] = useState<ReportExpenseRecord[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -111,7 +127,7 @@ export default function RelatorioDespesasPage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const params: any = {
+        const params: ExpenseFiltersParams = {
           start_date: filters.startDate,
           end_date: filters.endDate,
         };
@@ -122,7 +138,7 @@ export default function RelatorioDespesasPage() {
         if (filters.status !== "all") params.status = filters.status;
 
         // Fetch all expenses for the period
-        const data = await getExpenses(params);
+        const data = (await getExpenses(params)) as ReportExpenseRecord[];
         
         // Client-side filtering if API doesn't support some params
         let filtered = data;
@@ -153,8 +169,7 @@ export default function RelatorioDespesasPage() {
     // Top category
     const catMap: Record<string, number> = {};
     items.forEach(i => {
-      // Safely access category name, fallback to ID or "Sem Categoria"
-      const name = (i as any).category_name || "Sem Categoria";
+      const name = i.category_name || "Sem Categoria";
       catMap[name] = (catMap[name] || 0) + i.amount;
     });
     
@@ -376,7 +391,17 @@ export default function RelatorioDespesasPage() {
                             ))}
                         </Pie>
                         <Tooltip 
-                            formatter={(value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            formatter={(value: number | string | undefined) => {
+                              const numeric =
+                                typeof value === "number"
+                                  ? value
+                                  : Number(value ?? 0);
+                              const safe = Number.isNaN(numeric) ? 0 : numeric;
+                              return safe.toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              });
+                            }}
                         />
                         <Legend />
                     </PieChart>
@@ -403,7 +428,17 @@ export default function RelatorioDespesasPage() {
                         />
                         <Tooltip 
                             cursor={{ fill: 'transparent' }}
-                            formatter={(value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                            formatter={(value: number | string | undefined) => {
+                              const numeric =
+                                typeof value === "number"
+                                  ? value
+                                  : Number(value ?? 0);
+                              const safe = Number.isNaN(numeric) ? 0 : numeric;
+                              return safe.toLocaleString("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              });
+                            }}
                             labelFormatter={(label, payload) => {
                                 if (payload && payload.length > 0 && payload[0].payload.fullDate) {
                                     return format(parseISO(payload[0].payload.fullDate), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });

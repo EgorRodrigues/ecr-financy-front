@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,15 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet";
 import { useSort } from "@/hooks/use-sort";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { updateCreditCardInvoice } from "@/lib/api";
 
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([]);
@@ -60,6 +70,7 @@ export default function CreditCardPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<CreditCardTransactionRecord | null>(null);
+  const [invoicePaymentOpen, setInvoicePaymentOpen] = useState(false);
 
   const loadExpenses = useCallback(async (accountId: string) => {
     try {
@@ -173,6 +184,18 @@ export default function CreditCardPage() {
   }, [filteredExpenses, categories]);
 
   const { items: sortedExpenses, requestSort, sortConfig } = useSort(displayExpenses);
+
+  const selectedInvoice: Invoice | null = useMemo(() => {
+    if (!currentInvoice && nextInvoices.length === 0) return null;
+    const all: Invoice[] = [];
+    if (currentInvoice) all.push(currentInvoice);
+    all.push(...nextInvoices);
+    if (selectedInvoiceId) {
+      const found = all.find((inv) => inv.id === selectedInvoiceId);
+      if (found) return found;
+    }
+    return currentInvoice || null;
+  }, [currentInvoice, nextInvoices, selectedInvoiceId]);
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
@@ -352,6 +375,14 @@ export default function CreditCardPage() {
               </CardContent>
             </Card>
 
+            <Button
+              className="w-full"
+              disabled={!selectedInvoice}
+              onClick={() => setInvoicePaymentOpen(true)}
+            >
+              Registrar Pagamento da Fatura
+            </Button>
+
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-sm mb-1">
@@ -437,6 +468,161 @@ export default function CreditCardPage() {
           if (selectedCardId) loadExpenses(selectedCardId);
         }}
       />
+      <InvoicePaymentSheet
+        open={invoicePaymentOpen}
+        onOpenChange={setInvoicePaymentOpen}
+        invoice={selectedInvoice}
+        onSuccess={() => {
+          if (selectedCardId) loadExpenses(selectedCardId);
+        }}
+      />
     </div>
+  );
+}
+
+type InvoicePaymentSheetProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoice: Invoice | null;
+  onSuccess: () => void;
+};
+
+function InvoicePaymentSheet({
+  open,
+  onOpenChange,
+  invoice,
+  onSuccess,
+}: InvoicePaymentSheetProps) {
+  const [saving, setSaving] = useState(false);
+  const [paymentDate, setPaymentDate] = useState("");
+  const [interest, setInterest] = useState(0);
+  const [fine, setFine] = useState(0);
+  const [discount, setDiscount] = useState(0);
+
+  useEffect(() => {
+    if (open && invoice) {
+      setPaymentDate(
+        invoice.payment_date || new Date().toISOString().slice(0, 10)
+      );
+      setInterest(invoice.interest || 0);
+      setFine(invoice.fine || 0);
+      setDiscount(invoice.discount || 0);
+    }
+  }, [open, invoice]);
+
+  const baseAmount = invoice?.amount || 0;
+  const totalPaid = baseAmount + (interest || 0) + (fine || 0) - (discount || 0);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!invoice) return;
+    setSaving(true);
+    try {
+      await updateCreditCardInvoice(invoice.id, {
+        payment_date: paymentDate,
+        interest,
+        fine,
+        discount,
+        total_paid: totalPaid,
+      });
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to update credit card invoice", error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-[480px]">
+        <SheetHeader>
+          <SheetTitle>Pagar Fatura</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {!invoice ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma fatura selecionada.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-1 text-sm">
+                <div className="text-muted-foreground">Valor da Fatura</div>
+                <div className="text-lg font-semibold">
+                  {baseAmount.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Vencimento:{" "}
+                  {invoice.due_date
+                    ? format(parseISO(invoice.due_date), "dd/MM/yyyy")
+                    : "-"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium mb-1 block">
+                    Data do Pagamento
+                  </label>
+                  <Input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block">
+                    Total Pago
+                  </label>
+                  <CurrencyInput
+                    value={totalPaid}
+                    onValueChange={() => {}}
+                    disabled
+                    className="bg-muted font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-medium mb-1 block">
+                    Juros (+)
+                  </label>
+                  <CurrencyInput
+                    value={interest}
+                    onValueChange={setInterest}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block">
+                    Multa (+)
+                  </label>
+                  <CurrencyInput value={fine} onValueChange={setFine} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block">
+                    Desconto (-)
+                  </label>
+                  <CurrencyInput
+                    value={discount}
+                    onValueChange={setDiscount}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+          <SheetFooter>
+            <Button type="submit" disabled={!invoice || saving}>
+              {saving ? "Salvando..." : "Confirmar Pagamento"}
+            </Button>
+          </SheetFooter>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }
