@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Calendar, Pencil, Trash2, ArrowUpDown } from "lucide-react";
+import { Plus, Calendar, Pencil, Trash2, ArrowUpDown, Ban } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -46,7 +46,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { updateCreditCardInvoice } from "@/lib/api";
+import { updateCreditCardInvoice, updateCreditCardTransaction } from "@/lib/api";
 
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([]);
@@ -153,6 +153,25 @@ export default function CreditCardPage() {
       if (selectedCardId) loadExpenses(selectedCardId);
     } catch (error) {
       console.error("Failed to delete transaction", error);
+    }
+  }
+
+  async function handleCancel(transaction: CreditCardTransactionRecord) {
+    if (!confirm("Tem certeza que deseja cancelar esta transação?")) return;
+
+    try {
+      const { id, ...data } = transaction;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { ...cleanData } = data;
+      
+      await updateCreditCardTransaction(id, {
+        ...cleanData,
+        status: "cancelado",
+      });
+      if (selectedCardId) loadExpenses(selectedCardId);
+    } catch (error) {
+      console.error("Failed to cancel transaction", error);
+      alert("Erro ao cancelar transação");
     }
   }
 
@@ -295,7 +314,14 @@ export default function CreditCardPage() {
                     </TableRow>
                   ) : (
                     sortedExpenses.map((expense) => (
-                      <TableRow key={expense.id}>
+                      <TableRow
+                        key={expense.id}
+                        className={
+                          expense.status === "cancelado"
+                            ? "line-through text-muted-foreground"
+                            : ""
+                        }
+                      >
                         <TableCell>
                           {expense.issue_date
                             ? format(parseISO(expense.issue_date), "dd/MM/yyyy")
@@ -314,7 +340,17 @@ export default function CreditCardPage() {
                             currency: "BRL",
                           }).format(expense.amount)}
                         </TableCell>
-                        <TableCell className="flex gap-2 justify-end">
+                        <TableCell className="flex gap-2 justify-end no-underline">
+                          {expense.status !== "cancelado" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCancel(expense)}
+                              title="Cancelar transação"
+                            >
+                              <Ban className="h-4 w-4 text-orange-500" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
