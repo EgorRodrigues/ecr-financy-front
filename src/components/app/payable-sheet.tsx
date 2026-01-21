@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -34,37 +35,37 @@ import {
   getCostCenters,
   getContacts,
   getAccounts,
-  createIncome,
-  updateIncome,
-  type IncomeRecord,
+  createExpense,
+  updateExpense,
+  type ExpenseRecord,
   type TransactionInput,
 } from "@/lib/api";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
-import { ContactSheet } from "@/components/financeiro/contact-sheet";
-import { CategorySheet } from "@/components/financeiro/category-sheet";
-import { SubcategorySheet } from "@/components/financeiro/subcategory-sheet";
-import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
+import { ContactSheet } from "@/components/app/contact-sheet";
+import { CategorySheet } from "@/components/app/category-sheet";
+import { SubcategorySheet } from "@/components/app/subcategory-sheet";
+import { CostCenterSheet } from "@/components/app/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
   valor: z.number().min(0.01, "Informe o valor"),
   descricao: z.string().min(1, "Informe a descrição"),
-  status: z.enum(["pendente", "recebido", "cancelado"]),
+  status: z.enum(["pendente", "pago", "cancelado"]),
   dataEmissao: z.string(),
   dataVencimento: z.string().min(1, "Informe o vencimento"),
-  dataRecebimento: z.string().optional(),
+  dataPagamento: z.string().optional(),
   juros: z.number().optional(),
   multa: z.number().optional(),
   desconto: z.number().optional(),
-  totalRecebido: z.number().optional(),
+  totalPago: z.number().optional(),
   categoriaId: z.string().optional(),
   subcategoriaId: z.string().optional(),
   centroCustoId: z.string().optional(),
   fornecedorClienteId: z.string().optional(),
   documento: z.string().optional(),
-  formaRecebimento: z.string().optional(),
+  formaPagamento: z.string().optional(),
   contaId: z.string().optional(),
   competencia: z.string().optional(),
   projeto: z.string().optional(),
@@ -75,21 +76,21 @@ const formSchema = z.object({
   parcelas: z.number().min(1),
 });
 
-type ReceivableSheetProps = {
+type PayableSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  initialData?: IncomeRecord | null;
+  initialData?: ExpenseRecord | null;
   defaultAccountId?: string;
 };
 
-export function ReceivableSheet({
+export function PayableSheet({
   open,
   onOpenChange,
   onSuccess,
   initialData,
   defaultAccountId,
-}: ReceivableSheetProps) {
+}: PayableSheetProps) {
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string }>
   >([]);
@@ -125,7 +126,7 @@ export function ReceivableSheet({
       centroCustoId: "",
       fornecedorClienteId: "",
       documento: "",
-      formaRecebimento: "",
+      formaPagamento: "",
       contaId: defaultAccountId || "",
       competencia: "",
       projeto: "",
@@ -146,13 +147,13 @@ export function ReceivableSheet({
   const desconto = useWatch({ control: form.control, name: "desconto" });
 
   useEffect(() => {
-    if (status === "recebido") {
+    if (status === "pago") {
       const v = valor || 0;
       const j = juros || 0;
       const m = multa || 0;
       const d = desconto || 0;
       const total = v + j + m - d;
-      form.setValue("totalRecebido", total);
+      form.setValue("totalPago", total);
     }
   }, [status, valor, juros, multa, desconto, form]);
 
@@ -168,40 +169,29 @@ export function ReceivableSheet({
         form.reset({
           valor: initialData.amount,
           descricao: initialData.description || "",
-          status: initialData.status as "pendente" | "recebido" | "cancelado",
+          status: initialData.status as "pendente" | "pago" | "cancelado",
           dataEmissao: initialData.issue_date || format(new Date(), "yyyy-MM-dd"),
           dataVencimento: initialData.due_date || format(new Date(), "yyyy-MM-dd"),
-          dataRecebimento: initialData.payment_date || format(new Date(), "yyyy-MM-dd"),
+          dataPagamento: initialData.payment_date || format(new Date(), "yyyy-MM-dd"),
           juros: initialData.interest || 0,
           multa: initialData.fine || 0,
           desconto: initialData.discount || 0,
-          totalRecebido: initialData.total_received || initialData.amount || 0,
+          totalPago: initialData.total_paid || initialData.amount || 0,
           categoriaId: initialData.category_id || "",
           subcategoriaId: initialData.subcategory_id || "",
           centroCustoId: initialData.cost_center_id || "",
           fornecedorClienteId: initialData.contact_id || "",
           documento: initialData.document || "",
-          formaRecebimento: initialData.payment_method || "",
+          formaPagamento: initialData.payment_method || "",
           contaId: initialData.account || "",
           competencia: initialData.competence || "",
           projeto: initialData.project || "",
           tags: initialData.tags?.join(", ") || "",
           observacoes: initialData.notes || "",
           recorrencia: initialData.recurrence || false,
-          parcelado: false,
+          parcelado: false, // Edit usually doesn't show parcel info this way
           parcelas: 1,
         });
-
-        // Fix account ID if name is provided instead of ID
-        if (initialData.account && accounts.length > 0) {
-          const isId = accounts.some((a) => a.id === initialData.account);
-          if (!isId) {
-            const found = accounts.find((a) => a.name === initialData.account);
-            if (found) {
-              form.setValue("contaId", found.id);
-            }
-          }
-        }
       } else {
         form.reset({
           valor: 0,
@@ -209,17 +199,17 @@ export function ReceivableSheet({
           status: "pendente",
           dataEmissao: format(new Date(), "yyyy-MM-dd"),
           dataVencimento: format(new Date(), "yyyy-MM-dd"),
-          dataRecebimento: format(new Date(), "yyyy-MM-dd"),
+          dataPagamento: format(new Date(), "yyyy-MM-dd"),
           juros: 0,
           multa: 0,
           desconto: 0,
-          totalRecebido: 0,
+          totalPago: 0,
           categoriaId: "",
           subcategoriaId: "",
           centroCustoId: "",
           fornecedorClienteId: "",
           documento: "",
-          formaRecebimento: "",
+          formaPagamento: "",
           contaId: defaultAccountId || "",
           competencia: "",
           projeto: "",
@@ -231,7 +221,7 @@ export function ReceivableSheet({
         });
       }
     }
-  }, [open, initialData, defaultAccountId, form, accounts]);
+  }, [open, initialData, defaultAccountId, form]);
 
   useEffect(() => {
     if (categoriaId) {
@@ -280,6 +270,14 @@ export function ReceivableSheet({
     getCostCenters().then(setCostCenters).catch(() => {});
   }
 
+  function reloadSubcategories() {
+    if (categoriaId) {
+      getSubcategories(categoriaId)
+        .then(setSubcategories)
+        .catch(() => setSubcategories([]));
+    }
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
@@ -290,32 +288,29 @@ export function ReceivableSheet({
           status: values.status,
           issue_date: values.dataEmissao,
           due_date: values.dataVencimento,
-          payment_date: values.status === "recebido" ? values.dataRecebimento : undefined,
-          interest: values.status === "recebido" ? values.juros : undefined,
-          fine: values.status === "recebido" ? values.multa : undefined,
-          discount: values.status === "recebido" ? values.desconto : undefined,
-          total_received: values.status === "recebido" ? values.totalRecebido : undefined,
+          payment_date: values.status === "pago" ? values.dataPagamento : undefined,
+          interest: values.status === "pago" ? values.juros : undefined,
+          fine: values.status === "pago" ? values.multa : undefined,
+          discount: values.status === "pago" ? values.desconto : undefined,
+          total_paid: values.status === "pago" ? values.totalPago : undefined,
           category_id: values.categoriaId || undefined,
           subcategory_id: values.subcategoriaId || undefined,
           cost_center_id: values.centroCustoId || undefined,
           contact_id: values.fornecedorClienteId || undefined,
           description: values.descricao,
           document: values.documento || undefined,
-          payment_method: values.formaRecebimento || undefined,
+          payment_method: values.formaPagamento || undefined,
           account: values.contaId || undefined,
           recurrence: values.recorrencia,
           competence: values.competencia || undefined,
           project: values.projeto || undefined,
           tags: values.tags
-            ? values.tags
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean)
+            ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
             : [],
           notes: values.observacoes || undefined,
           active: true,
         };
-        await updateIncome(initialData.id, payload);
+        await updateExpense(initialData.id, payload);
       } else {
         // Create mode
         const isParcelado = values.parcelado && values.parcelas > 1;
@@ -344,36 +339,26 @@ export function ReceivableSheet({
               status: values.status,
               issue_date: values.dataEmissao,
               due_date: due,
-              payment_date: values.status === "recebido" ? values.dataRecebimento : undefined,
-              interest: values.status === "recebido" ? values.juros : undefined,
-              fine: values.status === "recebido" ? values.multa : undefined,
-              discount: values.status === "recebido" ? values.desconto : undefined,
-              total_received: values.status === "recebido" ? values.totalRecebido : undefined,
               category_id: values.categoriaId || undefined,
               subcategory_id: values.subcategoriaId || undefined,
               cost_center_id: values.centroCustoId || undefined,
               contact_id: values.fornecedorClienteId || undefined,
-              description: [values.descricao, `(parcela ${i + 1}/${n})`]
-                .filter(Boolean)
-                .join(" "),
+              description: values.descricao ? `${values.descricao} (${i + 1}/${n})` : values.descricao,
               document: values.documento
                 ? `${values.documento}-${i + 1}/${n}`
                 : undefined,
-              payment_method: values.formaRecebimento || undefined,
+              payment_method: values.formaPagamento || undefined,
               account: values.contaId || undefined,
               recurrence: values.recorrencia,
               competence: values.competencia || undefined,
               project: values.projeto || undefined,
               tags: values.tags
-                ? values.tags
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean)
+                ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
                 : [],
               notes: values.observacoes || undefined,
               active: true,
             };
-            requests.push(createIncome(payload));
+            requests.push(createExpense(payload));
           }
           await Promise.all(requests);
         } else {
@@ -387,22 +372,24 @@ export function ReceivableSheet({
             cost_center_id: values.centroCustoId || undefined,
             contact_id: values.fornecedorClienteId || undefined,
             description: values.descricao,
+            payment_date: values.status === "pago" ? values.dataPagamento : undefined,
+            interest: values.status === "pago" ? values.juros : undefined,
+            fine: values.status === "pago" ? values.multa : undefined,
+            discount: values.status === "pago" ? values.desconto : undefined,
+            total_paid: values.status === "pago" ? values.totalPago : undefined,
             document: values.documento || undefined,
-            payment_method: values.formaRecebimento || undefined,
+            payment_method: values.formaPagamento || undefined,
             account: values.contaId || undefined,
             recurrence: values.recorrencia,
             competence: values.competencia || undefined,
             project: values.projeto || undefined,
             tags: values.tags
-              ? values.tags
-                  .split(",")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
+              ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
               : [],
             notes: values.observacoes || undefined,
             active: true,
           };
-          await createIncome(payload);
+          await createExpense(payload);
         }
       }
 
@@ -410,7 +397,7 @@ export function ReceivableSheet({
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to save income", error);
+      console.error("Failed to save expense", error);
     } finally {
       setLoading(false);
     }
@@ -421,9 +408,10 @@ export function ReceivableSheet({
       <SheetContent className="overflow-y-auto sm:max-w-[540px] w-full">
         <SheetHeader>
           <SheetTitle>
-            {initialData ? "Editar Receita" : "Nova Receita"}
+            {initialData ? "Editar Despesa" : "Nova Despesa"}
           </SheetTitle>
         </SheetHeader>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -452,11 +440,7 @@ export function ReceivableSheet({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -464,7 +448,7 @@ export function ReceivableSheet({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="recebido">Recebido</SelectItem>
+                        <SelectItem value="pago">Pago</SelectItem>
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -473,6 +457,96 @@ export function ReceivableSheet({
                 )}
               />
             </div>
+
+            {status === "pago" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-dashed">
+                  <FormField
+                    control={form.control}
+                    name="dataPagamento"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data do Pagamento</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="totalPago"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Total Pago</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            placeholder="R$ 0,00"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled
+                            className="bg-muted font-bold"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="juros"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Juros (+)</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            placeholder="R$ 0,00"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="multa"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Multa (+)</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            placeholder="R$ 0,00"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="desconto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Desconto (-)</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            placeholder="R$ 0,00"
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
@@ -488,6 +562,7 @@ export function ReceivableSheet({
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="dataVencimento"
@@ -503,95 +578,6 @@ export function ReceivableSheet({
               />
             </div>
 
-            {status === "recebido" && (
-              <div className="bg-muted/30 p-4 rounded-md border border-dashed space-y-4">
-                <FormField
-                  control={form.control}
-                  name="dataRecebimento"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data do Recebimento</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="juros"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Juros</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="multa"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Multa</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="desconto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Desconto</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="totalRecebido"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Total Recebido</FormLabel>
-                      <FormControl>
-                        <CurrencyInput
-                          placeholder="R$ 0,00"
-                          value={field.value}
-                          onValueChange={field.onChange}
-                          disabled
-                          className="bg-muted font-bold"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
             <FormField
               control={form.control}
               name="descricao"
@@ -599,10 +585,7 @@ export function ReceivableSheet({
                 <FormItem>
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Ex: Salário, Venda..."
-                      {...field}
-                    />
+                    <Input placeholder="Ex: Conta de Luz, Aluguel..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -617,11 +600,7 @@ export function ReceivableSheet({
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
                     <div className="flex items-center gap-2">
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
@@ -656,9 +635,9 @@ export function ReceivableSheet({
                   <FormItem>
                     <FormLabel>Subcategoria</FormLabel>
                     <div className="flex items-center gap-2">
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value} 
                         value={field.value}
                         disabled={!categoriaId}
                       >
@@ -696,14 +675,11 @@ export function ReceivableSheet({
               name="fornecedorClienteId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
+                  <FormLabel>Fornecedor</FormLabel>
                   <div className="flex items-center gap-2">
                     <FormControl>
                       <Combobox
-                        options={contacts.map((c) => ({
-                          value: c.id,
-                          label: c.name,
-                        }))}
+                        options={contacts.map((c) => ({ value: c.id, label: c.name }))}
                         value={field.value}
                         onChange={field.onChange}
                         placeholder="Selecione..."
@@ -726,15 +702,11 @@ export function ReceivableSheet({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="formaRecebimento"
+                name="formaPagamento"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Forma de Receb.</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
+                    <FormLabel>Forma de Pagto</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -758,12 +730,8 @@ export function ReceivableSheet({
                 name="contaId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Conta de Entrada</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
+                    <FormLabel>Conta de Saída</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -790,11 +758,7 @@ export function ReceivableSheet({
                 <FormItem>
                   <FormLabel>Centro de Custo</FormLabel>
                   <div className="flex items-center gap-2">
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      value={field.value}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -829,8 +793,8 @@ export function ReceivableSheet({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Parcelado?</FormLabel>
-                    <Select
-                      onValueChange={(v) => field.onChange(v === "sim")}
+                    <Select 
+                      onValueChange={(v) => field.onChange(v === "sim")} 
                       defaultValue={field.value ? "sim" : "nao"}
                       value={field.value ? "sim" : "nao"}
                     >
@@ -857,11 +821,11 @@ export function ReceivableSheet({
                     <FormItem>
                       <FormLabel>Nº Parcelas</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min={2}
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        <Input 
+                          type="number" 
+                          min={2} 
+                          {...field} 
+                          onChange={e => field.onChange(parseInt(e.target.value))} 
                         />
                       </FormControl>
                       <FormMessage />
@@ -870,22 +834,64 @@ export function ReceivableSheet({
                 />
               )}
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <FormField
+                control={form.control}
+                name="documento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Documento</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nº Nota, Boleto..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+               <FormField
+                control={form.control}
+                name="competencia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Competência</FormLabel>
+                    <FormControl>
+                      <Input type="month" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
-            <FormField
-              control={form.control}
-              name="observacoes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+             <FormField
+                control={form.control}
+                name="observacoes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Detalhes adicionais..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
             <SheetFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? "Salvando..." : "Salvar"}
               </Button>
@@ -897,28 +903,39 @@ export function ReceivableSheet({
       <ContactSheet
         open={contactSheetOpen}
         onOpenChange={setContactSheetOpen}
-        onSuccess={loadContacts}
+        onSuccess={() => {
+          loadContacts();
+          setContactSheetOpen(false);
+        }}
+        defaultType="supplier"
       />
+
       <CategorySheet
         open={categorySheetOpen}
         onOpenChange={setCategorySheetOpen}
-        onSuccess={loadCategories}
+        onSuccess={() => {
+          loadCategories();
+          setCategorySheetOpen(false);
+        }}
       />
+
       <SubcategorySheet
         open={subcategorySheetOpen}
         onOpenChange={setSubcategorySheetOpen}
+        defaultCategoryId={categoriaId || undefined}
         onSuccess={() => {
-          if (categoriaId) {
-            getSubcategories(categoriaId)
-              .then(setSubcategories)
-              .catch(() => setSubcategories([]));
-          }
+          reloadSubcategories();
+          setSubcategorySheetOpen(false);
         }}
       />
+
       <CostCenterSheet
         open={costCenterSheetOpen}
         onOpenChange={setCostCenterSheetOpen}
-        onSuccess={loadCostCenters}
+        onSuccess={() => {
+          loadCostCenters();
+          setCostCenterSheetOpen(false);
+        }}
       />
     </Sheet>
   );

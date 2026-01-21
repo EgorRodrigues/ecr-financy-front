@@ -47,10 +47,6 @@ export function SearchForm() {
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
           <CommandGroup heading="Sugestões">
             <CommandItem>
-              <span>Financeiro</span>
-            </CommandItem>
-
-            <CommandItem>
               <span>Configurações</span>
             </CommandItem>
           </CommandGroup>

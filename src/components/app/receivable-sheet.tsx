@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -35,37 +34,37 @@ import {
   getCostCenters,
   getContacts,
   getAccounts,
-  createExpense,
-  updateExpense,
-  type ExpenseRecord,
+  createIncome,
+  updateIncome,
+  type IncomeRecord,
   type TransactionInput,
 } from "@/lib/api";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
-import { ContactSheet } from "@/components/financeiro/contact-sheet";
-import { CategorySheet } from "@/components/financeiro/category-sheet";
-import { SubcategorySheet } from "@/components/financeiro/subcategory-sheet";
-import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
+import { ContactSheet } from "@/components/app/contact-sheet";
+import { CategorySheet } from "@/components/app/category-sheet";
+import { SubcategorySheet } from "@/components/app/subcategory-sheet";
+import { CostCenterSheet } from "@/components/app/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 const formSchema = z.object({
   valor: z.number().min(0.01, "Informe o valor"),
   descricao: z.string().min(1, "Informe a descrição"),
-  status: z.enum(["pendente", "pago", "cancelado"]),
+  status: z.enum(["pendente", "recebido", "cancelado"]),
   dataEmissao: z.string(),
   dataVencimento: z.string().min(1, "Informe o vencimento"),
-  dataPagamento: z.string().optional(),
+  dataRecebimento: z.string().optional(),
   juros: z.number().optional(),
   multa: z.number().optional(),
   desconto: z.number().optional(),
-  totalPago: z.number().optional(),
+  totalRecebido: z.number().optional(),
   categoriaId: z.string().optional(),
   subcategoriaId: z.string().optional(),
   centroCustoId: z.string().optional(),
   fornecedorClienteId: z.string().optional(),
   documento: z.string().optional(),
-  formaPagamento: z.string().optional(),
+  formaRecebimento: z.string().optional(),
   contaId: z.string().optional(),
   competencia: z.string().optional(),
   projeto: z.string().optional(),
@@ -76,21 +75,21 @@ const formSchema = z.object({
   parcelas: z.number().min(1),
 });
 
-type PayableSheetProps = {
+type ReceivableSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  initialData?: ExpenseRecord | null;
+  initialData?: IncomeRecord | null;
   defaultAccountId?: string;
 };
 
-export function PayableSheet({
+export function ReceivableSheet({
   open,
   onOpenChange,
   onSuccess,
   initialData,
   defaultAccountId,
-}: PayableSheetProps) {
+}: ReceivableSheetProps) {
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string }>
   >([]);
@@ -126,7 +125,7 @@ export function PayableSheet({
       centroCustoId: "",
       fornecedorClienteId: "",
       documento: "",
-      formaPagamento: "",
+      formaRecebimento: "",
       contaId: defaultAccountId || "",
       competencia: "",
       projeto: "",
@@ -147,13 +146,13 @@ export function PayableSheet({
   const desconto = useWatch({ control: form.control, name: "desconto" });
 
   useEffect(() => {
-    if (status === "pago") {
+    if (status === "recebido") {
       const v = valor || 0;
       const j = juros || 0;
       const m = multa || 0;
       const d = desconto || 0;
       const total = v + j + m - d;
-      form.setValue("totalPago", total);
+      form.setValue("totalRecebido", total);
     }
   }, [status, valor, juros, multa, desconto, form]);
 
@@ -169,29 +168,40 @@ export function PayableSheet({
         form.reset({
           valor: initialData.amount,
           descricao: initialData.description || "",
-          status: initialData.status as "pendente" | "pago" | "cancelado",
+          status: initialData.status as "pendente" | "recebido" | "cancelado",
           dataEmissao: initialData.issue_date || format(new Date(), "yyyy-MM-dd"),
           dataVencimento: initialData.due_date || format(new Date(), "yyyy-MM-dd"),
-          dataPagamento: initialData.payment_date || format(new Date(), "yyyy-MM-dd"),
+          dataRecebimento: initialData.payment_date || format(new Date(), "yyyy-MM-dd"),
           juros: initialData.interest || 0,
           multa: initialData.fine || 0,
           desconto: initialData.discount || 0,
-          totalPago: initialData.total_paid || initialData.amount || 0,
+          totalRecebido: initialData.total_received || initialData.amount || 0,
           categoriaId: initialData.category_id || "",
           subcategoriaId: initialData.subcategory_id || "",
           centroCustoId: initialData.cost_center_id || "",
           fornecedorClienteId: initialData.contact_id || "",
           documento: initialData.document || "",
-          formaPagamento: initialData.payment_method || "",
+          formaRecebimento: initialData.payment_method || "",
           contaId: initialData.account || "",
           competencia: initialData.competence || "",
           projeto: initialData.project || "",
           tags: initialData.tags?.join(", ") || "",
           observacoes: initialData.notes || "",
           recorrencia: initialData.recurrence || false,
-          parcelado: false, // Edit usually doesn't show parcel info this way
+          parcelado: false,
           parcelas: 1,
         });
+
+        // Fix account ID if name is provided instead of ID
+        if (initialData.account && accounts.length > 0) {
+          const isId = accounts.some((a) => a.id === initialData.account);
+          if (!isId) {
+            const found = accounts.find((a) => a.name === initialData.account);
+            if (found) {
+              form.setValue("contaId", found.id);
+            }
+          }
+        }
       } else {
         form.reset({
           valor: 0,
@@ -199,17 +209,17 @@ export function PayableSheet({
           status: "pendente",
           dataEmissao: format(new Date(), "yyyy-MM-dd"),
           dataVencimento: format(new Date(), "yyyy-MM-dd"),
-          dataPagamento: format(new Date(), "yyyy-MM-dd"),
+          dataRecebimento: format(new Date(), "yyyy-MM-dd"),
           juros: 0,
           multa: 0,
           desconto: 0,
-          totalPago: 0,
+          totalRecebido: 0,
           categoriaId: "",
           subcategoriaId: "",
           centroCustoId: "",
           fornecedorClienteId: "",
           documento: "",
-          formaPagamento: "",
+          formaRecebimento: "",
           contaId: defaultAccountId || "",
           competencia: "",
           projeto: "",
@@ -221,7 +231,7 @@ export function PayableSheet({
         });
       }
     }
-  }, [open, initialData, defaultAccountId, form]);
+  }, [open, initialData, defaultAccountId, form, accounts]);
 
   useEffect(() => {
     if (categoriaId) {
@@ -270,14 +280,6 @@ export function PayableSheet({
     getCostCenters().then(setCostCenters).catch(() => {});
   }
 
-  function reloadSubcategories() {
-    if (categoriaId) {
-      getSubcategories(categoriaId)
-        .then(setSubcategories)
-        .catch(() => setSubcategories([]));
-    }
-  }
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setLoading(true);
     try {
@@ -288,29 +290,32 @@ export function PayableSheet({
           status: values.status,
           issue_date: values.dataEmissao,
           due_date: values.dataVencimento,
-          payment_date: values.status === "pago" ? values.dataPagamento : undefined,
-          interest: values.status === "pago" ? values.juros : undefined,
-          fine: values.status === "pago" ? values.multa : undefined,
-          discount: values.status === "pago" ? values.desconto : undefined,
-          total_paid: values.status === "pago" ? values.totalPago : undefined,
+          payment_date: values.status === "recebido" ? values.dataRecebimento : undefined,
+          interest: values.status === "recebido" ? values.juros : undefined,
+          fine: values.status === "recebido" ? values.multa : undefined,
+          discount: values.status === "recebido" ? values.desconto : undefined,
+          total_received: values.status === "recebido" ? values.totalRecebido : undefined,
           category_id: values.categoriaId || undefined,
           subcategory_id: values.subcategoriaId || undefined,
           cost_center_id: values.centroCustoId || undefined,
           contact_id: values.fornecedorClienteId || undefined,
           description: values.descricao,
           document: values.documento || undefined,
-          payment_method: values.formaPagamento || undefined,
+          payment_method: values.formaRecebimento || undefined,
           account: values.contaId || undefined,
           recurrence: values.recorrencia,
           competence: values.competencia || undefined,
           project: values.projeto || undefined,
           tags: values.tags
-            ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
+            ? values.tags
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
             : [],
           notes: values.observacoes || undefined,
           active: true,
         };
-        await updateExpense(initialData.id, payload);
+        await updateIncome(initialData.id, payload);
       } else {
         // Create mode
         const isParcelado = values.parcelado && values.parcelas > 1;
@@ -339,26 +344,36 @@ export function PayableSheet({
               status: values.status,
               issue_date: values.dataEmissao,
               due_date: due,
+              payment_date: values.status === "recebido" ? values.dataRecebimento : undefined,
+              interest: values.status === "recebido" ? values.juros : undefined,
+              fine: values.status === "recebido" ? values.multa : undefined,
+              discount: values.status === "recebido" ? values.desconto : undefined,
+              total_received: values.status === "recebido" ? values.totalRecebido : undefined,
               category_id: values.categoriaId || undefined,
               subcategory_id: values.subcategoriaId || undefined,
               cost_center_id: values.centroCustoId || undefined,
               contact_id: values.fornecedorClienteId || undefined,
-              description: values.descricao ? `${values.descricao} (${i + 1}/${n})` : values.descricao,
+              description: [values.descricao, `(parcela ${i + 1}/${n})`]
+                .filter(Boolean)
+                .join(" "),
               document: values.documento
                 ? `${values.documento}-${i + 1}/${n}`
                 : undefined,
-              payment_method: values.formaPagamento || undefined,
+              payment_method: values.formaRecebimento || undefined,
               account: values.contaId || undefined,
               recurrence: values.recorrencia,
               competence: values.competencia || undefined,
               project: values.projeto || undefined,
               tags: values.tags
-                ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
+                ? values.tags
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
                 : [],
               notes: values.observacoes || undefined,
               active: true,
             };
-            requests.push(createExpense(payload));
+            requests.push(createIncome(payload));
           }
           await Promise.all(requests);
         } else {
@@ -372,24 +387,22 @@ export function PayableSheet({
             cost_center_id: values.centroCustoId || undefined,
             contact_id: values.fornecedorClienteId || undefined,
             description: values.descricao,
-            payment_date: values.status === "pago" ? values.dataPagamento : undefined,
-            interest: values.status === "pago" ? values.juros : undefined,
-            fine: values.status === "pago" ? values.multa : undefined,
-            discount: values.status === "pago" ? values.desconto : undefined,
-            total_paid: values.status === "pago" ? values.totalPago : undefined,
             document: values.documento || undefined,
-            payment_method: values.formaPagamento || undefined,
+            payment_method: values.formaRecebimento || undefined,
             account: values.contaId || undefined,
             recurrence: values.recorrencia,
             competence: values.competencia || undefined,
             project: values.projeto || undefined,
             tags: values.tags
-              ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
+              ? values.tags
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
               : [],
             notes: values.observacoes || undefined,
             active: true,
           };
-          await createExpense(payload);
+          await createIncome(payload);
         }
       }
 
@@ -397,7 +410,7 @@ export function PayableSheet({
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      console.error("Failed to save expense", error);
+      console.error("Failed to save income", error);
     } finally {
       setLoading(false);
     }
@@ -408,10 +421,9 @@ export function PayableSheet({
       <SheetContent className="overflow-y-auto sm:max-w-[540px] w-full">
         <SheetHeader>
           <SheetTitle>
-            {initialData ? "Editar Despesa" : "Nova Despesa"}
+            {initialData ? "Editar Receita" : "Nova Receita"}
           </SheetTitle>
         </SheetHeader>
-        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -440,7 +452,11 @@ export function PayableSheet({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -448,7 +464,7 @@ export function PayableSheet({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="pago">Pago</SelectItem>
+                        <SelectItem value="recebido">Recebido</SelectItem>
                         <SelectItem value="cancelado">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
@@ -457,96 +473,6 @@ export function PayableSheet({
                 )}
               />
             </div>
-
-            {status === "pago" && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-dashed">
-                  <FormField
-                    control={form.control}
-                    name="dataPagamento"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Data do Pagamento</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="totalPago"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Pago</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            placeholder="R$ 0,00"
-                            value={field.value}
-                            onValueChange={field.onChange}
-                            disabled
-                            className="bg-muted font-bold"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="juros"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Juros (+)</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            placeholder="R$ 0,00"
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="multa"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Multa (+)</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            placeholder="R$ 0,00"
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="desconto"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Desconto (-)</FormLabel>
-                        <FormControl>
-                          <CurrencyInput
-                            placeholder="R$ 0,00"
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </>
-            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
@@ -562,7 +488,6 @@ export function PayableSheet({
                   </FormItem>
                 )}
               />
-
               <FormField
                 control={form.control}
                 name="dataVencimento"
@@ -578,6 +503,95 @@ export function PayableSheet({
               />
             </div>
 
+            {status === "recebido" && (
+              <div className="bg-muted/30 p-4 rounded-md border border-dashed space-y-4">
+                <FormField
+                  control={form.control}
+                  name="dataRecebimento"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data do Recebimento</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="juros"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Juros</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="multa"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Multa</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="desconto"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Desconto</FormLabel>
+                        <FormControl>
+                          <CurrencyInput
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="totalRecebido"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Recebido</FormLabel>
+                      <FormControl>
+                        <CurrencyInput
+                          placeholder="R$ 0,00"
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled
+                          className="bg-muted font-bold"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="descricao"
@@ -585,7 +599,10 @@ export function PayableSheet({
                 <FormItem>
                   <FormLabel>Descrição</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Conta de Luz, Aluguel..." {...field} />
+                    <Input
+                      placeholder="Ex: Salário, Venda..."
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -600,7 +617,11 @@ export function PayableSheet({
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
                     <div className="flex items-center gap-2">
-                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione..." />
@@ -635,9 +656,9 @@ export function PayableSheet({
                   <FormItem>
                     <FormLabel>Subcategoria</FormLabel>
                     <div className="flex items-center gap-2">
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value} 
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
                         value={field.value}
                         disabled={!categoriaId}
                       >
@@ -675,11 +696,14 @@ export function PayableSheet({
               name="fornecedorClienteId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fornecedor</FormLabel>
+                  <FormLabel>Cliente</FormLabel>
                   <div className="flex items-center gap-2">
                     <FormControl>
                       <Combobox
-                        options={contacts.map((c) => ({ value: c.id, label: c.name }))}
+                        options={contacts.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        }))}
                         value={field.value}
                         onChange={field.onChange}
                         placeholder="Selecione..."
@@ -702,11 +726,15 @@ export function PayableSheet({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="formaPagamento"
+                name="formaRecebimento"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Forma de Pagto</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <FormLabel>Forma de Receb.</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -730,8 +758,12 @@ export function PayableSheet({
                 name="contaId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Conta de Saída</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <FormLabel>Conta de Entrada</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -758,7 +790,11 @@ export function PayableSheet({
                 <FormItem>
                   <FormLabel>Centro de Custo</FormLabel>
                   <div className="flex items-center gap-2">
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione..." />
@@ -793,8 +829,8 @@ export function PayableSheet({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Parcelado?</FormLabel>
-                    <Select 
-                      onValueChange={(v) => field.onChange(v === "sim")} 
+                    <Select
+                      onValueChange={(v) => field.onChange(v === "sim")}
                       defaultValue={field.value ? "sim" : "nao"}
                       value={field.value ? "sim" : "nao"}
                     >
@@ -821,11 +857,11 @@ export function PayableSheet({
                     <FormItem>
                       <FormLabel>Nº Parcelas</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          min={2} 
-                          {...field} 
-                          onChange={e => field.onChange(parseInt(e.target.value))} 
+                        <Input
+                          type="number"
+                          min={2}
+                          {...field}
+                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -834,64 +870,22 @@ export function PayableSheet({
                 />
               )}
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-               <FormField
-                control={form.control}
-                name="documento"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Documento</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Nº Nota, Boleto..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-               <FormField
-                control={form.control}
-                name="competencia"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Competência</FormLabel>
-                    <FormControl>
-                      <Input type="month" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
             
-             <FormField
-                control={form.control}
-                name="observacoes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Detalhes adicionais..."
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <FormField
+              control={form.control}
+              name="observacoes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <SheetFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
               <Button type="submit" disabled={loading}>
                 {loading ? "Salvando..." : "Salvar"}
               </Button>
@@ -903,39 +897,28 @@ export function PayableSheet({
       <ContactSheet
         open={contactSheetOpen}
         onOpenChange={setContactSheetOpen}
-        onSuccess={() => {
-          loadContacts();
-          setContactSheetOpen(false);
-        }}
-        defaultType="supplier"
+        onSuccess={loadContacts}
       />
-
       <CategorySheet
         open={categorySheetOpen}
         onOpenChange={setCategorySheetOpen}
-        onSuccess={() => {
-          loadCategories();
-          setCategorySheetOpen(false);
-        }}
+        onSuccess={loadCategories}
       />
-
       <SubcategorySheet
         open={subcategorySheetOpen}
         onOpenChange={setSubcategorySheetOpen}
-        defaultCategoryId={categoriaId || undefined}
         onSuccess={() => {
-          reloadSubcategories();
-          setSubcategorySheetOpen(false);
+          if (categoriaId) {
+            getSubcategories(categoriaId)
+              .then(setSubcategories)
+              .catch(() => setSubcategories([]));
+          }
         }}
       />
-
       <CostCenterSheet
         open={costCenterSheetOpen}
         onOpenChange={setCostCenterSheetOpen}
-        onSuccess={() => {
-          loadCostCenters();
-          setCostCenterSheetOpen(false);
-        }}
+        onSuccess={loadCostCenters}
       />
     </Sheet>
   );

@@ -37,10 +37,10 @@ import {
 } from "@/lib/api";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
-import { ContactSheet } from "@/components/financeiro/contact-sheet";
-import { CategorySheet } from "@/components/financeiro/category-sheet";
-import { SubcategorySheet } from "@/components/financeiro/subcategory-sheet";
-import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
+import { ContactSheet } from "@/components/app/contact-sheet";
+import { CategorySheet } from "@/components/app/category-sheet";
+import { SubcategorySheet } from "@/components/app/subcategory-sheet";
+import { CostCenterSheet } from "@/components/app/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";

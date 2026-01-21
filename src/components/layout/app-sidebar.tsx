@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Home,
   LineChart,
   Table as TableIcon,
   ReceiptText,
@@ -59,24 +58,11 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  tooltip="Financeiro"
-                  isActive={pathname === "/financeiro"}
-                >
-                  <Link href="/financeiro" onClick={handleLinkClick}>
-                    <Home />
-                    <span>Financeiro</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
                   tooltip="Cartão de Crédito"
-                  isActive={pathname === "/financeiro/cartao-credito"}
+                  isActive={pathname === "/cartao-credito"}
                 >
                   <Link
-                    href="/financeiro/cartao-credito"
+                    href="/cartao-credito"
                     onClick={handleLinkClick}
                   >
                     <CreditCard />
@@ -88,10 +74,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Extrato por Conta"
-                  isActive={pathname === "/financeiro/extrato-conta"}
+                  isActive={pathname === "/extrato-conta"}
                 >
                   <Link
-                    href="/financeiro/extrato-conta"
+                    href="/extrato-conta"
                     onClick={handleLinkClick}
                   >
                     <Landmark />
@@ -103,10 +89,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Contas a Pagar"
-                  isActive={pathname === "/financeiro/contas-a-pagar"}
+                  isActive={pathname === "/contas-a-pagar"}
                 >
                   <Link
-                    href="/financeiro/contas-a-pagar"
+                    href="/contas-a-pagar"
                     onClick={handleLinkClick}
                   >
                     <Banknote />
@@ -118,10 +104,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Contas a Receber"
-                  isActive={pathname === "/financeiro/contas-a-receber"}
+                  isActive={pathname === "/contas-a-receber"}
                 >
                   <Link
-                    href="/financeiro/contas-a-receber"
+                    href="/contas-a-receber"
                     onClick={handleLinkClick}
                   >
                     <HandCoins />
@@ -133,10 +119,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Relatórios de Despesas"
-                  isActive={pathname === "/financeiro/relatorios/despesas"}
+                  isActive={pathname === "/relatorios/despesas"}
                 >
                   <Link
-                    href="/financeiro/relatorios/despesas"
+                    href="/relatorios/despesas"
                     onClick={handleLinkClick}
                   >
                     <LineChart />
@@ -148,10 +134,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Previsão Financeira"
-                  isActive={pathname === "/financeiro/relatorios/previsao"}
+                  isActive={pathname === "/relatorios/previsao"}
                 >
                   <Link
-                    href="/financeiro/relatorios/previsao"
+                    href="/relatorios/previsao"
                     onClick={handleLinkClick}
                   >
                     <LineChart />
@@ -173,10 +159,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Categoria"
-                  isActive={pathname === "/financeiro/cadastros/categoria"}
+                  isActive={pathname === "/cadastros/categoria"}
                 >
                   <Link
-                    href="/financeiro/cadastros/categoria"
+                    href="/cadastros/categoria"
                     onClick={handleLinkClick}
                   >
                     <TableIcon />
@@ -188,10 +174,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Subcategoria"
-                  isActive={pathname === "/financeiro/cadastros/subcategoria"}
+                  isActive={pathname === "/cadastros/subcategoria"}
                 >
                   <Link
-                    href="/financeiro/cadastros/subcategoria"
+                    href="/cadastros/subcategoria"
                     onClick={handleLinkClick}
                   >
                     <TableIcon />
@@ -235,10 +221,10 @@ export function AppSidebar() {
                 <SidebarMenuButton
                   asChild
                   tooltip="Contas"
-                  isActive={pathname === "/financeiro/cadastros/contas"}
+                  isActive={pathname === "/cadastros/contas"}
                 >
                   <Link
-                    href="/financeiro/cadastros/contas"
+                    href="/cadastros/contas"
                     onClick={handleLinkClick}
                   >
                     <TableIcon />

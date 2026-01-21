@@ -2,46 +2,30 @@
 
 import { useEffect, useState, startTransition, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  getCostCenters,
-  deleteCostCenter,
-} from "@/lib/api";
 import { useSort } from "@/hooks/use-sort";
 import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react";
-import { CostCenterSheet } from "@/components/financeiro/cost-center-sheet";
+import { Button } from "@/components/ui/button";
+import {
+  getContacts,
+  deleteContact,
+  type Contact,
+} from "@/lib/api";
+import { ContactSheet } from "@/components/app/contact-sheet";
 
-export default function CadastroCentroCustosPage() {
-  const [items, setItems] = useState<
-    Array<{ id: string; name: string; code?: string; active?: boolean }>
-  >([]);
+export default function CadastroFornecedoresClientesPage() {
+  const [items, setItems] = useState<Contact[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [selected, setSelected] = useState<{
-    id: string;
-    name: string;
-    code?: string;
-    description?: string;
-    active?: boolean;
-  } | null>(null);
+  const [selected, setSelected] = useState<Contact | null>(null);
 
-  function loadCostCenters() {
-    getCostCenters()
+  function loadContacts() {
+    getContacts()
       .then((list) => startTransition(() => setItems(list)))
       .catch(() => {});
   }
 
   useEffect(() => {
-    loadCostCenters();
+    loadContacts();
   }, []);
-
-  const displayItems = useMemo(() => {
-    return items.map((i) => ({
-      ...i,
-      displayActive: i.active ? "Sim" : "Não",
-    }));
-  }, [items]);
-
-  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems);
 
   function openNew() {
     setSelected(null);
@@ -49,19 +33,8 @@ export default function CadastroCentroCustosPage() {
   }
 
   function openEdit(id: string) {
-    const rec = items.find((i) => i.id === id) || null;
-    // CostCenter type in API might differ slightly from local usage, ensuring fields match
-    setSelected(
-      rec
-        ? {
-            id: rec.id,
-            name: rec.name,
-            code: rec.code,
-            active: rec.active,
-            description: undefined, // Add description if API returns it, for now assuming basic fields
-          }
-        : null
-    );
+    const contact = items.find((i) => i.id === id) || null;
+    setSelected(contact);
     setSheetOpen(true);
   }
 
@@ -69,17 +42,58 @@ export default function CadastroCentroCustosPage() {
     const ok =
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
-    await deleteCostCenter(id);
-    loadCostCenters();
+    await deleteContact(id);
+    loadContacts();
   }
+
+  function formatCPF(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    const p1 = digits.slice(0, 3);
+    const p2 = digits.slice(3, 6);
+    const p3 = digits.slice(6, 9);
+    const p4 = digits.slice(9, 11);
+    if (digits.length <= 3) return p1;
+    if (digits.length <= 6) return `${p1}.${p2}`;
+    if (digits.length <= 9) return `${p1}.${p2}.${p3}`;
+    return `${p1}.${p2}.${p3}-${p4}`;
+  }
+
+  function formatCNPJ(value: string) {
+    const digits = value.replace(/\D/g, "").slice(0, 14);
+    const p1 = digits.slice(0, 2);
+    const p2 = digits.slice(2, 5);
+    const p3 = digits.slice(5, 8);
+    const p4 = digits.slice(8, 12);
+    const p5 = digits.slice(12, 14);
+    if (digits.length <= 2) return p1;
+    if (digits.length <= 5) return `${p1}.${p2}`;
+    if (digits.length <= 8) return `${p1}.${p2}.${p3}`;
+    if (digits.length <= 12) return `${p1}.${p2}.${p3}/${p4}`;
+    return `${p1}.${p2}.${p3}/${p4}-${p5}`;
+  }
+
+  const displayItems = useMemo(() => {
+    return items.map((i) => ({
+      ...i,
+      displayType: i.type === "supplier" ? "Fornecedor" : "Cliente",
+      displayPersonType: i.person_type === "individual" ? "Física" : "Jurídica",
+      displayDocument:
+        i.person_type === "individual"
+          ? formatCPF(i.document || "")
+          : formatCNPJ(i.document || ""),
+      displayActive: i.active ? "Sim" : "Não",
+    }));
+  }, [items]);
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">Cadastro de Centro de Custos</h2>
+        <h2 className="text-sm font-medium">Cadastro de Fornecedores e Clientes</h2>
         <Button onClick={openNew}>
           <Plus className="mr-2 h-4 w-4" />
-          Novo Centro de Custos
+          Novo Contato
         </Button>
       </div>
 
@@ -90,10 +104,10 @@ export default function CadastroCentroCustosPage() {
               <tr className="border-b">
                 <th
                   className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => requestSort("code")}
+                  onClick={() => requestSort("displayType")}
                 >
-                  Código{" "}
-                  {sortConfig?.key === "code" && (
+                  Tipo{" "}
+                  {sortConfig?.key === "displayType" && (
                     <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                   )}
                 </th>
@@ -106,6 +120,17 @@ export default function CadastroCentroCustosPage() {
                     <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                   )}
                 </th>
+                <th
+                  className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => requestSort("displayDocument")}
+                >
+                  CPF/CNPJ{" "}
+                  {sortConfig?.key === "displayDocument" && (
+                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                  )}
+                </th>
+                <th className="p-2 text-left">Email</th>
+                <th className="p-2 text-left">Telefone</th>
                 <th
                   className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => requestSort("displayActive")}
@@ -121,8 +146,11 @@ export default function CadastroCentroCustosPage() {
             <tbody>
               {sortedItems.map((item) => (
                 <tr key={item.id} className="border-b hover:bg-muted/50">
-                  <td className="p-2">{item.code}</td>
+                  <td className="p-2">{item.displayType}</td>
                   <td className="p-2">{item.name}</td>
+                  <td className="p-2">{item.displayDocument}</td>
+                  <td className="p-2">{item.email || "-"}</td>
+                  <td className="p-2">{item.phone_local || "-"}</td>
                   <td className="p-2">{item.displayActive}</td>
                   <td className="p-2 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -147,8 +175,8 @@ export default function CadastroCentroCustosPage() {
               ))}
               {sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                    Nenhum centro de custos cadastrado
+                  <td colSpan={7} className="p-4 text-center text-muted-foreground">
+                    Nenhum contato cadastrado
                   </td>
                 </tr>
               )}
@@ -157,10 +185,10 @@ export default function CadastroCentroCustosPage() {
         </div>
       </Card>
 
-      <CostCenterSheet
+      <ContactSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onSuccess={loadCostCenters}
+        onSuccess={loadContacts}
         initialData={selected}
       />
     </div>

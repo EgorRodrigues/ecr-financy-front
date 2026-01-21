@@ -229,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Failed to fetch full user profile in signIn, using optimistic data", e);
       }
       
-      router.push("/financeiro");
+      router.push("/");
     } catch (error) {
       throw error;
     }

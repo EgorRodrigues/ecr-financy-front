@@ -8,11 +8,11 @@ import {
   Calendar,
 } from "lucide-react";
 import { useEffect, useState, startTransition, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ContactSheet } from "@/components/financeiro/contact-sheet";
-import { PayableSheet } from "@/components/financeiro/payable-sheet";
+import { ContactSheet } from "@/components/app/contact-sheet";
+import { ReceivableSheet } from "@/components/app/receivable-sheet";
 import { useSort } from "@/hooks/use-sort";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,32 +25,42 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  getExpenses,
-  deleteExpense,
+  getIncomes,
+  deleteIncome,
   getContacts,
-  type ExpenseRecord,
+  getAccounts,
+  getCategories,
+  getCostCenters,
+  type IncomeRecord,
   type Contact,
+  type Account,
 } from "@/lib/api";
 
-type ExpenseItem = {
+type Receivable = {
   id: string;
-  fornecedor: string;
+  cliente: string;
   contactId?: string;
   vencimento: string;
   valor: number;
-  status: "pendente" | "pago" | "atrasado" | "cancelado";
+  status: "pendente" | "recebido" | "atrasado" | "cancelado";
 };
 
-type BackendExpenseRecord = ExpenseRecord & { contact_name?: string };
+type BackendIncomeRecord = IncomeRecord & { contact_name?: string };
 
-export default function ContasAPagarPage() {
+export default function ContasAReceberPage() {
   const [view, setView] = useState<"tabela" | "cards">("tabela");
 
-  const [records, setRecords] = useState<ExpenseRecord[]>([]);
+  const [records, setRecords] = useState<IncomeRecord[]>([]);
   const [contactMap, setContactMap] = useState<Record<string, string>>({});
   const [contactsList, setContactsList] = useState<Contact[]>([]);
-  const [payableSheetOpen, setPayableSheetOpen] = useState(false);
+  // Dependencies for filters or other logic if needed, currently used for loading
+  const [, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [, setCostCenters] = useState<Array<{ id: string; name: string }>>([]);
+  const [, setAccounts] = useState<Account[]>([]);
+  
+  const [receivableSheetOpen, setReceivableSheetOpen] = useState(false);
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [selectedReceivable, setSelectedReceivable] = useState<IncomeRecord | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(
     new Date().toISOString().slice(0, 7)
   );
@@ -59,20 +69,18 @@ export default function ContasAPagarPage() {
     const filtered = records.filter((r) =>
       (r.due_date || "").startsWith(selectedMonth)
     );
-    return (filtered as BackendExpenseRecord[]).map((i) => ({
+    return (filtered as BackendIncomeRecord[]).map((i) => ({
       id: i.id,
-      fornecedor: i.contact_name || i.contact_id || "",
+      cliente: i.contact_name || i.contact_id || "",
       contactId: i.contact_id,
       vencimento: i.due_date || "",
       valor: typeof i.amount === "number" ? i.amount : 0,
-      status: (i.status as ExpenseItem["status"]) || "pendente",
+      status: (i.status as Receivable["status"]) || "pendente",
     }));
   }, [records, selectedMonth]);
 
-  const [selected, setSelected] = useState<ExpenseRecord | null>(null);
-
   const load = () => {
-    getExpenses()
+    getIncomes()
       .then((list) =>
         startTransition(() => {
           setRecords(list);
@@ -122,53 +130,53 @@ export default function ContasAPagarPage() {
 
   useEffect(() => {
     loadContacts();
+
+    getCategories()
+      .then((list) => startTransition(() => setCategories(list)))
+      .catch(() => {});
+
+    getCostCenters()
+      .then((list) => startTransition(() => setCostCenters(list)))
+      .catch(() => {});
+
+    getAccounts()
+      .then((list) => startTransition(() => setAccounts(list)))
+      .catch(() => {});
   }, []);
 
   function openNew() {
-    setSelected(null);
-    setPayableSheetOpen(true);
+    setSelectedReceivable(null);
+    setReceivableSheetOpen(true);
   }
 
   function openEdit(id: string) {
     const rec = records.find((r) => r.id === id) || null;
-    setSelected(rec);
-    setPayableSheetOpen(true);
+    setSelectedReceivable(rec);
+    setReceivableSheetOpen(true);
   }
 
-  function openPay(id: string) {
+  function openReceive(id: string) {
     const rec = records.find((r) => r.id === id);
-    if (!rec) return;
-    
-    const today = new Date().toISOString().slice(0, 10);
-    const base = rec.amount ?? 0;
-    
-    // Create a modified record for the sheet with payment defaults
-    const payRecord: ExpenseRecord = {
-      ...rec,
-      status: "pago",
-      payment_date: today,
-      interest: 0,
-      fine: 0,
-      discount: 0,
-      total_paid: base,
-    };
-    
-    setSelected(payRecord);
-    setPayableSheetOpen(true);
+    if (rec) {
+      // Create a copy with status 'recebido' to trigger the receive flow in the sheet
+      const recWithStatus = { ...rec, status: "recebido" } as IncomeRecord;
+      setSelectedReceivable(recWithStatus);
+      setReceivableSheetOpen(true);
+    }
   }
 
   async function remove(id: string) {
     const ok =
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
-    await deleteExpense(id);
+    await deleteIncome(id);
     load();
   }
 
   const displayData = useMemo(() => {
     return dados.map((d) => ({
       ...d,
-      displayFornecedor: contactMap[d.contactId || ""] || d.fornecedor,
+      displayCliente: contactMap[d.contactId || ""] || d.cliente,
     }));
   }, [dados, contactMap]);
 
@@ -178,10 +186,10 @@ export default function ContasAPagarPage() {
     <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-4rem)]">
       <div className="flex-1 p-6 overflow-auto space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">Contas a Pagar</h2>
+          <h2 className="text-sm font-medium">Contas a Receber</h2>
           <div className="flex gap-2">
             <Button onClick={openNew}>
-              Lançar Despesa
+              Lançar Receita
             </Button>
             <Button
               variant={view === "tabela" ? "default" : "outline"}
@@ -205,42 +213,18 @@ export default function ContasAPagarPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead
-                      onClick={() => requestSort("displayFornecedor")}
+                      onClick={() => requestSort("displayCliente")}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                     >
-                      Fornecedor{" "}
-                      {sortConfig?.key === "displayFornecedor" && (
+                      Cliente{" "}
+                      {sortConfig?.key === "displayCliente" && (
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
-                    <TableHead
-                      onClick={() => requestSort("vencimento")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    >
-                      Vencimento{" "}
-                      {sortConfig?.key === "vencimento" && (
-                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                      )}
-                    </TableHead>
-                    <TableHead
-                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => requestSort("valor")}
-                    >
-                      Valor{" "}
-                      {sortConfig?.key === "valor" && (
-                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                      )}
-                    </TableHead>
-                    <TableHead
-                      onClick={() => requestSort("status")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    >
-                      Status{" "}
-                      {sortConfig?.key === "status" && (
-                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                      )}
-                    </TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead>Vencimento</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[140px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -250,13 +234,13 @@ export default function ContasAPagarPage() {
                         colSpan={5}
                         className="text-center py-4 text-muted-foreground"
                       >
-                        Nenhuma conta a pagar encontrada para este mês.
+                        Nenhuma conta a receber encontrada para este mês.
                       </TableCell>
                     </TableRow>
                   ) : (
                     sortedItems.map((d) => (
                       <TableRow key={d.id}>
-                        <TableCell>{d.displayFornecedor}</TableCell>
+                        <TableCell>{d.displayCliente}</TableCell>
                         <TableCell>
                           {d.vencimento
                             ? format(parseISO(d.vencimento), "dd/MM/yyyy")
@@ -271,7 +255,7 @@ export default function ContasAPagarPage() {
                         <TableCell>
                           <span
                             className={
-                              d.status === "pago"
+                              d.status === "recebido"
                                 ? "text-emerald-600"
                                 : d.status === "pendente"
                                   ? "text-amber-600"
@@ -283,12 +267,12 @@ export default function ContasAPagarPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {d.status !== "pago" && d.status !== "cancelado" && (
+                            {d.status !== "recebido" && d.status !== "cancelado" && (
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => openPay(d.id)}
-                                title="Pagar"
+                                onClick={() => openReceive(d.id)}
+                                title="Receber"
                               >
                                 <Banknote className="h-4 w-4 text-emerald-600" />
                               </Button>
@@ -322,7 +306,7 @@ export default function ContasAPagarPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {dados.length === 0 ? (
               <div className="col-span-3 text-center py-8 text-muted-foreground">
-                Nenhuma conta a pagar encontrada para este mês.
+                Nenhuma conta a receber encontrada para este mês.
               </div>
             ) : (
               sortedItems.map((d) => (
@@ -330,7 +314,7 @@ export default function ContasAPagarPage() {
                   <div className="flex flex-col gap-2">
                     <div className="flex items-start justify-between">
                       <div className="font-medium truncate">
-                        {d.displayFornecedor}
+                        {d.displayCliente}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {d.vencimento
@@ -351,7 +335,7 @@ export default function ContasAPagarPage() {
                         </div>
                         <div
                           className={
-                            d.status === "pago"
+                            d.status === "recebido"
                               ? "text-emerald-600 text-sm font-medium"
                               : d.status === "pendente"
                                 ? "text-amber-600 text-sm font-medium"
@@ -362,12 +346,12 @@ export default function ContasAPagarPage() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {d.status !== "pago" && d.status !== "cancelado" && (
+                        {d.status !== "recebido" && d.status !== "cancelado" && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => openPay(d.id)}
-                            title="Pagar"
+                            onClick={() => openReceive(d.id)}
+                            title="Receber"
                           >
                             <Banknote className="h-4 w-4 text-emerald-600" />
                           </Button>
@@ -416,7 +400,7 @@ export default function ContasAPagarPage() {
           <div className="space-y-4">
             <Card className="p-4 bg-primary/5 border-primary/20">
               <div className="text-sm text-muted-foreground mb-1">
-                Total a Pagar ({format(parseISO(selectedMonth + "-01"), "MMMM", { locale: ptBR })})
+                Total a Receber ({format(parseISO(selectedMonth + "-01"), "MMMM", { locale: ptBR })})
               </div>
               <div className="text-2xl font-bold text-primary">
                 {currentMonthTotal.toLocaleString("pt-BR", {
@@ -458,15 +442,12 @@ export default function ContasAPagarPage() {
         </div>
       </div>
 
-    <PayableSheet
-      open={payableSheetOpen}
-      onOpenChange={(v) => {
-        setPayableSheetOpen(v);
-        if (!v) setSelected(null);
-      }}
-      onSuccess={load}
-      initialData={selected}
-    />
+      <ReceivableSheet
+        open={receivableSheetOpen}
+        onOpenChange={setReceivableSheetOpen}
+        onSuccess={load}
+        initialData={selectedReceivable}
+      />
       <ContactSheet
         open={contactSheetOpen}
         onOpenChange={setContactSheetOpen}

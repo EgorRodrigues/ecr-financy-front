@@ -10,7 +10,7 @@ import {
 } from "@/lib/api";
 import { useSort } from "@/hooks/use-sort";
 import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react";
-import { AccountSheet } from "@/components/financeiro/account-sheet";
+import { AccountSheet } from "@/components/app/account-sheet";
 
 export default function CadastroContasPage() {
   const [items, setItems] = useState<Array<Account>>([]);

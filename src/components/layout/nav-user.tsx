@@ -64,7 +64,7 @@ export function NavUser({
                 </div>
               </div>
               <div className="h-px bg-border my-1" />
-              <Link href="/financeiro/configuracoes">
+              <Link href="/configuracoes">
                 <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer">
                   <Settings className="h-4 w-4" />
                   <span>Configurações</span>

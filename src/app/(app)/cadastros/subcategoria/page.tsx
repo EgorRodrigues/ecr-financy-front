@@ -2,18 +2,28 @@
 
 import { useEffect, useState, startTransition, useMemo } from "react";
 import { Card } from "@/components/ui/card";
+import { useSort } from "@/hooks/use-sort";
+import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getCategories,
-  deleteCategory,
+  getAllSubcategories,
+  deleteSubcategory,
 } from "@/lib/api";
-import { useSort } from "@/hooks/use-sort";
-import { ArrowUpDown, Pencil, Trash2, Plus } from "lucide-react";
-import { CategorySheet } from "@/components/financeiro/category-sheet";
+import { SubcategorySheet } from "@/components/app/subcategory-sheet";
 
-export default function CadastroCategoriaPage() {
+type Category = { id: string; name: string };
+
+export default function CadastroSubcategoriaPage() {
+  const [categorias, setCategorias] = useState<Category[]>([]);
   const [items, setItems] = useState<
-    Array<{ id: string; name: string; description?: string; active?: boolean }>
+    Array<{
+      id: string;
+      name: string;
+      description?: string;
+      active?: boolean;
+      category_id?: string;
+    }>
   >([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selected, setSelected] = useState<{
@@ -21,37 +31,21 @@ export default function CadastroCategoriaPage() {
     name: string;
     description?: string;
     active?: boolean;
+    category_id?: string;
   } | null>(null);
 
-  function loadCategories() {
+  function loadData() {
     getCategories()
-      .then((list) =>
-        startTransition(() =>
-          setItems(
-            list.map((c) => ({
-              id: c.id,
-              name: c.name,
-              description: c.description,
-              active: c.active,
-            }))
-          )
-        )
-      )
+      .then((list) => startTransition(() => setCategorias(list)))
+      .catch(() => {});
+    getAllSubcategories()
+      .then((list) => startTransition(() => setItems(list)))
       .catch(() => {});
   }
 
   useEffect(() => {
-    loadCategories();
+    loadData();
   }, []);
-
-  const displayItems = useMemo(() => {
-    return items.map((i) => ({
-      ...i,
-      displayActive: i.active ? "Sim" : "Não",
-    }));
-  }, [items]);
-
-  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems);
 
   function openNew() {
     setSelected(null);
@@ -68,17 +62,32 @@ export default function CadastroCategoriaPage() {
     const ok =
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
-    await deleteCategory(id);
-    loadCategories();
+    const rec = items.find((i) => i.id === id);
+    const catId = rec?.category_id || "";
+    await deleteSubcategory(catId, id);
+    loadData();
   }
+
+  const displayItems = useMemo(() => {
+    return items.map((i) => {
+      const cat = categorias.find((c) => c.id === i.category_id);
+      return {
+        ...i,
+        displayCategory: cat ? cat.name : "-",
+        displayActive: i.active ? "Sim" : "Não",
+      };
+    });
+  }, [items, categorias]);
+
+  const { items: sortedItems, requestSort, sortConfig } = useSort(displayItems);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">Cadastro de Categoria</h2>
+        <h2 className="text-sm font-medium">Cadastro de Subcategoria</h2>
         <Button onClick={openNew}>
           <Plus className="mr-2 h-4 w-4" />
-          Nova Categoria
+          Nova Subcategoria
         </Button>
       </div>
 
@@ -93,6 +102,15 @@ export default function CadastroCategoriaPage() {
                 >
                   Nome{" "}
                   {sortConfig?.key === "name" && (
+                    <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                  )}
+                </th>
+                <th
+                  className="p-2 text-left cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => requestSort("displayCategory")}
+                >
+                  Categoria{" "}
+                  {sortConfig?.key === "displayCategory" && (
                     <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                   )}
                 </th>
@@ -121,6 +139,7 @@ export default function CadastroCategoriaPage() {
               {sortedItems.map((item) => (
                 <tr key={item.id} className="border-b hover:bg-muted/50">
                   <td className="p-2">{item.name}</td>
+                  <td className="p-2">{item.displayCategory}</td>
                   <td className="p-2">{item.description}</td>
                   <td className="p-2">{item.displayActive}</td>
                   <td className="p-2 text-right">
@@ -146,8 +165,8 @@ export default function CadastroCategoriaPage() {
               ))}
               {sortedItems.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-4 text-center text-muted-foreground">
-                    Nenhuma categoria cadastrada
+                  <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                    Nenhuma subcategoria cadastrada
                   </td>
                 </tr>
               )}
@@ -156,10 +175,10 @@ export default function CadastroCategoriaPage() {
         </div>
       </Card>
 
-      <CategorySheet
+      <SubcategorySheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
-        onSuccess={loadCategories}
+        onSuccess={loadData}
         initialData={selected}
       />
     </div>

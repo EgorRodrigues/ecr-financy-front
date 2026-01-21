@@ -37,8 +37,8 @@ import {
 } from "@/lib/api";
 import { format, parseISO, compareDesc } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { PayableSheet } from "@/components/financeiro/payable-sheet";
-import { ReceivableSheet } from "@/components/financeiro/receivable-sheet";
+import { PayableSheet } from "@/components/app/payable-sheet";
+import { ReceivableSheet } from "@/components/app/receivable-sheet";
 import { useSort } from "@/hooks/use-sort";
 
 type Transaction = (ExpenseRecord | IncomeRecord) & {

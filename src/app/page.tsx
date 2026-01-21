@@ -1,11 +1,9 @@
-import Link from "next/link";
+// import Link from "next/link";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <Link href="/financeiro" className="text-blue-500 hover:underline">
-        Ir para o Financeiro
-      </Link>
+      <h1 className="text-2xl font-bold">Bem-vindo ao Financy</h1>
     </div>
   );
 }

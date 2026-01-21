@@ -36,7 +36,7 @@ import {
 } from "@/lib/api";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CreditCardExpenseSheet } from "@/components/financeiro/credit-card-expense-sheet";
+import { CreditCardExpenseSheet } from "@/components/app/credit-card-expense-sheet";
 import { useSort } from "@/hooks/use-sort";
 import {
   Sheet,
