@@ -221,9 +221,33 @@ export default function ContasAReceberPage() {
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead
+                      onClick={() => requestSort("vencimento")}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      Vencimento{" "}
+                      {sortConfig?.key === "vencimento" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => requestSort("valor")}
+                    >
+                      Valor{" "}
+                      {sortConfig?.key === "valor" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
+                    <TableHead
+                      onClick={() => requestSort("status")}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    >
+                      Status{" "}
+                      {sortConfig?.key === "status" && (
+                        <ArrowUpDown className="ml-2 h-4 w-4 inline" />
+                      )}
+                    </TableHead>
                     <TableHead className="w-[140px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>

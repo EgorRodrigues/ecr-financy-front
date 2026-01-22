@@ -821,6 +821,41 @@ export async function getExpensesByCategoryAndAccount(
   }
 }
 
+export type BankStatementTransaction = {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: "expense" | "income";
+  category: string;
+  status: string;
+};
+
+export type BankStatementResponse = {
+  account_balance: number;
+  period_summary: {
+    total_income: number;
+    total_expense: number;
+    net_result: number;
+  };
+  transactions: BankStatementTransaction[];
+};
+
+export async function getBankStatement(params?: {
+  startDate?: string;
+  endDate?: string;
+  accounts?: string[];
+}): Promise<BankStatementResponse> {
+  const query = new URLSearchParams();
+  if (params?.startDate) query.append("start_date", params.startDate);
+  if (params?.endDate) query.append("end_date", params.endDate);
+  if (params?.accounts) {
+    params.accounts.forEach((id) => query.append("accounts", id));
+  }
+
+  return apiFetch(`/bank-statement/?${query.toString()}`, { method: "GET" });
+}
+
 export async function getIncomesByCustomer(
   startDate?: string,
   endDate?: string
