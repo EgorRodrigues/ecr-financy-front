@@ -322,7 +322,14 @@ export default function AccountStatementPage() {
                   </TableRow>
                 ) : (
                   sortedTransactions.map((transaction, index) => {
-                    const date = transaction.date ? parseISO(transaction.date) : new Date();
+                    const rawDate = transaction.type === 'expense' 
+                      ? (transaction.payment_date || transaction.issue_date) 
+                      : (transaction.receipt_date || transaction.issue_date);
+                    const date = rawDate ? parseISO(rawDate) : new Date();
+
+                    const amount = transaction.type === 'expense' 
+                      ? (transaction.total_paid || transaction.amount) 
+                      : (transaction.total_received || transaction.amount);
 
                     return (
                       <TableRow key={`${transaction.id}-${index}`}>
@@ -330,12 +337,12 @@ export default function AccountStatementPage() {
                           {format(date, "dd/MM/yyyy", { locale: ptBR })}
                         </TableCell>
                         <TableCell>{transaction.description}</TableCell>
-                        <TableCell>{transaction.category}</TableCell>
+                        <TableCell>{transaction.category_name}</TableCell>
                         <TableCell className={transaction.type === 'income' ? "text-green-600" : "text-red-600"}>
                           {new Intl.NumberFormat("pt-BR", {
                             style: "currency",
                             currency: "BRL",
-                          }).format(transaction.type === 'expense' ? -transaction.amount : transaction.amount)}
+                          }).format(transaction.type === 'expense' ? -amount : amount)}
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded-full text-xs ${
@@ -386,7 +393,10 @@ export default function AccountStatementPage() {
         open={receivableSheetOpen}
         onOpenChange={setReceivableSheetOpen}
         onSuccess={loadTransactions}
-        initialData={editingTransaction && editingTransaction.type === 'income' ? (editingTransaction as unknown as IncomeRecord) : null}
+        initialData={editingTransaction && editingTransaction.type === 'income' ? ({
+          ...editingTransaction,
+          payment_date: editingTransaction.receipt_date
+        } as unknown as IncomeRecord) : null}
         defaultAccountId={selectedAccountId === 'all' ? undefined : selectedAccountId}
       />
     </div>

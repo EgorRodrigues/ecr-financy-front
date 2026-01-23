@@ -823,12 +823,37 @@ export async function getExpensesByCategoryAndAccount(
 
 export type BankStatementTransaction = {
   id: string;
-  date: string;
-  description: string;
   amount: number;
-  type: "expense" | "income";
-  category: string;
   status: string;
+  issue_date: string;
+  due_date: string;
+  payment_date?: string | null;
+  receipt_date?: string | null;
+  original_amount: number;
+  interest: number;
+  fine: number;
+  discount: number;
+  total_paid?: number;
+  total_received?: number;
+  category_id: string;
+  subcategory_id: string;
+  cost_center_id: string;
+  contact_id: string;
+  description: string;
+  document: string | null;
+  payment_method: string | null;
+  receiving_method?: string | null;
+  account: string;
+  recurrence: boolean;
+  competence: string | null;
+  project: string | null;
+  tags: string[];
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  type: "expense" | "income";
+  category_name: string;
 };
 
 export type BankStatementResponse = {
