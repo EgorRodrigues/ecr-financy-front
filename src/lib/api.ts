@@ -13,7 +13,7 @@ function getBaseUrl() {
 }
 
 // Authentication Service URL
-export function getAuthBaseUrl() {
+function getAuthBaseUrl() {
   const url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL || "http://localhost:3333";
   return sanitizeApiUrl(url);
 }
@@ -39,11 +39,6 @@ export function setAuthSession(token: string | null, refresh: string | null) {
     }
     window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: token }));
   }
-}
-
-// Deprecated: use setAuthSession instead
-export function setAuthToken(token: string | null) {
-  setAuthSession(token, refreshToken);
 }
 
 if (typeof window !== "undefined") {
@@ -163,7 +158,7 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
             return undefined as unknown as T;
         }
     } catch (e) {
-      setAuthToken(null);
+      setAuthSession(null, null);
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("auth:session-expired"));
       }
@@ -639,13 +634,6 @@ export async function getCreditCardInvoice(id: string): Promise<Invoice> {
   return apiFetch(`/credit-card-invoices/${id}`, { method: "GET" });
 }
 
-export async function createCreditCardInvoice(input: CreditCardInvoiceInput) {
-  return apiFetch(`/credit-card-invoices/`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
-}
-
 export async function updateCreditCardInvoice(
   id: string,
   input: CreditCardInvoiceInput
@@ -654,10 +642,6 @@ export async function updateCreditCardInvoice(
     method: "PUT",
     body: JSON.stringify(input),
   });
-}
-
-export async function deleteCreditCardInvoice(id: string) {
-  return apiFetch(`/credit-card-invoices/${id}`, { method: "DELETE" });
 }
 
 export type CreditCardSummaryResponse = {
@@ -674,40 +658,6 @@ export async function getCreditCardSummary(
   return apiFetch(`/credit-card-transactions/summary/${accountId}`, {
     method: "GET",
   });
-}
-
-export type DashboardResponse = {
-  big_numbers: {
-    balance: number;
-    approved: number;
-    pending: number;
-    failed: number;
-  };
-  monthly: Array<{
-    month: string;
-    inflows: number;
-    outflows: number;
-  }>;
-  recent_transactions: Array<{
-    id: string;
-    date: string;
-    description: string;
-    amount: number;
-    status: "pending" | "paid" | "received" | "canceled";
-    type: "income" | "expense";
-  }>;
-};
-
-export async function getDashboard(
-  months?: number,
-  recent_limit?: number
-): Promise<DashboardResponse> {
-  const params: string[] = [];
-  if (typeof months === "number") params.push(`months=${months}`);
-  if (typeof recent_limit === "number")
-    params.push(`recent_limit=${recent_limit}`);
-  const q = params.length ? `?${params.join("&")}` : "";
-  return apiFetch(`/dashboard/${q}`, { method: "GET" });
 }
 
 export type ForecastItem = {
@@ -727,62 +677,6 @@ export async function getFinancialForecast(
     `/financial-forecast/?startDate=${startDate}&endDate=${endDate}`,
     { method: "GET" }
   );
-}
-
-// Types for aggregated data
-export type ExpenseByCategory = {
-  category_id: string;
-  category_name: string;
-  total_amount: number;
-};
-
-export type ExpenseByCategoryAndAccount = {
-  category_id: string;
-  category_name: string;
-  account_id: string;
-  account_name: string;
-  total_amount: number;
-};
-
-export type IncomeByCustomer = {
-  contact_id: string;
-  contact_name: string;
-  total_amount: number;
-};
-
-// API functions for aggregated data
-export async function getExpensesByCategory(
-  startDate?: string,
-  endDate?: string
-): Promise<ExpenseByCategory[]> {
-  try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
-
-    return await apiFetch(`/reports/expenses-by-category?${params.toString()}`, { method: "GET" });
-  } catch (error) {
-    console.error("Error fetching expenses by category:", error);
-    // Return empty array in case of error
-    return [];
-  }
-}
-
-export async function getExpensesByCategoryAndAccount(
-  startDate?: string,
-  endDate?: string
-): Promise<ExpenseByCategoryAndAccount[]> {
-  try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
-
-    return await apiFetch(`/reports/expenses-by-category-account?${params.toString()}`, { method: "GET" });
-  } catch (error) {
-    console.error("Error fetching expenses by category and account:", error);
-    // Return empty array in case of error
-    return [];
-  }
 }
 
 export type BankStatementTransaction = {
@@ -843,25 +737,4 @@ export async function getBankStatement(params?: {
   }
 
   return apiFetch(`/bank-statement/?${query.toString()}`, { method: "GET" });
-}
-
-export async function getIncomesByCustomer(
-  startDate?: string,
-  endDate?: string
-): Promise<IncomeByCustomer[]> {
-  try {
-    const params = new URLSearchParams();
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
-
-    const url = `/reports/incomes-by-customer?${params.toString()}`;
-    console.log("Fetching incomes by customer from:", url);
-    const result = await apiFetch<IncomeByCustomer[]>(url, { method: "GET" });
-    console.log("Incomes by customer result:", result);
-    return result;
-  } catch (error) {
-    console.error("Error fetching incomes by customer:", error);
-    // Return empty array in case of error
-    return [];
-  }
 }

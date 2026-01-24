@@ -118,21 +118,6 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
-                  tooltip="Relatórios de Despesas"
-                  isActive={pathname === "/relatorios/despesas"}
-                >
-                  <Link
-                    href="/relatorios/despesas"
-                    onClick={handleLinkClick}
-                  >
-                    <LineChart />
-                    <span>Relatórios Despesas</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
                   tooltip="Previsão Financeira"
                   isActive={pathname === "/relatorios/previsao"}
                 >
