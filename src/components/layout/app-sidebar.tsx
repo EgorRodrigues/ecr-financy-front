@@ -25,9 +25,9 @@ import {
   SidebarMenuSkeleton,
   SidebarSeparator,
   useSidebar,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/layout/nav-user";
-import { SearchForm } from "@/components/layout/search-form";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function AppSidebar() {
@@ -42,13 +42,15 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2 px-2 py-2" onClick={handleLinkClick}>
-          <ReceiptText className="size-6" />
-          <span className="text-base font-semibold">Financy</span>
-        </Link>
-        <SearchForm />
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
+          <Link href="/" className="flex items-center gap-2 px-2 py-2" onClick={handleLinkClick}>
+            <ReceiptText className="size-6" />
+            <span className="text-base font-semibold group-data-[collapsible=icon]:hidden">Financy</span>
+          </Link>
+          <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -135,6 +137,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
+        <div className="hidden md:flex justify-center p-2 group-data-[collapsible=icon]:p-0">
+          <SidebarTrigger className="group-data-[state=expanded]:hidden" />
+        </div>
         {user ? (
           <NavUser
             user={{

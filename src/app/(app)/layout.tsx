@@ -17,11 +17,11 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <AppSidebar />
       <SidebarInset>
         <div className="flex h-14 items-center gap-2 border-b px-4">
-          <SidebarTrigger />
+          <SidebarTrigger className="md:hidden" />
           <span className="text-sm font-medium">Gestão Financeira</span>
         </div>
         <FormConfig className="p-4 space-y-4">{children}</FormConfig>
