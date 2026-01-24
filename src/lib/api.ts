@@ -1,27 +1,7 @@
-declare global {
-  interface Window {
-    __ENV?: {
-      NEXT_PUBLIC_API_BASE_URL?: string;
-      NEXT_PUBLIC_AUTH_API_BASE_URL?: string;
-    };
-  }
-}
-
 import { sanitizeApiUrl } from "./utils";
 
 function getBaseUrl() {
-  let url: string | undefined;
-
-  if (typeof window !== "undefined" && window.__ENV?.NEXT_PUBLIC_API_BASE_URL) {
-    url = window.__ENV.NEXT_PUBLIC_API_BASE_URL;
-  } else if (
-    typeof window === "undefined" &&
-    process.env["NEXT_PUBLIC_API_BASE_URL"]
-  ) {
-    url = process.env["NEXT_PUBLIC_API_BASE_URL"];
-  } else if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    url = process.env.NEXT_PUBLIC_API_BASE_URL;
-  }
+  const url = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   if (!url) {
     throw new Error(
@@ -34,23 +14,7 @@ function getBaseUrl() {
 
 // Authentication Service URL
 export function getAuthBaseUrl() {
-  let url: string | undefined;
-  if (
-    typeof window !== "undefined" &&
-    window.__ENV?.NEXT_PUBLIC_AUTH_API_BASE_URL
-  ) {
-    url = window.__ENV.NEXT_PUBLIC_AUTH_API_BASE_URL;
-  } else if (
-    typeof window === "undefined" &&
-    process.env["NEXT_PUBLIC_AUTH_API_BASE_URL"]
-  ) {
-    url = process.env["NEXT_PUBLIC_AUTH_API_BASE_URL"];
-  } else if (process.env.NEXT_PUBLIC_AUTH_API_BASE_URL) {
-    url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL;
-  }
-  if (!url) {
-    url = "http://localhost:3333";
-  }
+  const url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL || "http://localhost:3333";
   return sanitizeApiUrl(url);
 }
 const AUTH_API_BASE_URL = getAuthBaseUrl();

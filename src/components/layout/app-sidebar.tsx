@@ -44,10 +44,10 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
+        <Link href="/" className="flex items-center gap-2 px-2 py-2" onClick={handleLinkClick}>
           <ReceiptText className="size-6" />
           <span className="text-base font-semibold">Financy</span>
-        </div>
+        </Link>
         <SearchForm />
       </SidebarHeader>
       <SidebarContent>
