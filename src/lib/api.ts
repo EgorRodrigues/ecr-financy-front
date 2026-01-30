@@ -13,7 +13,7 @@ function getBaseUrl() {
 }
 
 // Authentication Service URL
-function getAuthBaseUrl() {
+export function getAuthBaseUrl() {
   const url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL || "http://localhost:3333";
   return sanitizeApiUrl(url);
 }
