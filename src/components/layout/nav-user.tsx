@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, User, Table as TableIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 
 import {
   Popover,
@@ -25,8 +26,15 @@ export function NavUser({
     avatar?: string;
   };
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { signOut } = useAuth();
+  const [cadastrosOpen, setCadastrosOpen] = useState(false);
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <SidebarMenu>
@@ -64,12 +72,54 @@ export function NavUser({
                 </div>
               </div>
               <div className="h-px bg-border my-1" />
-              <Link href="/configuracoes">
+              <Link href="/configuracoes" onClick={handleLinkClick}>
                 <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer">
                   <Settings className="h-4 w-4" />
                   <span>Configurações</span>
                 </div>
               </Link>
+              
+              <div 
+                className="flex items-center justify-between p-2 hover:bg-muted rounded-md cursor-pointer select-none"
+                onClick={() => setCadastrosOpen(!cadastrosOpen)}
+              >
+                <div className="flex items-center gap-2">
+                  <TableIcon className="h-4 w-4" />
+                  <span>Cadastros</span>
+                </div>
+                {cadastrosOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              </div>
+              
+              {cadastrosOpen && (
+                <div className="ml-4 border-l border-border pl-2 space-y-1 mt-1 mb-1">
+                  <Link href="/cadastros/categoria" onClick={handleLinkClick}>
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-xs">
+                      <span>Categoria</span>
+                    </div>
+                  </Link>
+                  <Link href="/cadastros/subcategoria" onClick={handleLinkClick}>
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-xs">
+                      <span>Subcategoria</span>
+                    </div>
+                  </Link>
+                  <Link href="/cadastros/centro-de-custos" onClick={handleLinkClick}>
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-xs">
+                      <span>Centro de Custos</span>
+                    </div>
+                  </Link>
+                  <Link href="/cadastros/fornecedores-clientes" onClick={handleLinkClick}>
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-xs">
+                      <span>Fornecedores/Clientes</span>
+                    </div>
+                  </Link>
+                  <Link href="/cadastros/contas" onClick={handleLinkClick}>
+                    <div className="flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-xs">
+                      <span>Contas</span>
+                    </div>
+                  </Link>
+                </div>
+              )}
+
               <button
                 onClick={signOut}
                 className="w-full flex items-center gap-2 p-2 hover:bg-muted rounded-md cursor-pointer text-destructive text-left"
