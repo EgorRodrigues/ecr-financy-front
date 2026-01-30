@@ -41,10 +41,14 @@ import { PayableSheet } from "@/components/app/payable-sheet";
 import { ReceivableSheet } from "@/components/app/receivable-sheet";
 import { useSort } from "@/hooks/use-sort";
 
+type DisplayTransaction = BankStatementTransaction & {
+  date: string;
+};
+
 export default function AccountStatementPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
-  const [transactions, setTransactions] = useState<BankStatementTransaction[]>([]);
+  const [transactions, setTransactions] = useState<DisplayTransaction[]>([]);
   const { items: sortedTransactions, requestSort, sortConfig } = useSort(transactions);
   const [balanceInfo, setBalanceInfo] = useState({
     account_balance: 0,
@@ -73,7 +77,15 @@ export default function AccountStatementPage() {
         endDate: endDate || undefined,
       });
 
-      setTransactions(response.transactions);
+      setTransactions(
+        response.transactions.map((t) => ({
+          ...t,
+          date:
+            t.type === "expense"
+              ? t.payment_date || t.issue_date
+              : t.receipt_date || t.issue_date,
+        }))
+      );
       setBalanceInfo({
         account_balance: response.account_balance,
         period_summary: response.period_summary,
@@ -285,10 +297,10 @@ export default function AccountStatementPage() {
                   </TableHead>
                   <TableHead 
                     className="cursor-pointer hover:bg-muted/50 transition-colors" 
-                    onClick={() => requestSort("category")}
+                    onClick={() => requestSort("category_name")}
                   >
                     Categoria 
-                    {sortConfig?.key === "category" && (
+                    {sortConfig?.key === "category_name" && (
                       <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                     )}
                   </TableHead>

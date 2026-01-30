@@ -9,3 +9,9 @@ services:
     restart: always
     environment:
       NODE_ENV: production
+    networks:
+      - ecr-network
+
+networks:
+  ecr-network:
+    external: true
