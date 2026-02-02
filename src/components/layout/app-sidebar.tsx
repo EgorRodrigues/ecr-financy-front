@@ -2,7 +2,6 @@
 
 import {
   LineChart,
-  ReceiptText,
   HandCoins,
   Banknote,
   CreditCard,
@@ -98,22 +97,15 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center h-14">
-           <Link href="/" className="flex items-center gap-2 px-2" onClick={handleLinkClick}>
-             <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-               <ReceiptText className="size-4" />
-             </div>
-             <span className="truncate font-semibold text-lg group-data-[collapsible=icon]:hidden">
-               Financy
-             </span>
-           </Link>
-           <SidebarTrigger className="hidden md:flex group-data-[collapsible=icon]:hidden" />
-        </div>
-      </SidebarHeader>
+    <Sidebar collapsible="none">
       <SidebarContent>
         <SidebarGroup>
+          <div className="px-4 py-2">
+            <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
+              <LayoutDashboard className="h-6 w-6" />
+              <span>Financy</span>
+            </h1>
+          </div>
           <SidebarMenu>
              {/* Dashboard Item */}
              <SidebarMenuItem>
@@ -162,7 +154,7 @@ export function AppSidebar() {
                               size="md"
                             >
                               <Link href={subItem.url} onClick={handleLinkClick}>
-                                {/* @ts-ignore - Verifica se icon existe no subItem */}
+                                {/* @ts-expect-error - Verifica se icon existe no subItem */}
                                 {subItem.icon && <subItem.icon className="mr-2 h-4 w-4 opacity-70" />}
                                 <span>{subItem.title}</span>
                               </Link>
@@ -178,9 +170,6 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-         <div className="hidden md:flex justify-center p-2 group-data-[collapsible=icon]:p-0">
-          <SidebarTrigger className="group-data-[state=expanded]:hidden" />
-        </div>
         {user ? (
           <NavUser
             user={{
