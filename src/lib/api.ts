@@ -738,3 +738,28 @@ export async function getBankStatement(params?: {
 
   return apiFetch(`/bank-statement/?${query.toString()}`, { method: "GET" });
 }
+
+export type DashboardResponse = {
+  accounts: {
+    id: string;
+    name: string;
+    balance: number;
+    bank: string;
+  }[];
+  monthlySummary: {
+    month: string;
+    income: number;
+    expense: number;
+  }[];
+  recentTransactions: {
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    type: "income" | "expense";
+  }[];
+};
+
+export async function getDashboard(): Promise<DashboardResponse> {
+  return apiFetch("/dashboard", { method: "GET" });
+}

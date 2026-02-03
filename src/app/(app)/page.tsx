@@ -1,38 +1,42 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { formatCurrency } from "@/lib/utils";
 import { ArrowUpIcon, ArrowDownIcon, Wallet } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
-
-// Mock Data
-const accounts = [
-  { id: 1, name: "Conta Principal", balance: 5430.50, bank: "Nubank" },
-  { id: 2, name: "Reserva de Emergência", balance: 12000.00, bank: "Inter" },
-  { id: 3, name: "Cartão de Crédito", balance: -1250.30, bank: "Nubank" }, 
-  { id: 4, name: "Investimentos", balance: 45000.00, bank: "XP" },
-  { id: 5, name: "Conta Conjunta", balance: 3200.10, bank: "Itaú" },
-];
-
-const transactions = [
-  { id: 1, description: "Supermercado", amount: -450.00, date: "2024-01-20", type: "expense" },
-  { id: 2, description: "Salário", amount: 8500.00, date: "2024-01-05", type: "income" },
-  { id: 3, description: "Aluguel", amount: -2200.00, date: "2024-01-10", type: "expense" },
-  { id: 4, description: "Freelance", amount: 1200.00, date: "2024-01-15", type: "income" },
-  { id: 5, description: "Academia", amount: -120.00, date: "2024-01-02", type: "expense" },
-];
-
-const data = [
-  { name: "Jan", income: 4000, expense: 2400 },
-  { name: "Fev", income: 3000, expense: 1398 },
-  { name: "Mar", income: 2000, expense: 9800 },
-  { name: "Abr", income: 2780, expense: 3908 },
-  { name: "Mai", income: 1890, expense: 4800 },
-  { name: "Jun", income: 2390, expense: 3800 },
-];
+import { getDashboard, type DashboardResponse } from "@/lib/api";
 
 export default function DashboardPage() {
+  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const dashboardData = await getDashboard();
+        setData(dashboardData);
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-center">Carregando dashboard...</div>;
+  }
+
+  if (!data) {
+    return <div className="p-8 text-center">Erro ao carregar dados do dashboard.</div>;
+  }
+
+  const { accounts, monthlySummary, recentTransactions } = data;
+
   return (
     <div className="space-y-8">
       <div>
@@ -90,9 +94,9 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={data}>
+              <BarChart data={monthlySummary}>
                 <XAxis
-                  dataKey="name"
+                  dataKey="month"
                   stroke="#888888"
                   fontSize={12}
                   tickLine={false}
@@ -118,12 +122,14 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Transações Recentes</CardTitle>
             <CardDescription>
-              Você fez {transactions.length} transações este mês.
+              {recentTransactions.length > 0 
+                ? `Últimas ${recentTransactions.length} transações.` 
+                : "Nenhuma transação recente."}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-8">
-              {transactions.map((transaction) => (
+              {recentTransactions.map((transaction) => (
                 <div key={transaction.id} className="flex items-center">
                     <div className={`flex h-9 w-9 items-center justify-center rounded-full border ${transaction.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
                         {transaction.type === 'income' ? (
