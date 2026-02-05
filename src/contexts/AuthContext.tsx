@@ -115,8 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("Failed to load user", error);
-          setAuthSession(null, null);
-          setUser(null);
+          // Não forçamos logout aqui para evitar perda de sessão em erros de rede/servidor.
+          // O apiFetch já trata 401 e limpa a sessão se necessário.
         }
       }
 

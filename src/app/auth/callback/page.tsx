@@ -12,7 +12,14 @@ function CallbackContent() {
 
   useEffect(() => {
     const token = searchParams.get("token");
-    const refreshToken = searchParams.get("refreshToken");
+    // Tenta pegar refreshToken ou refresh_token (snake_case é comum em OAuth)
+    const refreshToken = searchParams.get("refreshToken") || searchParams.get("refresh_token");
+
+    console.log("AuthCallback: Params recebidos", { 
+      hasToken: !!token, 
+      hasRefreshToken: !!refreshToken,
+      allParams: Array.from(searchParams.keys())
+    });
 
     if (token) {
       // 1. Salvar no localStorage (redundante pois setToken faz isso, mas garante o requisito explícito)

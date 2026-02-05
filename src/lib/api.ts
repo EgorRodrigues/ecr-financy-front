@@ -79,6 +79,15 @@ async function refreshAuthTokenInternal(): Promise<string> {
     return res.token;
   }
   refreshInFlight = (async () => {
+    // Tenta recuperar do localStorage se a variável em memória estiver vazia
+    if (!refreshToken && typeof window !== "undefined") {
+        const stored = localStorage.getItem("refreshToken");
+        if (stored) {
+            console.log("api.ts: Recuperado refreshToken do localStorage durante refresh.");
+            refreshToken = stored;
+        }
+    }
+
     if (!refreshToken) {
       throw new Error("No refresh token available");
     }
@@ -91,15 +100,23 @@ async function refreshAuthTokenInternal(): Promise<string> {
     });
 
     if (!refreshRes.ok) {
-      throw new Error("Session expired");
+      // Se for erro de cliente (400-499), assumimos que o token é inválido/expirado
+      if (refreshRes.status >= 400 && refreshRes.status < 500) {
+        throw new Error("Session expired");
+      }
+      // Se for erro de servidor (500+), lançamos erro genérico para NÃO deslogar
+      const text = await refreshRes.text().catch(() => "");
+      throw new Error(`Refresh failed with status ${refreshRes.status}: ${text}`);
     }
 
     const data = await refreshRes.json();
-    if (!data?.token || !data?.refreshToken) {
-      throw new Error("Session expired");
+    if (!data?.token) {
+      throw new Error("Session expired - No token in response");
     }
-    setAuthSession(data.token, data.refreshToken);
-    return data as AuthResponse;
+    // Se o backend não retornar novo refresh token, mantemos o atual
+    const nextRefreshToken = data.refreshToken || refreshToken;
+    setAuthSession(data.token, nextRefreshToken);
+    return { token: data.token, refreshToken: nextRefreshToken } as AuthResponse;
   })();
 
   try {
@@ -157,10 +174,23 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
         } catch {
             return undefined as unknown as T;
         }
-    } catch (e) {
-      setAuthSession(null, null);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("auth:session-expired"));
+    } catch (e: unknown) {
+      // Só limpamos a sessão se tivermos certeza que o erro é de autenticação (Sessão Expirada)
+      // Erros de rede (fetch failed) ou outros erros não devem deslogar o usuário.
+      // O erro "Session expired" é lançado explicitamente no refreshAuthTokenInternal
+      // ou se o refreshToken não existir.
+      const msg = e instanceof Error ? e.message : String(e);
+      const isAuthError = msg.includes("Session expired") || 
+                          msg.includes("No refresh token available");
+
+      if (isAuthError) {
+        console.warn("apiFetch: Detectada expiração de sessão (Refresh falhou com 4xx ou token ausente). Limpando storage.");
+        setAuthSession(null, null);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth:session-expired"));
+        }
+      } else {
+        console.warn("apiFetch: Falha ao renovar token (possível erro de rede), mantendo sessão local.", e);
       }
       throw e;
     }
@@ -761,5 +791,5 @@ export type DashboardResponse = {
 };
 
 export async function getDashboard(): Promise<DashboardResponse> {
-  return apiFetch("/dashboard", { method: "GET" });
+  return apiFetch("/dashboard/", { method: "GET" });
 }
