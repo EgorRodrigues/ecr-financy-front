@@ -1,27 +1,7 @@
-declare global {
-  interface Window {
-    __ENV?: {
-      NEXT_PUBLIC_API_BASE_URL?: string;
-      NEXT_PUBLIC_AUTH_API_BASE_URL?: string;
-    };
-  }
-}
-
 import { sanitizeApiUrl } from "./utils";
 
 function getBaseUrl() {
-  let url: string | undefined;
-
-  if (typeof window !== "undefined" && window.__ENV?.NEXT_PUBLIC_API_BASE_URL) {
-    url = window.__ENV.NEXT_PUBLIC_API_BASE_URL;
-  } else if (
-    typeof window === "undefined" &&
-    process.env["NEXT_PUBLIC_API_BASE_URL"]
-  ) {
-    url = process.env["NEXT_PUBLIC_API_BASE_URL"];
-  } else if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    url = process.env.NEXT_PUBLIC_API_BASE_URL;
-  }
+  const url = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   if (!url) {
     throw new Error(
@@ -34,23 +14,7 @@ function getBaseUrl() {
 
 // Authentication Service URL
 export function getAuthBaseUrl() {
-  let url: string | undefined;
-  if (
-    typeof window !== "undefined" &&
-    window.__ENV?.NEXT_PUBLIC_AUTH_API_BASE_URL
-  ) {
-    url = window.__ENV.NEXT_PUBLIC_AUTH_API_BASE_URL;
-  } else if (
-    typeof window === "undefined" &&
-    process.env["NEXT_PUBLIC_AUTH_API_BASE_URL"]
-  ) {
-    url = process.env["NEXT_PUBLIC_AUTH_API_BASE_URL"];
-  } else if (process.env.NEXT_PUBLIC_AUTH_API_BASE_URL) {
-    url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL;
-  }
-  if (!url) {
-    url = "http://localhost:3333";
-  }
+  const url = process.env.NEXT_PUBLIC_AUTH_API_BASE_URL || "http://localhost:3333";
   return sanitizeApiUrl(url);
 }
 const AUTH_API_BASE_URL = getAuthBaseUrl();
@@ -61,25 +25,38 @@ let refreshInFlight: Promise<AuthResponse> | null = null;
 
 export function setAuthSession(token: string | null, refresh: string | null) {
   accessToken = token;
-  refreshToken = refresh;
+  // If we have a new token but no new refresh token, try to keep the existing one from storage/memory
+  // This prevents wiping the refresh token during SSO logins that might not return it
+  if (token && !refresh) {
+    if (typeof window !== "undefined") {
+      const existing = localStorage.getItem("refreshToken");
+      if (existing) {
+        console.log("setAuthSession: Preserving existing refreshToken as none was provided with new accessToken");
+        refreshToken = existing;
+      } else {
+        refreshToken = null;
+      }
+    }
+  } else {
+    refreshToken = refresh;
+  }
+
   if (typeof window !== "undefined") {
     if (token) {
       localStorage.setItem("accessToken", token);
     } else {
       localStorage.removeItem("accessToken");
     }
-    if (refresh) {
-      localStorage.setItem("refreshToken", refresh);
+
+    if (refreshToken) {
+      localStorage.setItem("refreshToken", refreshToken);
     } else {
+      // Only remove if we really don't have one (and didn't preserve it)
+      // or if we are logging out (token is null)
       localStorage.removeItem("refreshToken");
     }
     window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: token }));
   }
-}
-
-// Deprecated: use setAuthSession instead
-export function setAuthToken(token: string | null) {
-  setAuthSession(token, refreshToken);
 }
 
 if (typeof window !== "undefined") {
@@ -120,6 +97,15 @@ async function refreshAuthTokenInternal(): Promise<string> {
     return res.token;
   }
   refreshInFlight = (async () => {
+    // Tenta recuperar do localStorage se a variável em memória estiver vazia
+    if (!refreshToken && typeof window !== "undefined") {
+        const stored = localStorage.getItem("refreshToken");
+        if (stored) {
+            console.log("api.ts: Recuperado refreshToken do localStorage durante refresh.");
+            refreshToken = stored;
+        }
+    }
+
     if (!refreshToken) {
       throw new Error("No refresh token available");
     }
@@ -132,15 +118,23 @@ async function refreshAuthTokenInternal(): Promise<string> {
     });
 
     if (!refreshRes.ok) {
-      throw new Error("Session expired");
+      // Se for erro de cliente (400-499), assumimos que o token é inválido/expirado
+      if (refreshRes.status >= 400 && refreshRes.status < 500) {
+        throw new Error("Session expired");
+      }
+      // Se for erro de servidor (500+), lançamos erro genérico para NÃO deslogar
+      const text = await refreshRes.text().catch(() => "");
+      throw new Error(`Refresh failed with status ${refreshRes.status}: ${text}`);
     }
 
     const data = await refreshRes.json();
-    if (!data?.token || !data?.refreshToken) {
-      throw new Error("Session expired");
+    if (!data?.token) {
+      throw new Error("Session expired - No token in response");
     }
-    setAuthSession(data.token, data.refreshToken);
-    return data as AuthResponse;
+    // Se o backend não retornar novo refresh token, mantemos o atual
+    const nextRefreshToken = data.refreshToken || refreshToken;
+    setAuthSession(data.token, nextRefreshToken);
+    return { token: data.token, refreshToken: nextRefreshToken } as AuthResponse;
   })();
 
   try {
@@ -187,21 +181,34 @@ async function apiFetch<T>(path: string, init?: RequestInit, customBaseUrl?: str
           headers: newHeaders,
           ...init,
         });
-        
+
         if (!retryRes.ok) {
            const text = await retryRes.text().catch(() => "");
            throw new Error(`HTTP ${retryRes.status} ${retryRes.statusText} - ${text}`);
         }
-        
+
         try {
             return (await retryRes.json()) as T;
         } catch {
             return undefined as unknown as T;
         }
-    } catch (e) {
-      setAuthToken(null);
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("auth:session-expired"));
+    } catch (e: unknown) {
+      // Só limpamos a sessão se tivermos certeza que o erro é de autenticação (Sessão Expirada)
+      // Erros de rede (fetch failed) ou outros erros não devem deslogar o usuário.
+      // O erro "Session expired" é lançado explicitamente no refreshAuthTokenInternal
+      // ou se o refreshToken não existir.
+      const msg = e instanceof Error ? e.message : String(e);
+      const isAuthError = msg.includes("Session expired") || 
+                          msg.includes("No refresh token available");
+
+      if (isAuthError) {
+        console.warn("apiFetch: Detectada expiração de sessão (Refresh falhou com 4xx ou token ausente). Limpando storage.");
+        setAuthSession(null, null);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth:session-expired"));
+        }
+      } else {
+        console.warn("apiFetch: Falha ao renovar token (possível erro de rede), mantendo sessão local.", e);
       }
       throw e;
     }
@@ -516,6 +523,8 @@ export async function getExpenses(params?: {
   account?: string;
   account_type?: string;
   status?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Array<ExpenseRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>
@@ -634,9 +643,54 @@ export type Invoice = {
   due_date: string;
   amount: number;
   status: string;
+  payment_date: string | null;
+  interest: number | null;
+  fine: number | null;
+  discount: number | null;
+  total_paid: number | null;
+  expense_id: string | null;
   created_at: string;
   updated_at: string;
 };
+
+export type CreditCardInvoiceInput = {
+  account_id?: string;
+  period_start?: string;
+  period_end?: string;
+  due_date?: string;
+  amount?: number;
+  status?: string;
+  payment_date?: string | null;
+  interest?: number | null;
+  fine?: number | null;
+  discount?: number | null;
+  total_paid?: number | null;
+  expense_id?: string | null;
+};
+
+export async function getCreditCardInvoices(params?: {
+  account_id?: string;
+  status?: string;
+}): Promise<Invoice[]> {
+  const query = params
+    ? `?${new URLSearchParams(params as Record<string, string>).toString()}`
+    : "";
+  return apiFetch(`/credit-card-invoices/${query}`, { method: "GET" });
+}
+
+export async function getCreditCardInvoice(id: string): Promise<Invoice> {
+  return apiFetch(`/credit-card-invoices/${id}`, { method: "GET" });
+}
+
+export async function updateCreditCardInvoice(
+  id: string,
+  input: CreditCardInvoiceInput
+) {
+  return apiFetch(`/credit-card-invoices/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
 
 export type CreditCardSummaryResponse = {
   total_limit: number;
@@ -652,40 +706,6 @@ export async function getCreditCardSummary(
   return apiFetch(`/credit-card-transactions/summary/${accountId}`, {
     method: "GET",
   });
-}
-
-export type DashboardResponse = {
-  big_numbers: {
-    balance: number;
-    approved: number;
-    pending: number;
-    failed: number;
-  };
-  monthly: Array<{
-    month: string;
-    inflows: number;
-    outflows: number;
-  }>;
-  recent_transactions: Array<{
-    id: string;
-    date: string;
-    description: string;
-    amount: number;
-    status: "pending" | "paid" | "received" | "canceled";
-    type: "income" | "expense";
-  }>;
-};
-
-export async function getDashboard(
-  months?: number,
-  recent_limit?: number
-): Promise<DashboardResponse> {
-  const params: string[] = [];
-  if (typeof months === "number") params.push(`months=${months}`);
-  if (typeof recent_limit === "number")
-    params.push(`recent_limit=${recent_limit}`);
-  const q = params.length ? `?${params.join("&")}` : "";
-  return apiFetch(`/dashboard/${q}`, { method: "GET" });
 }
 
 export type ForecastItem = {
@@ -705,4 +725,89 @@ export async function getFinancialForecast(
     `/financial-forecast/?startDate=${startDate}&endDate=${endDate}`,
     { method: "GET" }
   );
+}
+
+export type BankStatementTransaction = {
+  id: string;
+  amount: number;
+  status: string;
+  issue_date: string;
+  due_date: string;
+  payment_date?: string | null;
+  receipt_date?: string | null;
+  original_amount: number;
+  interest: number;
+  fine: number;
+  discount: number;
+  total_paid?: number;
+  total_received?: number;
+  category_id: string;
+  subcategory_id: string;
+  cost_center_id: string;
+  contact_id: string;
+  description: string;
+  document: string | null;
+  payment_method: string | null;
+  receiving_method?: string | null;
+  account: string;
+  recurrence: boolean;
+  competence: string | null;
+  project: string | null;
+  tags: string[];
+  notes: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  type: "expense" | "income";
+  category_name: string;
+};
+
+export type BankStatementResponse = {
+  account_balance: number;
+  period_summary: {
+    total_income: number;
+    total_expense: number;
+    net_result: number;
+  };
+  transactions: BankStatementTransaction[];
+};
+
+export async function getBankStatement(params?: {
+  startDate?: string;
+  endDate?: string;
+  accounts?: string[];
+}): Promise<BankStatementResponse> {
+  const query = new URLSearchParams();
+  if (params?.startDate) query.append("start_date", params.startDate);
+  if (params?.endDate) query.append("end_date", params.endDate);
+  if (params?.accounts) {
+    params.accounts.forEach((id) => query.append("accounts", id));
+  }
+
+  return apiFetch(`/bank-statement/?${query.toString()}`, { method: "GET" });
+}
+
+export type DashboardResponse = {
+  accounts: {
+    id: string;
+    name: string;
+    balance: number;
+    bank: string;
+  }[];
+  monthlySummary: {
+    month: string;
+    income: number;
+    expense: number;
+  }[];
+  recentTransactions: {
+    id: string;
+    description: string;
+    amount: number;
+    date: string;
+    type: "income" | "expense";
+  }[];
+};
+
+export async function getDashboard(): Promise<DashboardResponse> {
+  return apiFetch("/dashboard/", { method: "GET" });
 }
