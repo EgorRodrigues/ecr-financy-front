@@ -67,7 +67,7 @@ export default function ContasAReceberPage() {
 
   const dados = useMemo(() => {
     const filtered = records.filter((r) =>
-      (r.due_date || "").startsWith(selectedMonth)
+      (r.due_date || "").startsWith(selectedMonth) && r.status !== "recebido"
     );
     return (filtered as BackendIncomeRecord[]).map((i) => ({
       id: i.id,
@@ -92,6 +92,7 @@ export default function ContasAReceberPage() {
   const monthlySummary = useMemo(() => {
     const summary: Record<string, number> = {};
     records.forEach((r) => {
+      if (r.status === "recebido") return;
       const month = (r.due_date || "").slice(0, 7);
       if (month) {
         summary[month] = (summary[month] || 0) + (r.amount || 0);

@@ -57,7 +57,7 @@ export default function ContasAPagarPage() {
 
   const dados = useMemo(() => {
     const filtered = records.filter((r) =>
-      (r.due_date || "").startsWith(selectedMonth)
+      (r.due_date || "").startsWith(selectedMonth) && r.status !== "pago"
     );
     return (filtered as BackendExpenseRecord[]).map((i) => ({
       id: i.id,
@@ -84,6 +84,7 @@ export default function ContasAPagarPage() {
   const monthlySummary = useMemo(() => {
     const summary: Record<string, number> = {};
     records.forEach((r) => {
+      if (r.status === "pago") return;
       const month = (r.due_date || "").slice(0, 7);
       if (month) {
         summary[month] = (summary[month] || 0) + (r.amount || 0);

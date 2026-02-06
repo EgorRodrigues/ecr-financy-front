@@ -25,16 +25,34 @@ let refreshInFlight: Promise<AuthResponse> | null = null;
 
 export function setAuthSession(token: string | null, refresh: string | null) {
   accessToken = token;
-  refreshToken = refresh;
+  // If we have a new token but no new refresh token, try to keep the existing one from storage/memory
+  // This prevents wiping the refresh token during SSO logins that might not return it
+  if (token && !refresh) {
+    if (typeof window !== "undefined") {
+      const existing = localStorage.getItem("refreshToken");
+      if (existing) {
+        console.log("setAuthSession: Preserving existing refreshToken as none was provided with new accessToken");
+        refreshToken = existing;
+      } else {
+        refreshToken = null;
+      }
+    }
+  } else {
+    refreshToken = refresh;
+  }
+
   if (typeof window !== "undefined") {
     if (token) {
       localStorage.setItem("accessToken", token);
     } else {
       localStorage.removeItem("accessToken");
     }
-    if (refresh) {
-      localStorage.setItem("refreshToken", refresh);
+
+    if (refreshToken) {
+      localStorage.setItem("refreshToken", refreshToken);
     } else {
+      // Only remove if we really don't have one (and didn't preserve it)
+      // or if we are logging out (token is null)
       localStorage.removeItem("refreshToken");
     }
     window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: token }));
