@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   CheckCircle2,
   CheckCircle,
+  ArrowUpDown,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -48,6 +49,7 @@ const data = {
         { title: "Contas Pagas", url: "/contas-pagas", icon: CheckCircle2 },
         { title: "Contas Recebidas", url: "/contas-recebidas", icon: CheckCircle },
         { title: "Extrato por Conta", url: "/extrato-conta", icon: Landmark },
+        { title: "Transferências", url: "/transferencias", icon: ArrowUpDown },
         { title: "Cartão de Crédito", url: "/cartao-credito", icon: CreditCard },
       ],
     },

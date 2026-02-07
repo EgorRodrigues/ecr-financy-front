@@ -429,6 +429,7 @@ export type AccountInput = {
   closing_day?: number;
   due_day?: number;
   active?: boolean;
+  contact_id?: string;
 };
 
 export type Account = {
@@ -442,6 +443,7 @@ export type Account = {
   available_limit?: number | null;
   closing_day?: number | null;
   due_day?: number | null;
+  contact_id?: string | null;
   created_at: string;
   updated_at: string;
   active: boolean;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,7 +30,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { createAccount, updateAccount, type Account } from "@/lib/api";
+import { Combobox } from "@/components/ui/combobox";
+import {
+  createAccount,
+  updateAccount,
+  getContacts,
+  type Account,
+  type Contact,
+} from "@/lib/api";
+import { ContactSheet } from "./contact-sheet";
 
 const formSchema = z.object({
   nome: z.string().min(1, "Informe o nome da conta"),
@@ -42,6 +51,7 @@ const formSchema = z.object({
   diaFechamento: z.number().min(1).max(31).optional(),
   diaVencimento: z.number().min(1).max(31).optional(),
   ativo: z.boolean(),
+  contactId: z.string().optional(),
 });
 
 type AccountSheetProps = {
@@ -59,6 +69,8 @@ export function AccountSheet({
 }: AccountSheetProps) {
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactSheetOpen, setContactSheetOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,10 +85,17 @@ export function AccountSheet({
       diaFechamento: undefined,
       diaVencimento: undefined,
       ativo: true,
+      contactId: undefined,
     },
   });
 
   const tipo = useWatch({ control: form.control, name: "tipo" });
+
+  useEffect(() => {
+    if (open) {
+      getContacts().then(setContacts).catch(console.error);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (initialData) {
@@ -91,6 +110,7 @@ export function AccountSheet({
         diaFechamento: initialData.closing_day || undefined,
         diaVencimento: initialData.due_day || undefined,
         ativo: initialData.active ?? true,
+        contactId: initialData.contact_id || undefined,
       });
     } else {
       form.reset({
@@ -104,6 +124,7 @@ export function AccountSheet({
         diaFechamento: undefined,
         diaVencimento: undefined,
         ativo: true,
+        contactId: undefined,
       });
     }
   }, [initialData, form]);
@@ -111,6 +132,11 @@ export function AccountSheet({
   function formatCard(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 19);
     return digits.replace(/(.{4})/g, "$1 ").trim();
+  }
+
+  function onContactSuccess() {
+    getContacts().then(setContacts).catch(console.error);
+    setContactSheetOpen(false);
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -133,6 +159,7 @@ export function AccountSheet({
           values.tipo === "credit_card" ? values.diaFechamento : undefined,
         due_day: values.tipo === "credit_card" ? values.diaVencimento : undefined,
         active: values.ativo,
+        contact_id: values.contactId,
       };
 
       if (initialData?.id) {
@@ -153,13 +180,14 @@ export function AccountSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md h-full overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>{initialData ? "Editar Conta" : "Nova Conta"}</SheetTitle>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-md h-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{initialData ? "Editar Conta" : "Nova Conta"}</SheetTitle>
+          </SheetHeader>
 
-        <Form {...form}>
+          <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
             {mensagem && (
               <div className="text-sm text-red-600 font-medium">{mensagem}</div>
@@ -331,6 +359,39 @@ export function AccountSheet({
               </>
             )}
 
+            <div className="flex items-end gap-2">
+              <FormField
+                control={form.control}
+                name="contactId"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel>Contato / Fornecedor</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        options={contacts.map((c) => ({
+                          value: c.id,
+                          label: c.name,
+                        }))}
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Selecione..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setContactSheetOpen(true)}
+                title="Novo Contato"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
             <FormField
               control={form.control}
               name="saldoInicial"
@@ -390,5 +451,11 @@ export function AccountSheet({
         </Form>
       </SheetContent>
     </Sheet>
+    <ContactSheet
+        open={contactSheetOpen}
+        onOpenChange={setContactSheetOpen}
+        onSuccess={onContactSuccess}
+      />
+    </>
   );
 }
