@@ -729,6 +729,24 @@ export async function getFinancialForecast(
   );
 }
 
+export type TransferInput = {
+  source_account_id: string;
+  destination_account_id: string;
+  amount: number;
+  date: string;
+  description?: string;
+  category_id?: string;
+  subcategory_id?: string;
+  cost_center_id?: string;
+  project?: string;
+  competence?: string;
+  tags?: string[];
+};
+
+export async function createTransfer(input: TransferInput) {
+  return apiFetch(`/transfers/`, { method: "POST", body: JSON.stringify(input) });
+}
+
 export type BankStatementTransaction = {
   id: string;
   amount: number;

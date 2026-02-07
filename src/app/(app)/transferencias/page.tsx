@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { getAccounts, createExpense, createIncome, type Account } from "@/lib/api";
+import { getAccounts, createTransfer, type Account } from "@/lib/api";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -71,28 +71,12 @@ export default function TransferPage() {
 
       const description = values.description || `Transferência de ${originAccount.name} para ${destinationAccount.name}`;
 
-      // Criar Despesa na Origem
-      await createExpense({
+      await createTransfer({
+        source_account_id: values.originAccountId,
+        destination_account_id: values.destinationAccountId,
         amount: values.amount,
-        status: "pago",
-        account: values.originAccountId,
-        description: `Transferência para ${destinationAccount.name}`,
-        payment_date: values.date,
-        issue_date: values.date,
-        due_date: values.date,
-        notes: description,
-      });
-
-      // Criar Receita no Destino
-      await createIncome({
-        amount: values.amount,
-        status: "recebido",
-        account: values.destinationAccountId,
-        description: `Transferência de ${originAccount.name}`,
-        payment_date: values.date,
-        issue_date: values.date,
-        due_date: values.date,
-        notes: description,
+        date: values.date,
+        description: description,
       });
 
       setSuccessMessage("Transferência realizada com sucesso!");
