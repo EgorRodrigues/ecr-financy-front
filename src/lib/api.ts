@@ -489,6 +489,7 @@ export type TransactionInput = {
   issue_date?: string;
   due_date?: string;
   payment_date?: string;
+  receipt_date?: string;
   interest?: number;
   fine?: number;
   discount?: number;
