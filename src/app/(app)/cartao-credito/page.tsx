@@ -47,7 +47,22 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Badge } from "@/components/ui/badge";
 import { updateCreditCardInvoice, updateCreditCardTransaction } from "@/lib/api";
+
+function InvoiceStatusBadge({ invoice }: { invoice: Invoice }) {
+  const isPaid = invoice.status === "pago" || (invoice.amount > 0 && (invoice.total_paid || 0) >= invoice.amount);
+  
+  if (isPaid) {
+    return <Badge variant="success" className="h-5 px-1.5 text-[10px]">Pago</Badge>;
+  }
+  
+  if (invoice.status === "fechada") {
+    return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Fechada</Badge>;
+  }
+
+  return <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-blue-500 text-blue-500">Aberta</Badge>;
+}
 
 export default function CreditCardPage() {
   const [cards, setCards] = useState<Account[]>([]);
@@ -561,14 +576,17 @@ export default function CreditCardPage() {
                               {groupedInvoices[year].map((invoice) => (
                                 <div
                                   key={invoice.id}
-                                  className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
+                                  className={`flex justify-between items-center text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
                                   onClick={() => setSelectedInvoiceId(invoice.id)}
                                 >
-                                  <span className="capitalize">
-                                    {format(parseISO(invoice.due_date), "MMMM", {
-                                      locale: ptBR,
-                                    })}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="capitalize">
+                                      {format(parseISO(invoice.due_date), "MMMM", {
+                                        locale: ptBR,
+                                      })}
+                                    </span>
+                                    <InvoiceStatusBadge invoice={invoice} />
+                                  </div>
                                   <span className="text-muted-foreground">
                                     {new Intl.NumberFormat("pt-BR", {
                                       style: "currency",
@@ -613,14 +631,17 @@ export default function CreditCardPage() {
                               {groupedNextInvoices[year].map((invoice) => (
                                 <div
                                   key={invoice.id}
-                                  className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
+                                  className={`flex justify-between items-center text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
                                   onClick={() => setSelectedInvoiceId(invoice.id)}
                                 >
-                                  <span className="capitalize">
-                                    {format(parseISO(invoice.due_date), "MMMM", {
-                                      locale: ptBR,
-                                    })}
-                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="capitalize">
+                                      {format(parseISO(invoice.due_date), "MMMM", {
+                                        locale: ptBR,
+                                      })}
+                                    </span>
+                                    <InvoiceStatusBadge invoice={invoice} />
+                                  </div>
                                   <span className="text-muted-foreground">
                                     {new Intl.NumberFormat("pt-BR", {
                                       style: "currency",
