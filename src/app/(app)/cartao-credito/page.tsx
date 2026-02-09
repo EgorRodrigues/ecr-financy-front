@@ -476,42 +476,63 @@ export default function CreditCardPage() {
 
         {selectedCard ? (
           <div className="space-y-6">
-            <Card
-              className={`cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === currentInvoice?.id ? "border-primary ring-1 ring-primary" : ""}`}
-              onClick={() =>
-                currentInvoice && setSelectedInvoiceId(currentInvoice.id)
-              }
-            >
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground mb-1">
-                  Fatura Atual
-                </div>
-                <div className="text-2xl font-bold text-primary">
-                  {new Intl.NumberFormat("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  }).format(currentInvoiceValue)}
-                </div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Vence em{" "}
-                  {currentInvoice?.due_date
-                    ? format(
-                        parseISO(currentInvoice.due_date),
-                        "dd 'de' MMMM",
-                        { locale: ptBR }
-                      )
-                    : "-"}
-                </div>
-              </CardContent>
-            </Card>
+            {selectedInvoice && (
+              <>
+                {currentInvoice && selectedInvoice.id !== currentInvoice.id && (
+                  <Button 
+                    variant="link" 
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-primary mb-2"
+                    onClick={() => setSelectedInvoiceId(currentInvoice.id)}
+                  >
+                    ← Voltar para Fatura Atual
+                  </Button>
+                )}
 
-            <Button
-              className="w-full"
-              disabled={!selectedInvoice}
-              onClick={() => setInvoicePaymentOpen(true)}
-            >
-              Registrar Pagamento da Fatura
-            </Button>
+                <Card
+                  className={`transition-colors ${selectedInvoice.id === currentInvoice?.id ? "border-primary/50" : ""}`}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="text-sm text-muted-foreground capitalize">
+                        {selectedInvoice.id === currentInvoice?.id 
+                          ? "Fatura Atual" 
+                          : `Fatura de ${format(parseISO(selectedInvoice.due_date), "MMMM", { locale: ptBR })}`
+                        }
+                      </div>
+                      <InvoiceStatusBadge invoice={selectedInvoice} />
+                    </div>
+                    <div className="text-2xl font-bold text-primary">
+                      {new Intl.NumberFormat("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      }).format(selectedInvoice.amount)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Vencimento:{" "}
+                      {selectedInvoice.due_date
+                        ? format(
+                            parseISO(selectedInvoice.due_date),
+                            "dd 'de' MMMM",
+                            { locale: ptBR }
+                          )
+                        : "-"}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Button
+                  className="w-full mt-4"
+                  disabled={!selectedInvoice || (selectedInvoice.status === "pago" || (selectedInvoice.amount > 0 && (selectedInvoice.total_paid || 0) >= selectedInvoice.amount))}
+                  onClick={() => setInvoicePaymentOpen(true)}
+                  variant={selectedInvoice.status === "pago" ? "outline" : "default"}
+                >
+                  {(selectedInvoice.status === "pago" || (selectedInvoice.amount > 0 && (selectedInvoice.total_paid || 0) >= selectedInvoice.amount))
+                    ? "Fatura Paga"
+                    : "Registrar Pagamento"
+                  }
+                </Button>
+              </>
+            )}
 
             <div className="space-y-4">
               <div>
