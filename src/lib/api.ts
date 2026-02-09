@@ -501,7 +501,7 @@ export type TransactionInput = {
   description?: string;
   document?: string;
   payment_method?: string;
-  account?: string;
+  account_id?: string;
   recurrence?: boolean;
   competence?: string;
   project?: string;
@@ -522,7 +522,7 @@ export async function createIncome(input: TransactionInput) {
 }
 
 export async function getExpenses(params?: {
-  account?: string;
+  account_id?: string;
   account_type?: string;
   status?: string;
   start_date?: string;
@@ -535,7 +535,7 @@ export async function getExpenses(params?: {
 }
 
 export async function getIncomes(params?: {
-  account?: string;
+  account_id?: string;
   account_type?: string;
   status?: string;
 }): Promise<Array<IncomeRecord>> {
@@ -769,7 +769,7 @@ export type BankStatementTransaction = {
   document: string | null;
   payment_method: string | null;
   receiving_method?: string | null;
-  account: string;
+  account_id: string;
   recurrence: boolean;
   competence: string | null;
   project: string | null;

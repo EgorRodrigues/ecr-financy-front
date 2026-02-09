@@ -182,7 +182,7 @@ export function ReceivableSheet({
           fornecedorClienteId: initialData.contact_id || "",
           documento: initialData.document || "",
           formaRecebimento: initialData.payment_method || "",
-          contaId: initialData.account || "",
+          contaId: initialData.account_id || "",
           competencia: initialData.competence || "",
           projeto: initialData.project || "",
           tags: initialData.tags?.join(", ") || "",
@@ -191,17 +191,6 @@ export function ReceivableSheet({
           parcelado: false,
           parcelas: 1,
         });
-
-        // Fix account ID if name is provided instead of ID
-        if (initialData.account && accounts.length > 0) {
-          const isId = accounts.some((a) => a.id === initialData.account);
-          if (!isId) {
-            const found = accounts.find((a) => a.name === initialData.account);
-            if (found) {
-              form.setValue("contaId", found.id);
-            }
-          }
-        }
       } else {
         form.reset({
           valor: 0,
@@ -302,7 +291,7 @@ export function ReceivableSheet({
           description: values.descricao,
           document: values.documento || undefined,
           payment_method: values.formaRecebimento || undefined,
-          account: values.contaId || undefined,
+          account_id: values.contaId || undefined,
           recurrence: values.recorrencia,
           competence: values.competencia || undefined,
           project: values.projeto || undefined,
@@ -360,7 +349,7 @@ export function ReceivableSheet({
                 ? `${values.documento}-${i + 1}/${n}`
                 : undefined,
               payment_method: values.formaRecebimento || undefined,
-              account: values.contaId || undefined,
+              account_id: values.contaId || undefined,
               recurrence: values.recorrencia,
               competence: values.competencia || undefined,
               project: values.projeto || undefined,
@@ -389,7 +378,7 @@ export function ReceivableSheet({
             description: values.descricao,
             document: values.documento || undefined,
             payment_method: values.formaRecebimento || undefined,
-            account: values.contaId || undefined,
+            account_id: values.contaId || undefined,
             recurrence: values.recorrencia,
             competence: values.competencia || undefined,
             project: values.projeto || undefined,
