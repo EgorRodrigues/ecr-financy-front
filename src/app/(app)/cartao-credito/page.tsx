@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Calendar, Pencil, Trash2, ArrowUpDown, Ban } from "lucide-react";
+import { Plus, Calendar, Pencil, Trash2, ArrowUpDown, Ban, History, ChevronDown, ChevronRight } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -28,6 +28,7 @@ import {
 import {
   getAccounts,
   getCreditCardSummary,
+  getCreditCardInvoices,
   deleteCreditCardTransaction,
   getCategories,
   Account,
@@ -60,6 +61,7 @@ export default function CreditCardPage() {
   } | null>(null);
   const [currentInvoice, setCurrentInvoice] = useState<Invoice | null>(null);
   const [nextInvoices, setNextInvoices] = useState<Invoice[]>([]);
+  const [previousInvoices, setPreviousInvoices] = useState<Invoice[]>([]);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     null
   );
@@ -71,17 +73,51 @@ export default function CreditCardPage() {
   const [editingTransaction, setEditingTransaction] =
     useState<CreditCardTransactionRecord | null>(null);
   const [invoicePaymentOpen, setInvoicePaymentOpen] = useState(false);
+  const [expandedYears, setExpandedYears] = useState<string[]>([]);
+  const [expandedNextYears, setExpandedNextYears] = useState<string[]>([]);
 
   const loadExpenses = useCallback(async (accountId: string) => {
     try {
-      const summary = await getCreditCardSummary(accountId);
+      const [summary, invoices] = await Promise.all([
+        getCreditCardSummary(accountId),
+        getCreditCardInvoices({ account_id: accountId })
+      ]);
+
       setCardExpenses(summary.transactions);
       setCardSummary({
         total_limit: summary.total_limit,
         available_limit: summary.available_limit,
       });
       setCurrentInvoice(summary.current_invoice || null);
-      setNextInvoices(summary.next_invoices || []);
+      
+      const next = (summary.next_invoices || []).sort(
+        (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
+      );
+      setNextInvoices(next);
+
+      if (summary.current_invoice) {
+        const currentId = summary.current_invoice.id;
+        const nextIds = new Set(summary.next_invoices.map((i) => i.id));
+
+        const previous = invoices
+          .filter((i) => i.id !== currentId && !nextIds.has(i.id))
+          .sort(
+            (a, b) =>
+              new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+          );
+
+        setPreviousInvoices(previous);
+      } else {
+         const nextIds = new Set(summary.next_invoices.map((i) => i.id));
+         const previous = invoices
+          .filter((i) => !nextIds.has(i.id))
+          .sort(
+            (a, b) =>
+              new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+          );
+        setPreviousInvoices(previous);
+      }
+
       setSelectedInvoiceId(summary.current_invoice?.id || null);
     } catch (error) {
       console.error("Failed to load expenses", error);
@@ -89,6 +125,7 @@ export default function CreditCardPage() {
       setCardSummary(null);
       setCurrentInvoice(null);
       setNextInvoices([]);
+      setPreviousInvoices([]);
       setSelectedInvoiceId(null);
     }
   }, []);
@@ -130,6 +167,7 @@ export default function CreditCardPage() {
       setCardSummary(null);
       setCurrentInvoice(null);
       setNextInvoices([]);
+      setPreviousInvoices([]);
       setSelectedInvoiceId(null);
     }
   }, [selectedCardId, loadExpenses]);
@@ -205,16 +243,57 @@ export default function CreditCardPage() {
   const { items: sortedExpenses, requestSort, sortConfig } = useSort(displayExpenses);
 
   const selectedInvoice: Invoice | null = useMemo(() => {
-    if (!currentInvoice && nextInvoices.length === 0) return null;
+    if (!currentInvoice && nextInvoices.length === 0 && previousInvoices.length === 0) return null;
     const all: Invoice[] = [];
     if (currentInvoice) all.push(currentInvoice);
     all.push(...nextInvoices);
+    all.push(...previousInvoices);
     if (selectedInvoiceId) {
       const found = all.find((inv) => inv.id === selectedInvoiceId);
       if (found) return found;
     }
     return currentInvoice || null;
-  }, [currentInvoice, nextInvoices, selectedInvoiceId]);
+  }, [currentInvoice, nextInvoices, previousInvoices, selectedInvoiceId]);
+
+  const groupedInvoices = useMemo(() => {
+    const groups: Record<string, Invoice[]> = {};
+    previousInvoices.forEach((invoice) => {
+      const year = format(parseISO(invoice.due_date), "yyyy");
+      if (!groups[year]) {
+        groups[year] = [];
+      }
+      groups[year].push(invoice);
+    });
+    return groups;
+  }, [previousInvoices]);
+
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) =>
+      prev.includes(year)
+        ? prev.filter((y) => y !== year)
+        : [...prev, year]
+    );
+  };
+
+  const groupedNextInvoices = useMemo(() => {
+    const groups: Record<string, Invoice[]> = {};
+    nextInvoices.forEach((invoice) => {
+      const year = format(parseISO(invoice.due_date), "yyyy");
+      if (!groups[year]) {
+        groups[year] = [];
+      }
+      groups[year].push(invoice);
+    });
+    return groups;
+  }, [nextInvoices]);
+
+  const toggleNextYear = (year: string) => {
+    setExpandedNextYears((prev) =>
+      prev.includes(year)
+        ? prev.filter((y) => y !== year)
+        : [...prev, year]
+    );
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
@@ -454,31 +533,107 @@ export default function CreditCardPage() {
             </div>
 
             <div className="mt-8">
+              {previousInvoices.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <History className="h-4 w-4" />
+                    Faturas Anteriores
+                  </h3>
+                  <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                    {Object.keys(groupedInvoices)
+                      .sort((a, b) => Number(b) - Number(a))
+                      .map((year) => (
+                        <div key={year} className="mb-2">
+                          <button
+                            onClick={() => toggleYear(year)}
+                            className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-primary transition-colors mb-2"
+                          >
+                            {expandedYears.includes(year) ? (
+                              <ChevronDown className="h-4 w-4 mr-1" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 mr-1" />
+                            )}
+                            {year}
+                          </button>
+
+                          {expandedYears.includes(year) && (
+                            <div className="space-y-2 pl-2 border-l-2 border-muted ml-1.5">
+                              {groupedInvoices[year].map((invoice) => (
+                                <div
+                                  key={invoice.id}
+                                  className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
+                                  onClick={() => setSelectedInvoiceId(invoice.id)}
+                                >
+                                  <span className="capitalize">
+                                    {format(parseISO(invoice.due_date), "MMMM", {
+                                      locale: ptBR,
+                                    })}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {new Intl.NumberFormat("pt-BR", {
+                                      style: "currency",
+                                      currency: "BRL",
+                                    }).format(invoice.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Próximas Faturas
               </h3>
               <div className="space-y-3">
                 {nextInvoices.length > 0 ? (
-                  nextInvoices.map((invoice) => (
-                    <div
-                      key={invoice.id}
-                      className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
-                      onClick={() => setSelectedInvoiceId(invoice.id)}
-                    >
-                      <span className="capitalize">
-                        {format(parseISO(invoice.due_date), "MMM/yyyy", {
-                          locale: ptBR,
-                        })}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {new Intl.NumberFormat("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        }).format(invoice.amount)}
-                      </span>
-                    </div>
-                  ))
+                  <div className="max-h-80 overflow-y-auto pr-2">
+                    {Object.keys(groupedNextInvoices)
+                      .sort((a, b) => Number(a) - Number(b))
+                      .map((year) => (
+                        <div key={year} className="mb-2">
+                          <button
+                            onClick={() => toggleNextYear(year)}
+                            className="flex items-center w-full text-sm font-medium text-muted-foreground hover:text-primary transition-colors mb-2"
+                          >
+                            {expandedNextYears.includes(year) ? (
+                              <ChevronDown className="h-4 w-4 mr-1" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 mr-1" />
+                            )}
+                            {year}
+                          </button>
+
+                          {expandedNextYears.includes(year) && (
+                            <div className="space-y-2 pl-2 border-l-2 border-muted ml-1.5">
+                              {groupedNextInvoices[year].map((invoice) => (
+                                <div
+                                  key={invoice.id}
+                                  className={`flex justify-between text-sm p-2 bg-background rounded border cursor-pointer transition-colors hover:bg-muted/50 ${selectedInvoiceId === invoice.id ? "border-primary ring-1 ring-primary" : ""}`}
+                                  onClick={() => setSelectedInvoiceId(invoice.id)}
+                                >
+                                  <span className="capitalize">
+                                    {format(parseISO(invoice.due_date), "MMMM", {
+                                      locale: ptBR,
+                                    })}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {new Intl.NumberFormat("pt-BR", {
+                                      style: "currency",
+                                      currency: "BRL",
+                                    }).format(invoice.amount)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
                 ) : (
                   <div className="text-sm text-muted-foreground text-center py-2">
                     Nenhuma fatura futura
