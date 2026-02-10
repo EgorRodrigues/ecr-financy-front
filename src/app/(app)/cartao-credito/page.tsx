@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Calendar, Pencil, Trash2, ArrowUpDown, Ban, History, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Calendar, Pencil, Trash2, ArrowUpDown, Ban, History, ChevronDown, ChevronRight, ArrowRightLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -30,6 +30,7 @@ import {
   getCreditCardSummary,
   getCreditCardInvoices,
   deleteCreditCardTransaction,
+  transferCreditCardTransaction,
   getCategories,
   Account,
   CreditCardTransactionRecord,
@@ -46,6 +47,14 @@ import {
   SheetTitle,
   SheetFooter,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Badge } from "@/components/ui/badge";
 import { updateCreditCardInvoice, updateCreditCardTransaction } from "@/lib/api";
@@ -88,6 +97,10 @@ export default function CreditCardPage() {
   const [editingTransaction, setEditingTransaction] =
     useState<CreditCardTransactionRecord | null>(null);
   const [invoicePaymentOpen, setInvoicePaymentOpen] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [transferTransaction, setTransferTransaction] =
+    useState<CreditCardTransactionRecord | null>(null);
+  const [targetInvoiceId, setTargetInvoiceId] = useState<string>("");
   const [expandedYears, setExpandedYears] = useState<string[]>([]);
   const [expandedNextYears, setExpandedNextYears] = useState<string[]>([]);
 
@@ -228,6 +241,26 @@ export default function CreditCardPage() {
     }
   }
 
+  function handleTransfer(transaction: CreditCardTransactionRecord) {
+    setTransferTransaction(transaction);
+    setTargetInvoiceId("");
+    setTransferDialogOpen(true);
+  }
+
+  async function confirmTransfer() {
+    if (!transferTransaction || !targetInvoiceId) return;
+
+    try {
+      await transferCreditCardTransaction(transferTransaction.id, targetInvoiceId);
+      setTransferDialogOpen(false);
+      setTransferTransaction(null);
+      if (selectedCardId) loadExpenses(selectedCardId);
+    } catch (error) {
+      console.error("Failed to transfer transaction", error);
+      alert("Erro ao transferir transação");
+    }
+  }
+
   const selectedCard = cards.find((c) => c.id === selectedCardId);
 
   // Calculate invoice data
@@ -256,6 +289,21 @@ export default function CreditCardPage() {
   }, [filteredExpenses, categories]);
 
   const { items: sortedExpenses, requestSort, sortConfig } = useSort(displayExpenses);
+
+  const availableTransferInvoices = useMemo(() => {
+    const all: Invoice[] = [];
+    if (currentInvoice) all.push(currentInvoice);
+    all.push(...nextInvoices);
+    all.push(...previousInvoices);
+    
+    // Sort by due date
+    all.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+    if (transferTransaction?.invoice_id) {
+        return all.filter(i => i.id !== transferTransaction.invoice_id);
+    }
+    return all;
+  }, [currentInvoice, nextInvoices, previousInvoices, transferTransaction]);
 
   const selectedInvoice: Invoice | null = useMemo(() => {
     if (!currentInvoice && nextInvoices.length === 0 && previousInvoices.length === 0) return null;
@@ -445,6 +493,14 @@ export default function CreditCardPage() {
                               <Ban className="h-4 w-4 text-orange-500" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleTransfer(expense)}
+                            title="Transferir para outra fatura"
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -690,6 +746,61 @@ export default function CreditCardPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir Transação</DialogTitle>
+            <DialogDescription>
+              Selecione a fatura para a qual deseja transferir a transação{" "}
+              <strong>{transferTransaction?.description}</strong> no valor de{" "}
+              <strong>
+                {transferTransaction &&
+                  new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(transferTransaction.amount)}
+              </strong>
+              .
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">
+              Nova Fatura
+            </label>
+            <Select value={targetInvoiceId} onValueChange={setTargetInvoiceId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a fatura" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTransferInvoices.map((invoice) => (
+                  <SelectItem key={invoice.id} value={invoice.id}>
+                    {format(parseISO(invoice.due_date), "dd/MM/yyyy")} -{" "}
+                    {new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }).format(invoice.amount)}
+                    {invoice.id === currentInvoice?.id ? " (Atual)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setTransferDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={confirmTransfer} disabled={!targetInvoiceId}>
+              Transferir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <CreditCardExpenseSheet
         open={sheetOpen}

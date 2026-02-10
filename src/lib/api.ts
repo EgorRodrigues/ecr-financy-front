@@ -638,6 +638,16 @@ export async function deleteCreditCardTransaction(id: string) {
   return apiFetch(`/credit-card-transactions/${id}`, { method: "DELETE" });
 }
 
+export async function transferCreditCardTransaction(
+  id: string,
+  newInvoiceId: string
+) {
+  return apiFetch(`/credit-card-transactions/${id}/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ new_invoice_id: newInvoiceId }),
+  });
+}
+
 export type Invoice = {
   id: string;
   account_id: string;
