@@ -586,7 +586,7 @@ export type CreditCardTransactionInput = {
   description?: string;
   document?: string;
   payment_method?: string;
-  account?: string;
+  account_id?: string;
   recurrence?: boolean;
   competence?: string;
   project?: string;
@@ -610,7 +610,7 @@ export async function createCreditCardTransaction(
 }
 
 export async function getCreditCardTransactions(params?: {
-  account?: string;
+  account_id?: string;
 }): Promise<Array<CreditCardTransactionRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>

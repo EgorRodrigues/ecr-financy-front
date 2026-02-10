@@ -248,7 +248,7 @@ export function CreditCardExpenseSheet({
           contact_id: values.fornecedorClienteId,
           description: values.descricao,
           document: values.documento,
-          account: cardId,
+          account_id: cardId,
           recurrence: values.recorrencia,
           competence: values.competencia,
           project: values.projeto,
@@ -312,7 +312,7 @@ export function CreditCardExpenseSheet({
               document: values.documento
                 ? `${values.documento}-${i + 1}/${n}`
                 : undefined,
-              account: cardId,
+              account_id: cardId,
               recurrence: values.recorrencia,
               competence: values.competencia,
               project: values.projeto,
@@ -347,7 +347,7 @@ export function CreditCardExpenseSheet({
             description: values.descricao,
             document: values.documento,
             payment_method: "credit_card",
-            account: cardId,
+            account_id: cardId,
             recurrence: values.recorrencia,
             competence: values.competencia,
             project: values.projeto,
