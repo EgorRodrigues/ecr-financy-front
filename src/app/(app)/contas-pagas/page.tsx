@@ -15,6 +15,7 @@ import { PayableSheet } from "@/components/app/payable-sheet";
 import { useSort } from "@/hooks/use-sort";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { SidePanel } from "@/components/layout/side-panel";
 import {
   Table,
   TableBody,
@@ -156,8 +157,8 @@ export default function ContasPagasPage() {
   const { items: sortedItems, requestSort, sortConfig } = useSort(displayData);
 
   return (
-    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-4rem)]">
-      <div className="flex-1 p-6 overflow-auto space-y-4">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-4rem)] w-full max-w-full">
+      <div className="flex-1 p-6 overflow-auto space-y-4 min-w-0">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">Contas Pagas</h2>
           <div className="flex gap-2">
@@ -343,7 +344,7 @@ export default function ContasPagasPage() {
         )}
       </div>
 
-      <div className="w-full lg:w-80 bg-background border-l p-6 space-y-6">
+      <SidePanel>
         <div>
           <h3 className="font-semibold mb-4 flex items-center gap-2">
             <Calendar className="h-4 w-4" />
@@ -401,7 +402,7 @@ export default function ContasPagasPage() {
             </div>
           </div>
         </div>
-      </div>
+      </SidePanel>
 
     <PayableSheet
       open={payableSheetOpen}

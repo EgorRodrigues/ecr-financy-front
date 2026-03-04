@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SidePanel } from "@/components/layout/side-panel";
 import {
   Table,
   TableBody,
@@ -359,9 +360,9 @@ export default function CreditCardPage() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] w-full max-w-full">
       {/* Main Content */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 overflow-auto min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold">Despesas no Cartão</h1>
           <Button
@@ -526,8 +527,7 @@ export default function CreditCardPage() {
         </Card>
       </div>
 
-      {/* Side Panel */}
-      <div className="w-full md:w-80 border-t md:border-l md:border-t-0 bg-muted/30 p-6">
+      <SidePanel className="bg-muted/30 border-t md:border-t-0">
         <h2 className="text-lg font-semibold mb-4">Resumo da Fatura</h2>
 
         {selectedCard ? (
@@ -745,7 +745,7 @@ export default function CreditCardPage() {
             Selecione um cartão para ver os detalhes.
           </div>
         )}
-      </div>
+      </SidePanel>
 
       <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>
         <DialogContent>

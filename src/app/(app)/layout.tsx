@@ -20,11 +20,11 @@ export default function AppLayout({
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset>
-        <div className="flex h-14 items-center gap-2 border-b px-4">
+        <div className="flex h-14 items-center gap-2 border-b px-4 shrink-0">
           <SidebarTrigger className="md:hidden" />
           <span className="text-sm font-medium">Gestão Financeira</span>
         </div>
-        <FormConfig className="p-4 space-y-4">{children}</FormConfig>
+        <FormConfig className="p-4 space-y-4 overflow-auto flex-1 min-w-0">{children}</FormConfig>
       </SidebarInset>
     </SidebarProvider>
   );

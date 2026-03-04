@@ -145,9 +145,9 @@ export default function AccountStatementPage() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] w-full max-w-full">
       {/* Main Content */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-6 overflow-auto min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold">Extrato por Conta</h1>
           <div className="flex gap-2 w-full sm:w-auto">
