@@ -907,3 +907,34 @@ export async function importOfx(file: File): Promise<ImportOfxResponse> {
   return res.json();
 }
 
+export type UnreconciledOfxTransaction = OFXTransaction;
+
+export type UnreconciledTransactionItem = {
+  id: string;
+  amount: number;
+  description: string;
+  due_date: string;
+  reconciled: boolean;
+};
+
+export type UnreconciledTransactionsResponse = {
+  incomes: UnreconciledTransactionItem[];
+  expenses: UnreconciledTransactionItem[];
+};
+
+export type UnreconciledTransaction = {
+  id: string;
+  amount: number;
+  date: string;
+  description: string;
+  type: "expense" | "income";
+};
+
+export async function getUnreconciledOfxTransactions(): Promise<UnreconciledOfxTransaction[]> {
+  return apiFetch("/reconciliation/unreconciled-ofx-transactions", { method: "GET" });
+}
+
+export async function getUnreconciledTransactions(): Promise<UnreconciledTransactionsResponse> {
+  return apiFetch("/reconciliation/unreconciled-transactions", { method: "GET" });
+}
+

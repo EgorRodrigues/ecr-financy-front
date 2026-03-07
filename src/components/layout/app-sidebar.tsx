@@ -79,6 +79,7 @@ const data = {
       icon: Landmark,
       items: [
         { title: "Importar OFX", url: "/conciliacao-bancaria/importar-ofx" },
+        { title: "Conciliar Transações", url: "/conciliacao-bancaria/conciliar" },
       ],
     },
   ],
