@@ -842,3 +842,68 @@ export type DashboardResponse = {
 export async function getDashboard(): Promise<DashboardResponse> {
   return apiFetch("/dashboard/", { method: "GET" });
 }
+
+export type OFXTransaction = {
+  id: string;
+  amount: number;
+  date: string;
+  memo: string;
+  type: string;
+  bank_id: string;
+  account_id: string;
+};
+
+export type ImportOfxResponse = {
+  transactions: OFXTransaction[];
+  account_id: string;
+  currency: string;
+  balance: number;
+  balance_date: string;
+};
+
+export async function importOfx(file: File): Promise<ImportOfxResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // For multipart/form-data, we must NOT set the Content-Type header manually
+  // so the browser can add the boundary string automatically.
+  // We'll pass the headers to apiFetch, but we need to ensure Content-Type is NOT application/json.
+  
+  const baseUrl = getBaseUrl();
+  const headers: HeadersInit = {};
+
+  if (accessToken) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const res = await fetch(`${baseUrl}/reconciliation/import-ofx`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    const newToken = await refreshAuthToken();
+    const retryRes = await fetch(`${baseUrl}/reconciliation/import-ofx`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        Authorization: `Bearer ${newToken}`,
+      },
+      body: formData,
+    });
+    if (!retryRes.ok) {
+      const text = await retryRes.text().catch(() => "");
+      throw new Error(`HTTP ${retryRes.status} ${retryRes.statusText} - ${text}`);
+    }
+    return retryRes.json();
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+  }
+
+  return res.json();
+}
+

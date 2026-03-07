@@ -73,6 +73,14 @@ const data = {
         { title: "Previsão Financeira", url: "/relatorios/previsao" },
       ],
     },
+    {
+      title: "Conciliação Bancária",
+      url: "#",
+      icon: Landmark,
+      items: [
+        { title: "Importar OFX", url: "/conciliacao-bancaria/importar-ofx" },
+      ],
+    },
   ],
 };
 
