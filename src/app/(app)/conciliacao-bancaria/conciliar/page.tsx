@@ -10,11 +10,13 @@ import { Label } from "@/components/ui/label";
 import { 
   getUnreconciledOfxTransactions, 
   getUnreconciledTransactions, 
+  reconcileTransactions,
   type UnreconciledOfxTransaction, 
-  type UnreconciledTransaction 
+  type UnreconciledTransaction,
+  type ReconcileTransactionPayload
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Check, Link as LinkIcon, RotateCcw, ArrowRight, Trash2, Info, Search } from "lucide-react";
+import { Check, Link as LinkIcon, RotateCcw, ArrowRight, Trash2, Info, Search, Loader2 } from "lucide-react";
 
 type ReconciliationMatch = {
   id: string;
@@ -22,6 +24,7 @@ type ReconciliationMatch = {
   systemIds: string[];
   totalOfxAmount: number;
   totalSystemAmount: number;
+  type: "income" | "expense";
 };
 
 export default function ConciliarPage() {
@@ -40,6 +43,7 @@ export default function ConciliarPage() {
   
   const [selectedOfxIds, setSelectedOfxIds] = useState<string[]>([]);
   const [selectedSystemIds, setSelectedSystemIds] = useState<string[]>([]);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   
   const selectedOfxTotal = ofxTransactions
     .filter(t => selectedOfxIds.includes(t.id))
@@ -85,7 +89,7 @@ export default function ConciliarPage() {
         systemResponse.expenses.forEach(item => {
           combinedTransactions.push({
             id: item.id,
-            amount: item.amount,
+            amount: -Math.abs(item.amount), // Garante que despesas sejam negativas
             date: item.due_date,
             description: item.description,
             type: "expense"
@@ -120,7 +124,8 @@ export default function ConciliarPage() {
         ofxIds: [id],
         systemIds: [...selectedSystemIds],
         totalOfxAmount: selectedOfx.amount,
-        totalSystemAmount: totalSystem
+        totalSystemAmount: totalSystem,
+        type: systemItems[0].type // Assume que todos no grupo são do mesmo tipo
       };
 
       setMatches(prev => [...prev, newMatch]);
@@ -150,7 +155,8 @@ export default function ConciliarPage() {
         ofxIds: [...selectedOfxIds],
         systemIds: [id],
         totalOfxAmount: totalOfx,
-        totalSystemAmount: selectedSystem.amount
+        totalSystemAmount: selectedSystem.amount,
+        type: selectedSystem.type
       };
 
       setMatches(prev => [...prev, newMatch]);
@@ -174,6 +180,30 @@ export default function ConciliarPage() {
     fetchData(); 
   };
 
+  const handleFinalize = async () => {
+    if (matches.length === 0) return;
+
+    setIsFinalizing(true);
+    try {
+      const payloads: ReconcileTransactionPayload[] = matches.map(match => ({
+        ofx_transaction_ids: match.ofxIds.map(id => Number(id)),
+        transaction_ids: match.systemIds,
+        transaction_type: match.type
+      }));
+
+      await reconcileTransactions(payloads);
+      
+      alert("Conciliação finalizada com sucesso!");
+      setMatches([]);
+      fetchData();
+    } catch (error) {
+      console.error("Erro ao finalizar conciliação:", error);
+      alert("Erro ao finalizar conciliação. Por favor, tente novamente.");
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -194,11 +224,16 @@ export default function ConciliarPage() {
           <h1 className="text-2xl font-bold">Conciliar Transações</h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => fetchData()}>
-            <RotateCcw className="mr-2 h-4 w-4" /> Atualizar
+          <Button variant="outline" onClick={() => fetchData()} disabled={loading || isFinalizing}>
+            <RotateCcw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} /> Atualizar
           </Button>
-          <Button disabled={matches.length === 0}>
-            <Check className="mr-2 h-4 w-4" /> Finalizar Conciliação ({matches.length})
+          <Button disabled={matches.length === 0 || isFinalizing} onClick={handleFinalize}>
+            {isFinalizing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="mr-2 h-4 w-4" />
+            )}
+            Finalizar Conciliação ({matches.length})
           </Button>
         </div>
       </div>

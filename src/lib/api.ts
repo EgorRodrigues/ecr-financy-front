@@ -943,3 +943,16 @@ export async function getUnreconciledTransactions(params?: { start_date?: string
   if (params?.end_date) query.append("end_date", params.end_date);
   return apiFetch(`/reconciliation/unreconciled-transactions?${query.toString()}`, { method: "GET" });
 }
+
+export type ReconcileTransactionPayload = {
+  ofx_transaction_ids: number[];
+  transaction_ids: string[];
+  transaction_type: "income" | "expense";
+};
+
+export async function reconcileTransactions(payloads: ReconcileTransactionPayload[]): Promise<unknown> {
+  return apiFetch("/reconciliation/reconcile-batch-transactions", {
+    method: "POST",
+    body: JSON.stringify(payloads),
+  });
+}
