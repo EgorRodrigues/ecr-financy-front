@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   getUnreconciledOfxTransactions, 
   getUnreconciledTransactions, 
@@ -12,7 +14,7 @@ import {
   type UnreconciledTransaction 
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Check, Link as LinkIcon, RotateCcw, ArrowRight, Trash2, Info } from "lucide-react";
+import { Check, Link as LinkIcon, RotateCcw, ArrowRight, Trash2, Info, Search } from "lucide-react";
 
 type ReconciliationMatch = {
   id: string;
@@ -27,8 +29,25 @@ export default function ConciliarPage() {
   const [systemTransactions, setSystemTransactions] = useState<UnreconciledTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const [startDate, setStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(1); // Primeiro dia do mês atual
+    return d.toISOString().split('T')[0];
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  
   const [selectedOfxIds, setSelectedOfxIds] = useState<string[]>([]);
   const [selectedSystemIds, setSelectedSystemIds] = useState<string[]>([]);
+  
+  const selectedOfxTotal = ofxTransactions
+    .filter(t => selectedOfxIds.includes(t.id))
+    .reduce((acc, t) => acc + t.amount, 0);
+
+  const selectedSystemTotal = systemTransactions
+    .filter(t => selectedSystemIds.includes(t.id))
+    .reduce((acc, t) => acc + t.amount, 0);
   
   const [matches, setMatches] = useState<ReconciliationMatch[]>([]);
 
@@ -39,9 +58,10 @@ export default function ConciliarPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const params = { start_date: startDate, end_date: endDate };
       const [ofx, systemResponse] = await Promise.all([
-        getUnreconciledOfxTransactions(),
-        getUnreconciledTransactions()
+        getUnreconciledOfxTransactions(params),
+        getUnreconciledTransactions(params)
       ]);
       
       setOfxTransactions(Array.isArray(ofx) ? ofx : []);
@@ -183,6 +203,38 @@ export default function ConciliarPage() {
         </div>
       </div>
 
+      {/* Filtros de Data */}
+      <Card className="shadow-sm border-muted/40">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="startDate">Data Início</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-[200px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="endDate">Data Fim</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-[200px]"
+              />
+            </div>
+            <Button onClick={() => fetchData()} disabled={loading}>
+              {loading ? <RotateCcw className="h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+              Filtrar Transações
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Lado Esquerdo: OFX */}
         <Card className="shadow-sm border-muted/40">
@@ -193,9 +245,14 @@ export default function ConciliarPage() {
                 <CardDescription>Transações importadas do banco</CardDescription>
               </div>
               {selectedOfxIds.length > 0 && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                  {selectedOfxIds.length} selecionado(s)
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    {selectedOfxIds.length} selecionado(s)
+                  </Badge>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Total: {formatCurrency(selectedOfxTotal)}
+                  </span>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -204,9 +261,9 @@ export default function ConciliarPage() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                   <TableRow>
-                    <TableHead className="w-[100px]">Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="w-[80px] text-[10px] uppercase font-bold px-2">Data</TableHead>
+                    <TableHead className="text-[10px] uppercase font-bold px-2">Descrição</TableHead>
+                    <TableHead className="text-right text-[10px] uppercase font-bold px-2">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -214,15 +271,17 @@ export default function ConciliarPage() {
                     <TableRow 
                       key={t.id} 
                       className={cn(
-                        "cursor-pointer transition-colors",
+                        "cursor-pointer transition-colors h-8",
                         selectedOfxIds.includes(t.id) ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30"
                       )}
                       onClick={() => handleOfxClick(t.id)}
                     >
-                      <TableCell className="text-xs">{formatDate(t.date)}</TableCell>
-                      <TableCell className="text-sm font-medium">{t.memo}</TableCell>
+                      <TableCell className="text-[10px] py-1 px-2">{formatDate(t.date)}</TableCell>
+                      <TableCell className="text-[11px] font-medium py-1 px-2 max-w-[150px] truncate" title={t.memo}>
+                        {t.memo}
+                      </TableCell>
                       <TableCell className={cn(
-                        "text-right font-semibold",
+                        "text-right font-semibold text-[11px] py-1 px-2",
                         t.amount < 0 ? "text-destructive" : "text-green-600"
                       )}>
                         {formatCurrency(t.amount)}
@@ -251,9 +310,14 @@ export default function ConciliarPage() {
                 <CardDescription>Lançamentos financeiros registrados</CardDescription>
               </div>
               {selectedSystemIds.length > 0 && (
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                  {selectedSystemIds.length} selecionado(s)
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    {selectedSystemIds.length} selecionado(s)
+                  </Badge>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Total: {formatCurrency(selectedSystemTotal)}
+                  </span>
+                </div>
               )}
             </div>
           </CardHeader>
@@ -262,9 +326,9 @@ export default function ConciliarPage() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                   <TableRow>
-                    <TableHead className="w-[100px]">Data</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="w-[80px] text-[10px] uppercase font-bold px-2">Data</TableHead>
+                    <TableHead className="text-[10px] uppercase font-bold px-2">Descrição</TableHead>
+                    <TableHead className="text-right text-[10px] uppercase font-bold px-2">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -272,17 +336,17 @@ export default function ConciliarPage() {
                     <TableRow 
                       key={t.id} 
                       className={cn(
-                        "cursor-pointer transition-colors",
+                        "cursor-pointer transition-colors h-8",
                         selectedSystemIds.includes(t.id) ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30"
                       )}
                       onClick={() => handleSystemClick(t.id)}
                     >
-                      <TableCell className="text-xs">{formatDate(t.date)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm font-medium">{t.description}</div>
+                      <TableCell className="text-[10px] py-1 px-2">{formatDate(t.date)}</TableCell>
+                      <TableCell className="text-[11px] font-medium py-1 px-2 max-w-[150px] truncate" title={t.description}>
+                        {t.description}
                       </TableCell>
                       <TableCell className={cn(
-                        "text-right font-semibold",
+                        "text-right font-semibold text-[11px] py-1 px-2",
                         t.type === "expense" ? "text-destructive" : "text-green-600"
                       )}>
                         {formatCurrency(t.amount)}

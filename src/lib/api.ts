@@ -930,11 +930,16 @@ export type UnreconciledTransaction = {
   type: "expense" | "income";
 };
 
-export async function getUnreconciledOfxTransactions(): Promise<UnreconciledOfxTransaction[]> {
-  return apiFetch("/reconciliation/unreconciled-ofx-transactions", { method: "GET" });
+export async function getUnreconciledOfxTransactions(params?: { start_date?: string; end_date?: string }): Promise<UnreconciledOfxTransaction[]> {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.append("start_date", params.start_date);
+  if (params?.end_date) query.append("end_date", params.end_date);
+  return apiFetch(`/reconciliation/unreconciled-ofx-transactions?${query.toString()}`, { method: "GET" });
 }
 
-export async function getUnreconciledTransactions(): Promise<UnreconciledTransactionsResponse> {
-  return apiFetch("/reconciliation/unreconciled-transactions", { method: "GET" });
+export async function getUnreconciledTransactions(params?: { start_date?: string; end_date?: string }): Promise<UnreconciledTransactionsResponse> {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.append("start_date", params.start_date);
+  if (params?.end_date) query.append("end_date", params.end_date);
+  return apiFetch(`/reconciliation/unreconciled-transactions?${query.toString()}`, { method: "GET" });
 }
-
