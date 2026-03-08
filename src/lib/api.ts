@@ -912,8 +912,12 @@ export type UnreconciledOfxTransaction = OFXTransaction;
 export type UnreconciledTransactionItem = {
   id: string;
   amount: number;
+  total_paid?: number;
+  total_received?: number;
   description: string;
   due_date: string;
+  payment_date?: string;
+  receipt_date?: string;
   reconciled: boolean;
 };
 

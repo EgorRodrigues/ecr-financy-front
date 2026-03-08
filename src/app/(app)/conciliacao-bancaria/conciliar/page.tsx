@@ -77,8 +77,8 @@ export default function ConciliarPage() {
         systemResponse.incomes.forEach(item => {
           combinedTransactions.push({
             id: item.id,
-            amount: item.amount,
-            date: item.due_date,
+            amount: item.total_received ?? item.amount,
+            date: item.receipt_date ?? item.due_date,
             description: item.description,
             type: "income"
           });
@@ -89,8 +89,8 @@ export default function ConciliarPage() {
         systemResponse.expenses.forEach(item => {
           combinedTransactions.push({
             id: item.id,
-            amount: -Math.abs(item.amount), // Garante que despesas sejam negativas
-            date: item.due_date,
+            amount: -Math.abs(item.total_paid ?? item.amount), // Garante que despesas sejam negativas
+            date: item.payment_date ?? item.due_date,
             description: item.description,
             type: "expense"
           });
