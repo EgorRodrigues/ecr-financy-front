@@ -20,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -51,6 +52,7 @@ export default function ContasPagasPage() {
   const [, setContactsList] = useState<Contact[]>([]);
   const [payableSheetOpen, setPayableSheetOpen] = useState(false);
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState<string>(
     new Date().toISOString().slice(0, 7)
   );
@@ -69,6 +71,31 @@ export default function ContasPagasPage() {
       status: (i.status as ExpenseItem["status"]) || "pendente",
     }));
   }, [records, selectedMonth]);
+
+  const selectedTotal = useMemo(() => {
+    return Array.from(selectedIds).reduce((acc, id) => {
+      const item = dados.find((d) => d.id === id);
+      return acc + (item?.valor || 0);
+    }, 0);
+  }, [selectedIds, dados]);
+
+  function toggleSelect(id: string) {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === dados.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(dados.map((d) => d.id)));
+    }
+  }
 
   const [selected, setSelected] = useState<ExpenseRecord | null>(null);
 
@@ -144,6 +171,11 @@ export default function ContasPagasPage() {
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
     await deleteExpense(id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     load();
   }
 
@@ -186,6 +218,16 @@ export default function ContasPagasPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        checked={
+                          dados.length > 0 && selectedIds.size === dados.length
+                        }
+                        onChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead
                       onClick={() => requestSort("displayFornecedor")}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -229,7 +271,7 @@ export default function ContasPagasPage() {
                   {sortedItems.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center py-4 text-muted-foreground"
                       >
                         Nenhuma conta paga encontrada para este mês.
@@ -238,6 +280,14 @@ export default function ContasPagasPage() {
                   ) : (
                     sortedItems.map((d) => (
                       <TableRow key={d.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            checked={selectedIds.has(d.id)}
+                            onChange={() => toggleSelect(d.id)}
+                          />
+                        </TableCell>
                         <TableCell>{d.displayFornecedor}</TableCell>
                         <TableCell>
                           {d.vencimento
@@ -279,6 +329,25 @@ export default function ContasPagasPage() {
                     ))
                   )}
                 </TableBody>
+                {selectedIds.size > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-bold">
+                        Selecionados: {selectedIds.size}
+                      </TableCell>
+                      <TableCell className="text-right font-bold" colSpan={1}>
+                        Total Selecionado:
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {selectedTotal.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
           </Card>

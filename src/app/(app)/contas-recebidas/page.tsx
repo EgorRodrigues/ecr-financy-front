@@ -20,6 +20,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -60,6 +61,7 @@ export default function ContasRecebidasPage() {
   
   const [receivableSheetOpen, setReceivableSheetOpen] = useState(false);
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedReceivable, setSelectedReceivable] = useState<IncomeRecord | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(
     new Date().toISOString().slice(0, 7)
@@ -79,6 +81,31 @@ export default function ContasRecebidasPage() {
       status: (i.status as Receivable["status"]) || "pendente",
     }));
   }, [records, selectedMonth]);
+
+  const selectedTotal = useMemo(() => {
+    return Array.from(selectedIds).reduce((acc, id) => {
+      const item = dados.find((d) => d.id === id);
+      return acc + (item?.valor || 0);
+    }, 0);
+  }, [selectedIds, dados]);
+
+  function toggleSelect(id: string) {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === dados.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(dados.map((d) => d.id)));
+    }
+  }
 
   const load = () => {
     getIncomes()
@@ -164,6 +191,11 @@ export default function ContasRecebidasPage() {
       typeof window !== "undefined" ? window.confirm("Excluir?") : true;
     if (!ok) return;
     await deleteIncome(id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     load();
   }
 
@@ -206,6 +238,16 @@ export default function ContasRecebidasPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                        checked={
+                          dados.length > 0 && selectedIds.size === dados.length
+                        }
+                        onChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead
                       onClick={() => requestSort("displayCliente")}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
@@ -249,7 +291,7 @@ export default function ContasRecebidasPage() {
                   {sortedItems.length === 0 ? (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="text-center py-4 text-muted-foreground"
                       >
                         Nenhuma conta recebida encontrada para este mês.
@@ -258,6 +300,14 @@ export default function ContasRecebidasPage() {
                   ) : (
                     sortedItems.map((d) => (
                       <TableRow key={d.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            checked={selectedIds.has(d.id)}
+                            onChange={() => toggleSelect(d.id)}
+                          />
+                        </TableCell>
                         <TableCell>{d.displayCliente}</TableCell>
                         <TableCell>
                           {d.vencimento
@@ -299,6 +349,25 @@ export default function ContasRecebidasPage() {
                     ))
                   )}
                 </TableBody>
+                {selectedIds.size > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-bold">
+                        Selecionados: {selectedIds.size}
+                      </TableCell>
+                      <TableCell className="text-right font-bold" colSpan={1}>
+                        Total Selecionado:
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {selectedTotal.toLocaleString("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        })}
+                      </TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
               </Table>
             </div>
           </Card>
@@ -373,7 +442,10 @@ export default function ContasRecebidasPage() {
           <Input
             type="month"
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => {
+              setSelectedMonth(e.target.value);
+              setSelectedIds(new Set());
+            }}
           />
         </div>
 
@@ -404,7 +476,10 @@ export default function ContasRecebidasPage() {
                       ? "bg-muted font-medium"
                       : "hover:bg-muted/50 cursor-pointer"
                   }`}
-                  onClick={() => setSelectedMonth(item.month)}
+                  onClick={() => {
+                    setSelectedMonth(item.month);
+                    setSelectedIds(new Set());
+                  }}
                 >
                   <span>
                     {format(parseISO(item.month + "-01"), "MMMM yyyy", {
