@@ -67,10 +67,13 @@ export default function ContasRecebidasPage() {
     new Date().toISOString().slice(0, 7)
   );
 
+  const getReceiptMonth = (record: IncomeRecord) =>
+    (record.receipt_date || record.due_date || "").slice(0, 7);
+
   const dados = useMemo(() => {
     // Filtrar por mês E status 'recebido'
     const filtered = records.filter((r) =>
-      (r.due_date || "").startsWith(selectedMonth) && r.status === "recebido"
+      getReceiptMonth(r) === selectedMonth && r.status === "recebido"
     );
     return (filtered as BackendIncomeRecord[]).map((i) => ({
       id: i.id,
@@ -122,7 +125,7 @@ export default function ContasRecebidasPage() {
     records.forEach((r) => {
       // Considerar apenas recebidas no resumo também
       if (r.status === "recebido") {
-        const month = (r.due_date || "").slice(0, 7);
+        const month = getReceiptMonth(r);
         if (month) {
           const receivedValue = typeof r.total_received === "number" ? r.total_received : (r.amount || 0);
           summary[month] = (summary[month] || 0) + receivedValue;

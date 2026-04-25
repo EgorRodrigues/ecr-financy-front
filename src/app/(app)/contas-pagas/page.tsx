@@ -57,10 +57,13 @@ export default function ContasPagasPage() {
     new Date().toISOString().slice(0, 7)
   );
 
+  const getPaymentMonth = (record: ExpenseRecord) =>
+    (record.payment_date || record.due_date || "").slice(0, 7);
+
   const dados = useMemo(() => {
     // Filtrar por mês E status 'pago'
     const filtered = records.filter((r) =>
-      (r.due_date || "").startsWith(selectedMonth) && r.status === "pago"
+      getPaymentMonth(r) === selectedMonth && r.status === "pago"
     );
     return (filtered as BackendExpenseRecord[]).map((i) => ({
       id: i.id,
@@ -114,7 +117,7 @@ export default function ContasPagasPage() {
     records.forEach((r) => {
       // Considerar apenas pagas no resumo também, para consistência da página
       if (r.status === "pago") {
-        const month = (r.due_date || "").slice(0, 7);
+        const month = getPaymentMonth(r);
         if (month) {
           const paidValue = typeof r.total_paid === "number" ? r.total_paid : (r.amount || 0);
           summary[month] = (summary[month] || 0) + paidValue;
