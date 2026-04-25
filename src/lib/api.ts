@@ -962,5 +962,5 @@ export async function reconcileTransactions(payloads: ReconcileTransactionPayloa
 }
 
 export async function deleteOfxTransaction(id: string): Promise<void> {
-  return apiFetch(`/ofx-transactions/${id}`, { method: "DELETE" });
+  return apiFetch(`/reconciliation/ofx-transactions/${id}`, { method: "DELETE" });
 }
