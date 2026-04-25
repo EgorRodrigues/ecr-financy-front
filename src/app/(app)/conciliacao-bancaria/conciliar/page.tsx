@@ -11,6 +11,7 @@ import {
   getUnreconciledOfxTransactions, 
   getUnreconciledTransactions, 
   reconcileTransactions,
+  deleteOfxTransaction,
   type UnreconciledOfxTransaction, 
   type UnreconciledTransaction,
   type ReconcileTransactionPayload
@@ -44,6 +45,7 @@ export default function ConciliarPage() {
   const [selectedOfxIds, setSelectedOfxIds] = useState<string[]>([]);
   const [selectedSystemIds, setSelectedSystemIds] = useState<string[]>([]);
   const [isFinalizing, setIsFinalizing] = useState(false);
+  const [deletingOfxId, setDeletingOfxId] = useState<string | null>(null);
   
   const selectedOfxTotal = ofxTransactions
     .filter(t => selectedOfxIds.includes(t.id))
@@ -204,6 +206,23 @@ export default function ConciliarPage() {
     }
   };
 
+  const handleDeleteOfx = async (id: string) => {
+    const shouldDelete = window.confirm("Deseja realmente excluir esta transação importada do OFX?");
+    if (!shouldDelete) return;
+
+    setDeletingOfxId(id);
+    try {
+      await deleteOfxTransaction(id);
+      setOfxTransactions(prev => prev.filter(t => t.id !== id));
+      setSelectedOfxIds(prev => prev.filter(selectedId => selectedId !== id));
+    } catch (error) {
+      console.error("Erro ao excluir transação OFX:", error);
+      alert("Não foi possível excluir a transação OFX. Tente novamente.");
+    } finally {
+      setDeletingOfxId(null);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -299,6 +318,7 @@ export default function ConciliarPage() {
                     <TableHead className="w-[80px] text-[10px] uppercase font-bold px-2">Data</TableHead>
                     <TableHead className="text-[10px] uppercase font-bold px-2">Descrição</TableHead>
                     <TableHead className="text-right text-[10px] uppercase font-bold px-2">Valor</TableHead>
+                    <TableHead className="w-[60px] text-right text-[10px] uppercase font-bold px-2">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -321,11 +341,29 @@ export default function ConciliarPage() {
                       )}>
                         {formatCurrency(t.amount)}
                       </TableCell>
+                      <TableCell className="text-right py-1 px-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteOfx(t.id);
+                          }}
+                          disabled={deletingOfxId === t.id || isFinalizing}
+                        >
+                          {deletingOfxId === t.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {ofxTransactions.length === 0 && !loading && (
                     <TableRow>
-                      <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
                         Nenhuma transação pendente no extrato.
                       </TableCell>
                     </TableRow>
