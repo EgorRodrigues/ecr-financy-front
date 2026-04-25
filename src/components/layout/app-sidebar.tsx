@@ -71,6 +71,7 @@ const data = {
       icon: LineChart,
       items: [
         { title: "Previsão Financeira", url: "/relatorios/previsao" },
+        { title: "Realizado Financeiro", url: "/relatorios/realizado" },
       ],
     },
     {

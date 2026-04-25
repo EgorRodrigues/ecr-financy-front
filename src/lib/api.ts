@@ -539,6 +539,8 @@ export async function getIncomes(params?: {
   account_id?: string;
   account_type?: string;
   status?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Array<IncomeRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>
