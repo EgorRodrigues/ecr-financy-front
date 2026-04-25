@@ -67,7 +67,7 @@ export default function ContasPagasPage() {
       fornecedor: i.contact_name || i.contact_id || "",
       contactId: i.contact_id,
       vencimento: i.due_date || "",
-      valor: typeof i.amount === "number" ? i.amount : 0,
+      valor: typeof i.total_paid === "number" ? i.total_paid : (typeof i.amount === "number" ? i.amount : 0),
       status: (i.status as ExpenseItem["status"]) || "pendente",
     }));
   }, [records, selectedMonth]);
@@ -116,7 +116,8 @@ export default function ContasPagasPage() {
       if (r.status === "pago") {
         const month = (r.due_date || "").slice(0, 7);
         if (month) {
-          summary[month] = (summary[month] || 0) + (r.amount || 0);
+          const paidValue = typeof r.total_paid === "number" ? r.total_paid : (r.amount || 0);
+          summary[month] = (summary[month] || 0) + paidValue;
         }
       }
     });

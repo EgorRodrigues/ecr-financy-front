@@ -77,7 +77,7 @@ export default function ContasRecebidasPage() {
       cliente: i.contact_name || i.contact_id || "",
       contactId: i.contact_id,
       vencimento: i.due_date || "",
-      valor: typeof i.amount === "number" ? i.amount : 0,
+      valor: typeof i.total_received === "number" ? i.total_received : (typeof i.amount === "number" ? i.amount : 0),
       status: (i.status as Receivable["status"]) || "pendente",
     }));
   }, [records, selectedMonth]);
@@ -124,7 +124,8 @@ export default function ContasRecebidasPage() {
       if (r.status === "recebido") {
         const month = (r.due_date || "").slice(0, 7);
         if (month) {
-          summary[month] = (summary[month] || 0) + (r.amount || 0);
+          const receivedValue = typeof r.total_received === "number" ? r.total_received : (r.amount || 0);
+          summary[month] = (summary[month] || 0) + receivedValue;
         }
       }
     });
