@@ -41,7 +41,7 @@ type Receivable = {
   id: string;
   cliente: string;
   contactId?: string;
-  vencimento: string;
+  dataRecebimento: string;
   valor: number;
   status: "pendente" | "recebido" | "atrasado" | "cancelado";
 };
@@ -79,7 +79,7 @@ export default function ContasRecebidasPage() {
       id: i.id,
       cliente: i.contact_name || i.contact_id || "",
       contactId: i.contact_id,
-      vencimento: i.due_date || "",
+      dataRecebimento: i.receipt_date || i.due_date || "",
       valor: typeof i.total_received === "number" ? i.total_received : (typeof i.amount === "number" ? i.amount : 0),
       status: (i.status as Receivable["status"]) || "pendente",
     }));
@@ -262,11 +262,11 @@ export default function ContasRecebidasPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      onClick={() => requestSort("vencimento")}
+                      onClick={() => requestSort("dataRecebimento")}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                     >
-                      Vencimento{" "}
-                      {sortConfig?.key === "vencimento" && (
+                      Recebimento{" "}
+                      {sortConfig?.key === "dataRecebimento" && (
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
@@ -314,8 +314,8 @@ export default function ContasRecebidasPage() {
                         </TableCell>
                         <TableCell>{d.displayCliente}</TableCell>
                         <TableCell>
-                          {d.vencimento
-                            ? format(parseISO(d.vencimento), "dd/MM/yyyy")
+                          {d.dataRecebimento
+                            ? format(parseISO(d.dataRecebimento), "dd/MM/yyyy")
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -390,8 +390,8 @@ export default function ContasRecebidasPage() {
                         {d.displayCliente}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {d.vencimento
-                          ? format(parseISO(d.vencimento), "dd/MM")
+                        {d.dataRecebimento
+                          ? format(parseISO(d.dataRecebimento), "dd/MM")
                           : "-"}
                       </div>
                     </div>

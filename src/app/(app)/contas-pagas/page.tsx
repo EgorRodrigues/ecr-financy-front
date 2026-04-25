@@ -37,7 +37,7 @@ type ExpenseItem = {
   id: string;
   fornecedor: string;
   contactId?: string;
-  vencimento: string;
+  dataPagamento: string;
   valor: number;
   status: "pendente" | "pago" | "atrasado" | "cancelado";
 };
@@ -69,7 +69,7 @@ export default function ContasPagasPage() {
       id: i.id,
       fornecedor: i.contact_name || i.contact_id || "",
       contactId: i.contact_id,
-      vencimento: i.due_date || "",
+      dataPagamento: i.payment_date || i.due_date || "",
       valor: typeof i.total_paid === "number" ? i.total_paid : (typeof i.amount === "number" ? i.amount : 0),
       status: (i.status as ExpenseItem["status"]) || "pendente",
     }));
@@ -242,11 +242,11 @@ export default function ContasPagasPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      onClick={() => requestSort("vencimento")}
+                      onClick={() => requestSort("dataPagamento")}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                     >
-                      Vencimento{" "}
-                      {sortConfig?.key === "vencimento" && (
+                      Pagamento{" "}
+                      {sortConfig?.key === "dataPagamento" && (
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
@@ -294,8 +294,8 @@ export default function ContasPagasPage() {
                         </TableCell>
                         <TableCell>{d.displayFornecedor}</TableCell>
                         <TableCell>
-                          {d.vencimento
-                            ? format(parseISO(d.vencimento), "dd/MM/yyyy")
+                          {d.dataPagamento
+                            ? format(parseISO(d.dataPagamento), "dd/MM/yyyy")
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -370,8 +370,8 @@ export default function ContasPagasPage() {
                         {d.displayFornecedor}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {d.vencimento
-                          ? format(parseISO(d.vencimento), "dd/MM")
+                        {d.dataPagamento
+                          ? format(parseISO(d.dataPagamento), "dd/MM")
                           : "-"}
                       </div>
                     </div>
