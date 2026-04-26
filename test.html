@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Financial Forecast</h2>
+
+        <div class="filters">
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+            <button onclick="loadData()">Carregar</button>
+        </div>
+
+        <canvas id="chart"></canvas>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/financial-forecast/";
+        const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiRWdvciIsImVtYWlsIjoiZWdvci5yb2RyaWd1ZXNAZ21haWwuY29tIiwic3ViIjoiYjI0Mjc2YTAtY2MzZi00ZDNhLTkwZTktZGEzYjBkYmFhZmMzIiwiaWF0IjoxNzc3MjE5MTE5LCJleHAiOjE3NzcyMTk3MTl9.Y6GiSAaoKqNmrESf2cVXleVgWPirTbORB8XAAsFoVO8"; // coloque seu token aqui
+
+        let chart;
+
+        async function loadData() {
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+
+            if (!startDate || !endDate) {
+                alert("Selecione as datas");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}?startDate=${startDate}&endDate=${endDate}`, {
+                    headers: {
+                        "Authorization": `Bearer ${TOKEN}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const data = await response.json();
+
+                const grouped = groupData(data);
+                renderChart(grouped);
+
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao carregar dados");
+            }
+        }
+
+        function groupData(data) {
+            const result = {};
+
+            data.forEach(item => {
+                const key = item.category;
+
+                if (!result[key]) {
+                    result[key] = {
+                        income: 0,
+                        expense: 0
+                    };
+                }
+
+                if (item.type === "income") {
+                    result[key].income += item.amount;
+                } else {
+                    result[key].expense += item.amount;
+                }
+            });
+
+            return result;
+        }
+
+        function renderChart(groupedData) {
+            const labels = Object.keys(groupedData);
+            const incomes = labels.map(l => groupedData[l].income);
+            const expenses = labels.map(l => groupedData[l].expense);
+
+            const ctx = document.getElementById("chart").getContext("2d");
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            chart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Receitas",
+                            data: incomes,
+                            backgroundColor: "rgba(75, 192, 192, 0.6)"
+                        },
+                        {
+                            label: "Despesas",
+                            data: expenses,
+                            backgroundColor: "rgba(255, 99, 132, 0.6)"
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: "top"
+                        }
+                    }
+                }
+            });
+        }
+
+        // valores default
+        document.getElementById("startDate").value = "2026-04-01";
+        document.getElementById("endDate").value = "2026-06-30";
+
+    </script>
+
+</body>
+
+</html>
