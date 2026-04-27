@@ -14,7 +14,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: auto;
             background: white;
             padding: 20px;
@@ -31,6 +31,28 @@
             padding: 8px 16px;
             cursor: pointer;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: left;
+        }
     </style>
 </head>
 
@@ -46,6 +68,9 @@
         </div>
 
         <canvas id="chart"></canvas>
+
+        <h3>Detalhamento por Categoria</h3>
+        <div id="table-container"></div>
     </div>
 
     <script>
@@ -73,8 +98,11 @@
 
                 const data = await response.json();
 
-                const grouped = groupByMonth(data);
-                renderChart(grouped);
+                const monthly = groupByMonth(data);
+                renderChart(monthly);
+
+                const tableData = groupByCategoryAndMonth(data);
+                renderTable(tableData);
 
             } catch (error) {
                 console.error(error);
@@ -82,17 +110,15 @@
             }
         }
 
+        // -------- GRAFICO --------
         function groupByMonth(data) {
             const result = {};
 
             data.forEach(item => {
-                const month = item.month; // já vem no formato YYYY-MM
+                const month = item.month;
 
                 if (!result[month]) {
-                    result[month] = {
-                        income: 0,
-                        expense: 0
-                    };
+                    result[month] = { income: 0, expense: 0 };
                 }
 
                 if (item.type === "income") {
@@ -115,11 +141,10 @@
             labels.forEach(month => {
                 const income = groupedData[month].income;
                 const expense = groupedData[month].expense;
-                const balance = income - expense;
 
                 incomes.push(income);
                 expenses.push(expense);
-                balances.push(balance);
+                balances.push(income - expense);
             });
 
             const ctx = document.getElementById("chart").getContext("2d");
@@ -129,45 +154,84 @@
             chart = new Chart(ctx, {
                 type: "line",
                 data: {
-                    labels: labels,
+                    labels,
                     datasets: [
-                        {
-                            label: "Receitas",
-                            data: incomes,
-                            borderWidth: 2,
-                            tension: 0.3
-                        },
-                        {
-                            label: "Despesas",
-                            data: expenses,
-                            borderWidth: 2,
-                            tension: 0.3
-                        },
-                        {
-                            label: "Saldo",
-                            data: balances,
-                            borderWidth: 3,
-                            tension: 0.3
-                        }
+                        { label: "Receitas", data: incomes },
+                        { label: "Despesas", data: expenses },
+                        { label: "Saldo", data: balances }
                     ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: "top"
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
                 }
             });
         }
 
-        // valores default
+        // -------- TABELA --------
+        function groupByCategoryAndMonth(data) {
+            const result = {};
+            const months = new Set();
+
+            data.forEach(item => {
+                const { category, month, type, amount } = item;
+
+                months.add(month);
+
+                if (!result[category]) {
+                    result[category] = {};
+                }
+
+                if (!result[category][month]) {
+                    result[category][month] = { income: 0, expense: 0 };
+                }
+
+                if (type === "income") {
+                    result[category][month].income += amount;
+                } else {
+                    result[category][month].expense += amount;
+                }
+            });
+
+            return {
+                data: result,
+                months: Array.from(months).sort()
+            };
+        }
+
+        function renderTable({ data, months }) {
+            let html = "<table>";
+
+            // header
+            html += "<tr><th>Categoria</th>";
+            months.forEach(m => {
+                html += `<th>${m} (R)</th><th>${m} (D)</th>`;
+            });
+            html += "<th>Total</th></tr>";
+
+            // rows
+            Object.keys(data).forEach(category => {
+                let total = 0;
+
+                html += `<tr><td>${category}</td>`;
+
+                months.forEach(m => {
+                    const cell = data[category][m] || { income: 0, expense: 0 };
+
+                    const income = cell.income;
+                    const expense = cell.expense;
+
+                    total += income - expense;
+
+                    html += `<td>${income.toFixed(2)}</td>`;
+                    html += `<td>${expense.toFixed(2)}</td>`;
+                });
+
+                html += `<td>${total.toFixed(2)}</td></tr>`;
+            });
+
+            html += "</table>";
+
+            document.getElementById("table-container").innerHTML = html;
+        }
+
+        // defaults
         document.getElementById("startDate").value = "2026-04-01";
         document.getElementById("endDate").value = "2026-06-30";
 
