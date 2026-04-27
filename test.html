@@ -14,7 +14,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: auto;
             background: white;
             padding: 20px;
@@ -53,6 +53,22 @@
         th:first-child {
             text-align: left;
         }
+
+        .group-title th {
+            background: #e8e8e8;
+            font-size: 16px;
+        }
+
+        .total {
+            font-weight: bold;
+            background: #fafafa;
+        }
+
+        .balance {
+            font-weight: bold;
+            border-top: 2px solid black;
+            background: #f3f3f3;
+        }
     </style>
 </head>
 
@@ -69,7 +85,7 @@
 
         <canvas id="chart"></canvas>
 
-        <h3>Detalhamento por Categoria</h3>
+        <h3>Demonstrativo Financeiro (DRE Mensal)</h3>
         <div id="table-container"></div>
     </div>
 
@@ -98,11 +114,8 @@
 
                 const data = await response.json();
 
-                const monthly = groupByMonth(data);
-                renderChart(monthly);
-
-                const tableData = groupByCategoryAndMonth(data);
-                renderTable(tableData);
+                renderChart(data);
+                renderTable(data);
 
             } catch (error) {
                 console.error(error);
@@ -111,50 +124,44 @@
         }
 
         // -------- GRAFICO --------
-        function groupByMonth(data) {
-            const result = {};
+        function renderChart(data) {
+            const grouped = {};
 
             data.forEach(item => {
-                const month = item.month;
-
-                if (!result[month]) {
-                    result[month] = { income: 0, expense: 0 };
+                if (!grouped[item.month]) {
+                    grouped[item.month] = { income: 0, expense: 0 };
                 }
 
                 if (item.type === "income") {
-                    result[month].income += item.amount;
+                    grouped[item.month].income += item.amount;
                 } else {
-                    result[month].expense += item.amount;
+                    grouped[item.month].expense += item.amount;
                 }
             });
 
-            return result;
-        }
-
-        function renderChart(groupedData) {
-            const labels = Object.keys(groupedData).sort();
+            const months = Object.keys(grouped).sort();
 
             const incomes = [];
             const expenses = [];
             const balances = [];
 
-            labels.forEach(month => {
-                const income = groupedData[month].income;
-                const expense = groupedData[month].expense;
+            months.forEach(m => {
+                const inc = grouped[m].income;
+                const exp = grouped[m].expense;
 
-                incomes.push(income);
-                expenses.push(expense);
-                balances.push(income - expense);
+                incomes.push(inc);
+                expenses.push(exp);
+                balances.push(inc - exp);
             });
 
-            const ctx = document.getElementById("chart").getContext("2d");
+            const ctx = document.getElementById("chart");
 
             if (chart) chart.destroy();
 
             chart = new Chart(ctx, {
                 type: "line",
                 data: {
-                    labels,
+                    labels: months,
                     datasets: [
                         { label: "Receitas", data: incomes },
                         { label: "Despesas", data: expenses },
@@ -164,74 +171,115 @@
             });
         }
 
-        // -------- TABELA --------
-        function groupByCategoryAndMonth(data) {
-            const result = {};
-            const months = new Set();
+        // -------- TABELA DRE --------
+        function renderTable(data) {
+            const monthsSet = new Set();
+            const income = {};
+            const expense = {};
 
             data.forEach(item => {
-                const { category, month, type, amount } = item;
+                const { month, category, type, amount } = item;
 
-                months.add(month);
+                monthsSet.add(month);
 
-                if (!result[category]) {
-                    result[category] = {};
-                }
+                const target = type === "income" ? income : expense;
 
-                if (!result[category][month]) {
-                    result[category][month] = { income: 0, expense: 0 };
-                }
+                if (!target[category]) target[category] = {};
+                if (!target[category][month]) target[category][month] = 0;
 
-                if (type === "income") {
-                    result[category][month].income += amount;
-                } else {
-                    result[category][month].expense += amount;
-                }
+                target[category][month] += amount;
             });
 
-            return {
-                data: result,
-                months: Array.from(months).sort()
-            };
-        }
+            const months = Array.from(monthsSet).sort();
 
-        function renderTable({ data, months }) {
             let html = "<table>";
 
-            // header
+            // HEADER
             html += "<tr><th>Categoria</th>";
-            months.forEach(m => {
-                html += `<th>${m} (R)</th><th>${m} (D)</th>`;
-            });
+            months.forEach(m => html += `<th>${m}</th>`);
             html += "<th>Total</th></tr>";
 
-            // rows
-            Object.keys(data).forEach(category => {
-                let total = 0;
+            // -------- ENTRADAS --------
+            html += `<tr class="group-title"><th colspan="${months.length + 2}">Entradas</th></tr>`;
 
-                html += `<tr><td>${category}</td>`;
+            let totalIncomeByMonth = {};
+            let totalIncomeAll = 0;
+
+            Object.keys(income).forEach(cat => {
+                let rowTotal = 0;
+
+                html += `<tr><td>${cat}</td>`;
 
                 months.forEach(m => {
-                    const cell = data[category][m] || { income: 0, expense: 0 };
+                    const value = income[cat][m] || 0;
 
-                    const income = cell.income;
-                    const expense = cell.expense;
+                    rowTotal += value;
+                    totalIncomeByMonth[m] = (totalIncomeByMonth[m] || 0) + value;
 
-                    total += income - expense;
-
-                    html += `<td>${income.toFixed(2)}</td>`;
-                    html += `<td>${expense.toFixed(2)}</td>`;
+                    html += `<td>${format(value)}</td>`;
                 });
 
-                html += `<td>${total.toFixed(2)}</td></tr>`;
+                totalIncomeAll += rowTotal;
+
+                html += `<td><strong>${format(rowTotal)}</strong></td></tr>`;
             });
+
+            html += `<tr class="total"><td>Total Entradas</td>`;
+            months.forEach(m => html += `<td>${format(totalIncomeByMonth[m] || 0)}</td>`);
+            html += `<td>${format(totalIncomeAll)}</td></tr>`;
+
+            // -------- SAÍDAS --------
+            html += `<tr class="group-title"><th colspan="${months.length + 2}">Saídas</th></tr>`;
+
+            let totalExpenseByMonth = {};
+            let totalExpenseAll = 0;
+
+            Object.keys(expense).forEach(cat => {
+                let rowTotal = 0;
+
+                html += `<tr><td>${cat}</td>`;
+
+                months.forEach(m => {
+                    const value = expense[cat][m] || 0;
+
+                    rowTotal += value;
+                    totalExpenseByMonth[m] = (totalExpenseByMonth[m] || 0) + value;
+
+                    html += `<td>${format(value)}</td>`;
+                });
+
+                totalExpenseAll += rowTotal;
+
+                html += `<td><strong>${format(rowTotal)}</strong></td></tr>`;
+            });
+
+            html += `<tr class="total"><td>Total Saídas</td>`;
+            months.forEach(m => html += `<td>${format(totalExpenseByMonth[m] || 0)}</td>`);
+            html += `<td>${format(totalExpenseAll)}</td></tr>`;
+
+            // -------- SALDO --------
+            html += `<tr class="balance"><td>Saldo</td>`;
+
+            months.forEach(m => {
+                const balance = (totalIncomeByMonth[m] || 0) - (totalExpenseByMonth[m] || 0);
+                html += `<td>${format(balance)}</td>`;
+            });
+
+            html += `<td>${format(totalIncomeAll - totalExpenseAll)}</td></tr>`;
 
             html += "</table>";
 
             document.getElementById("table-container").innerHTML = html;
         }
 
-        // defaults
+        function format(value) {
+            return value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+            });
+        }
+
+        // default
         document.getElementById("startDate").value = "2026-04-01";
         document.getElementById("endDate").value = "2026-06-30";
 
