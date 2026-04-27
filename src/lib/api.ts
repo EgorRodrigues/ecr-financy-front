@@ -539,6 +539,8 @@ export async function getIncomes(params?: {
   account_id?: string;
   account_type?: string;
   status?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Array<IncomeRecord>> {
   const query = new URLSearchParams(
     params as Record<string, string>
@@ -841,4 +843,126 @@ export type DashboardResponse = {
 
 export async function getDashboard(): Promise<DashboardResponse> {
   return apiFetch("/dashboard/", { method: "GET" });
+}
+
+export type OFXTransaction = {
+  id: string;
+  amount: number;
+  date: string;
+  memo: string;
+  type: string;
+  bank_id: string;
+  account_id: string;
+};
+
+export type ImportOfxResponse = {
+  transactions: OFXTransaction[];
+  account_id: string;
+  currency: string;
+  balance: number;
+  balance_date: string;
+};
+
+export async function importOfx(file: File): Promise<ImportOfxResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  // For multipart/form-data, we must NOT set the Content-Type header manually
+  // so the browser can add the boundary string automatically.
+  // We'll pass the headers to apiFetch, but we need to ensure Content-Type is NOT application/json.
+  
+  const baseUrl = getBaseUrl();
+  const headers: HeadersInit = {};
+
+  if (accessToken) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
+  }
+
+  const res = await fetch(`${baseUrl}/reconciliation/import-ofx`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (res.status === 401) {
+    const newToken = await refreshAuthToken();
+    const retryRes = await fetch(`${baseUrl}/reconciliation/import-ofx`, {
+      method: "POST",
+      headers: {
+        ...headers,
+        Authorization: `Bearer ${newToken}`,
+      },
+      body: formData,
+    });
+    if (!retryRes.ok) {
+      const text = await retryRes.text().catch(() => "");
+      throw new Error(`HTTP ${retryRes.status} ${retryRes.statusText} - ${text}`);
+    }
+    return retryRes.json();
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} - ${text}`);
+  }
+
+  return res.json();
+}
+
+export type UnreconciledOfxTransaction = OFXTransaction;
+
+export type UnreconciledTransactionItem = {
+  id: string;
+  amount: number;
+  total_paid?: number;
+  total_received?: number;
+  description: string;
+  due_date: string;
+  payment_date?: string;
+  receipt_date?: string;
+  reconciled: boolean;
+};
+
+export type UnreconciledTransactionsResponse = {
+  incomes: UnreconciledTransactionItem[];
+  expenses: UnreconciledTransactionItem[];
+};
+
+export type UnreconciledTransaction = {
+  id: string;
+  amount: number;
+  date: string;
+  description: string;
+  type: "expense" | "income";
+};
+
+export async function getUnreconciledOfxTransactions(params?: { start_date?: string; end_date?: string }): Promise<UnreconciledOfxTransaction[]> {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.append("start_date", params.start_date);
+  if (params?.end_date) query.append("end_date", params.end_date);
+  return apiFetch(`/reconciliation/unreconciled-ofx-transactions?${query.toString()}`, { method: "GET" });
+}
+
+export async function getUnreconciledTransactions(params?: { start_date?: string; end_date?: string }): Promise<UnreconciledTransactionsResponse> {
+  const query = new URLSearchParams();
+  if (params?.start_date) query.append("start_date", params.start_date);
+  if (params?.end_date) query.append("end_date", params.end_date);
+  return apiFetch(`/reconciliation/unreconciled-transactions?${query.toString()}`, { method: "GET" });
+}
+
+export type ReconcileTransactionPayload = {
+  ofx_transaction_ids: number[];
+  transaction_ids: string[];
+  transaction_type: "income" | "expense";
+};
+
+export async function reconcileTransactions(payloads: ReconcileTransactionPayload[]): Promise<unknown> {
+  return apiFetch("/reconciliation/reconcile-batch-transactions", {
+    method: "POST",
+    body: JSON.stringify(payloads),
+  });
+}
+
+export async function deleteOfxTransaction(id: string): Promise<void> {
+  return apiFetch(`/reconciliation/ofx-transactions/${id}`, { method: "DELETE" });
 }

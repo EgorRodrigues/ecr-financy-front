@@ -71,6 +71,16 @@ const data = {
       icon: LineChart,
       items: [
         { title: "Previsão Financeira", url: "/relatorios/previsao" },
+        { title: "Realizado Financeiro", url: "/relatorios/realizado" },
+      ],
+    },
+    {
+      title: "Conciliação Bancária",
+      url: "#",
+      icon: Landmark,
+      items: [
+        { title: "Importar OFX", url: "/conciliacao-bancaria/importar-ofx" },
+        { title: "Conciliar Transações", url: "/conciliacao-bancaria/conciliar" },
       ],
     },
   ],
