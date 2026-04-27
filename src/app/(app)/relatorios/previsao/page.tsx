@@ -1,14 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect, startTransition } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -17,15 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSort } from "@/hooks/use-sort";
-import { ArrowUpDown, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { getFinancialForecast, type ForecastItem } from "@/lib/api";
-
 import {
   ResponsiveContainer,
-  ComposedChart,
+  LineChart,
   Line,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,429 +24,345 @@ import {
   Legend,
 } from "recharts";
 
-function ForecastChart({ data }: { data: ForecastItem[] }) {
-  // Aggregate by month and type
-  const aggregated = useMemo(() => {
-    const months = Array.from(new Set(data.map((d) => d.month))).sort();
+type DreRow = {
+  category: string;
+  valuesByMonth: Record<string, number>;
+  total: number;
+};
 
-    return months.map((month) => {
-      const monthData = data.filter((d) => d.month === month);
-      const income = monthData
-        .filter((d) => d.type === "income")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const expense = monthData
-        .filter((d) => d.type === "expense")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const balance = income - expense;
-
-      // Format date for display
-      const [y, m] = month.split("-");
-      const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-      const label = date.toLocaleString("pt-BR", {
-        month: "short",
-        year: "2-digit",
-      });
-
-      return {
-        month,
-        label,
-        income,
-        expense,
-        balance,
-      };
-    });
-  }, [data]);
-
-  if (aggregated.length === 0) {
-    return (
-      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Nenhum dado para exibir no gráfico neste período
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-[450px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart
-          data={aggregated}
-          margin={{
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={10}
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(value) =>
-              value.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                notation: "compact",
-              })
-            }
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <Tooltip
-            formatter={(value: number | undefined) =>
-              Number(value || 0).toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })
-            }
-            contentStyle={{ borderRadius: "8px" }}
-          />
-          <Legend />
-
-          {/* Income Area & Line */}
-          <defs>
-            <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-
-          <Area
-            type="monotone"
-            dataKey="income"
-            name="Receitas"
-            fill="url(#colorIncome)"
-            stroke="#10b981"
-            strokeWidth={2}
-          />
-          <Area
-            type="monotone"
-            dataKey="expense"
-            name="Despesas"
-            fill="url(#colorExpense)"
-            stroke="#ef4444"
-            strokeWidth={2}
-          />
-          <Line
-            type="monotone"
-            dataKey="balance"
-            name="Saldo"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            dot={{ r: 4, strokeWidth: 2 }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
-function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
-  const aggregated = useMemo(() => {
-    const months = Array.from(new Set(data.map((d) => d.month))).sort();
+function formatMonthLabel(month: string) {
+  const [year, numericMonth] = month.split("-");
+  const date = new Date(Number(year), Number(numericMonth) - 1, 1);
+  return date.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
+}
 
-    // First calculate monthly balances
-    const monthlyBalances = months.map((month) => {
-      const monthData = data.filter((d) => d.month === month);
-      const income = monthData
-        .filter((d) => d.type === "income")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const expense = monthData
-        .filter((d) => d.type === "expense")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      return { month, net: income - expense };
-    });
-
-    // Then calculate running totals using reduce to avoid side effects
-    const result: { month: string; value: number; label: string }[] = [];
-    monthlyBalances.reduce((acc, curr) => {
-      const newVal = acc + curr.net;
-      // Format date for display
-      const [y, m] = curr.month.split("-");
-      const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-      const label = date.toLocaleString("pt-BR", {
-        month: "short",
-        year: "2-digit",
-      });
-
-      result.push({ month: curr.month, value: newVal, label });
-      return newVal;
-    }, 0);
-
-    return result;
-  }, [data]);
-
-  if (aggregated.length === 0) {
-    return (
-      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Nenhum dado para exibir no gráfico neste período
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-[450px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart
-          data={aggregated}
-          margin={{
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20,
-          }}
-        >
-          <defs>
-            <linearGradient id="gradient-acc" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={10}
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(value) =>
-              value.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                notation: "compact",
-              })
-            }
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <Tooltip
-            formatter={(value: number | undefined) =>
-              Number(value || 0).toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })
-            }
-            contentStyle={{ borderRadius: "8px" }}
-          />
-          <Legend />
-
-          <Area
-            type="monotone"
-            dataKey="value"
-            name="Saldo Acumulado"
-            fill="url(#gradient-acc)"
-            stroke="#8b5cf6"
-            strokeWidth={3}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
+function buildDefaultPeriod() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 5, 0);
+  const toIsoDate = (date: Date) => date.toISOString().split("T")[0];
+  return { startDate: toIsoDate(start), endDate: toIsoDate(end) };
 }
 
 export default function PrevisaoFinanceiraPage() {
+  const defaultPeriod = useMemo(() => buildDefaultPeriod(), []);
+  const [startDate, setStartDate] = useState(defaultPeriod.startDate);
+  const [endDate, setEndDate] = useState(defaultPeriod.endDate);
   const [items, setItems] = useState<ForecastItem[]>([]);
-  const [monthsRange, setMonthsRange] = useState("6");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { items: sortedItems, requestSort, sortConfig } = useSort(items);
+  const loadData = async () => {
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await getFinancialForecast(startDate, endDate);
+      setItems(data ?? []);
+    } catch (error) {
+      console.error("Failed to fetch forecast:", error);
+      setItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Calculate date range: current month to selected months ahead
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(
-      now.getFullYear(),
-      now.getMonth() + parseInt(monthsRange),
-      0
-    ); // Last day of target month
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const formatDate = (d: Date) => d.toISOString().split("T")[0];
+  const months = useMemo(
+    () => Array.from(new Set(items.map((item) => item.month))).sort(),
+    [items]
+  );
 
-    getFinancialForecast(formatDate(start), formatDate(end))
-      .then((data) => {
-        if (data) {
-          startTransition(() => setItems(data));
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch forecast:", err);
-      });
-  }, [monthsRange]);
+  const chartData = useMemo(() => {
+    return months.map((month) => {
+      const monthData = items.filter((item) => item.month === month);
+      const income = monthData
+        .filter((item) => item.type === "income")
+        .reduce((sum, item) => sum + item.amount, 0);
+      const expense = monthData
+        .filter((item) => item.type === "expense")
+        .reduce((sum, item) => sum + item.amount, 0);
+
+      return {
+        month,
+        label: formatMonthLabel(month),
+        income,
+        expense,
+        balance: income - expense,
+      };
+    });
+  }, [items, months]);
+
+  const dreData = useMemo(() => {
+    const incomes: Record<string, Record<string, number>> = {};
+    const expenses: Record<string, Record<string, number>> = {};
+
+    items.forEach((item) => {
+      const target = item.type === "income" ? incomes : expenses;
+      if (!target[item.category]) {
+        target[item.category] = {};
+      }
+      target[item.category][item.month] =
+        (target[item.category][item.month] ?? 0) + item.amount;
+    });
+
+    const mapToRows = (source: Record<string, Record<string, number>>): DreRow[] =>
+      Object.entries(source)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, valuesByMonth]) => {
+          const total = months.reduce(
+            (sum, month) => sum + (valuesByMonth[month] ?? 0),
+            0
+          );
+          return { category, valuesByMonth, total };
+        });
+
+    const incomeRows = mapToRows(incomes);
+    const expenseRows = mapToRows(expenses);
+
+    const totalIncomeByMonth = months.reduce<Record<string, number>>(
+      (acc, month) => {
+        acc[month] = incomeRows.reduce(
+          (sum, row) => sum + (row.valuesByMonth[month] ?? 0),
+          0
+        );
+        return acc;
+      },
+      {}
+    );
+
+    const totalExpenseByMonth = months.reduce<Record<string, number>>(
+      (acc, month) => {
+        acc[month] = expenseRows.reduce(
+          (sum, row) => sum + (row.valuesByMonth[month] ?? 0),
+          0
+        );
+        return acc;
+      },
+      {}
+    );
+
+    const totalIncomeAll = incomeRows.reduce((sum, row) => sum + row.total, 0);
+    const totalExpenseAll = expenseRows.reduce((sum, row) => sum + row.total, 0);
+
+    return {
+      incomeRows,
+      expenseRows,
+      totalIncomeByMonth,
+      totalExpenseByMonth,
+      totalIncomeAll,
+      totalExpenseAll,
+    };
+  }, [items, months]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold tracking-tight">
-          Previsão Financeira
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Período:</span>
-          <Select value={monthsRange} onValueChange={setMonthsRange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecione o período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3 meses</SelectItem>
-              <SelectItem value="6">6 meses</SelectItem>
-              <SelectItem value="9">9 meses</SelectItem>
-              <SelectItem value="12">12 meses</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Previsão Financeira</h2>
+          <p className="text-sm text-muted-foreground">
+            Modelo novo inspirado no protótipo, mantendo o layout do sistema.
+          </p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium">
-              Fluxo Previsto (Receitas vs Despesas)
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Comparativo de entradas e saídas previstas para os próximos meses.
-            </p>
-          </div>
-          <ForecastChart data={items} />
-        </Card>
-
-        <Card className="p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium">Saldo Acumulado</h3>
-            <p className="text-sm text-muted-foreground">
-              Evolução do saldo acumulado ao longo do período.
-            </p>
-          </div>
-          <AccumulatedBalanceChart data={items} />
-        </Card>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="w-full sm:w-[170px]"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="w-full sm:w-[170px]"
+          />
+          <Button onClick={() => void loadData()} disabled={isLoading}>
+            {isLoading ? "Carregando..." : "Carregar"}
+          </Button>
+        </div>
       </div>
 
       <Card className="p-6">
         <div className="mb-4">
-          <h3 className="text-lg font-medium">Detalhamento</h3>
+          <h3 className="text-lg font-medium">
+            Fluxo Previsto (Receitas, Despesas e Saldo)
+          </h3>
         </div>
+
+        {chartData.length === 0 ? (
+          <div className="flex h-[360px] items-center justify-center rounded-md border bg-muted/10 text-sm text-muted-foreground">
+            Nenhum dado para o período selecionado.
+          </div>
+        ) : (
+          <div className="h-[360px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) =>
+                    Number(value).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                      notation: "compact",
+                    })
+                  }
+                />
+                <Tooltip
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(Number(value ?? 0))
+                  }
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  name="Receitas"
+                  stroke="#16a34a"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expense"
+                  name="Despesas"
+                  stroke="#dc2626"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  name="Saldo"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6 overflow-x-auto">
+        <div className="mb-4">
+          <h3 className="text-lg font-medium">Demonstrativo Financeiro (DRE Mensal)</h3>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead
-                onClick={() => requestSort("month")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Mês{" "}
-                {sortConfig?.key === "month" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("type")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Tipo{" "}
-                {sortConfig?.key === "type" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("category")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Categoria{" "}
-                {sortConfig?.key === "category" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("status")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Status{" "}
-                {sortConfig?.key === "status" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => requestSort("amount")}
-              >
-                Valor Previsto{" "}
-                {sortConfig?.key === "amount" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
+              <TableHead>Categoria</TableHead>
+              {months.map((month) => (
+                <TableHead key={`head-${month}`} className="text-right min-w-[120px]">
+                  {formatMonthLabel(month)}
+                </TableHead>
+              ))}
+              <TableHead className="text-right min-w-[120px]">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedItems.length === 0 ? (
+            {months.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  Nenhuma previsão encontrada para o período.
+                <TableCell colSpan={2} className="py-10 text-center text-muted-foreground">
+                  Nenhuma previsão encontrada para o período informado.
                 </TableCell>
               </TableRow>
             ) : (
-              sortedItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.month}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {item.type === "income" ? (
-                        <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-                      ) : (
-                        <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                      )}
-                      <span
-                        className={
-                          item.type === "income"
-                            ? "text-emerald-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {item.type === "income" ? "Receita" : "Despesa"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        item.status === "confirmado"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}
-                    >
-                      {item.status === "confirmado"
-                        ? "Confirmado"
-                        : "Projetado"}
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-medium ${item.type === "income" ? "text-emerald-600" : "text-red-600"}`}
-                  >
-                    {item.type === "expense" ? "- " : "+ "}
-                    {item.amount.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
+              <>
+                <TableRow className="bg-muted/40">
+                  <TableCell className="font-semibold" colSpan={months.length + 2}>
+                    Entradas
                   </TableCell>
                 </TableRow>
-              ))
+
+                {dreData.incomeRows.map((row) => (
+                  <TableRow key={`income-${row.category}`}>
+                    <TableCell>{row.category}</TableCell>
+                    {months.map((month) => (
+                      <TableCell key={`income-${row.category}-${month}`} className="text-right">
+                        {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(row.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow className="bg-muted/20 font-semibold">
+                  <TableCell>Total Entradas</TableCell>
+                  {months.map((month) => (
+                    <TableCell key={`total-income-${month}`} className="text-right">
+                      {formatCurrency(dreData.totalIncomeByMonth[month] ?? 0)}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    {formatCurrency(dreData.totalIncomeAll)}
+                  </TableCell>
+                </TableRow>
+
+                <TableRow className="bg-muted/40">
+                  <TableCell className="font-semibold" colSpan={months.length + 2}>
+                    Saídas
+                  </TableCell>
+                </TableRow>
+
+                {dreData.expenseRows.map((row) => (
+                  <TableRow key={`expense-${row.category}`}>
+                    <TableCell>{row.category}</TableCell>
+                    {months.map((month) => (
+                      <TableCell key={`expense-${row.category}-${month}`} className="text-right">
+                        {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(row.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow className="bg-muted/20 font-semibold">
+                  <TableCell>Total Saídas</TableCell>
+                  {months.map((month) => (
+                    <TableCell key={`total-expense-${month}`} className="text-right">
+                      {formatCurrency(dreData.totalExpenseByMonth[month] ?? 0)}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    {formatCurrency(dreData.totalExpenseAll)}
+                  </TableCell>
+                </TableRow>
+
+                <TableRow className="bg-primary/5 font-bold">
+                  <TableCell>Saldo</TableCell>
+                  {months.map((month) => (
+                    <TableCell key={`balance-${month}`} className="text-right">
+                      {formatCurrency(
+                        (dreData.totalIncomeByMonth[month] ?? 0) -
+                          (dreData.totalExpenseByMonth[month] ?? 0)
+                      )}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    {formatCurrency(dreData.totalIncomeAll - dreData.totalExpenseAll)}
+                  </TableCell>
+                </TableRow>
+              </>
             )}
           </TableBody>
         </Table>
