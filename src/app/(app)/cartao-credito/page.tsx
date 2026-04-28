@@ -27,6 +27,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getAccounts,
   getCreditCardSummary,
   getCreditCardInvoices,
@@ -404,11 +409,11 @@ export default function CreditCardPage() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => requestSort("displayDate")}
                     >
                       Data{" "}
@@ -426,7 +431,7 @@ export default function CreditCardPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[200px] cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => requestSort("displayCategory")}
                     >
                       Categoria{" "}
@@ -435,7 +440,7 @@ export default function CreditCardPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[140px] text-right cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => requestSort("displayAmount")}
                     >
                       Valor{" "}
@@ -443,7 +448,7 @@ export default function CreditCardPage() {
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
-                    <TableHead className="w-[100px]">Ações</TableHead>
+                    <TableHead className="w-[175px]">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -456,69 +461,107 @@ export default function CreditCardPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedExpenses.map((expense) => (
-                      <TableRow
-                        key={expense.id}
-                        className={
-                          expense.status === "cancelado"
-                            ? "line-through text-muted-foreground"
-                            : ""
-                        }
-                      >
-                        <TableCell>
-                          {expense.issue_date
-                            ? format(parseISO(expense.issue_date), "dd/MM/yyyy")
-                            : "-"}
-                        </TableCell>
-                        <TableCell>{expense.description}</TableCell>
-                        <TableCell>
-                          {categories.find((c) => c.id === expense.category_id)
-                            ?.name ||
-                            expense.category_id ||
-                            "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(expense.amount)}
-                        </TableCell>
-                        <TableCell className="flex gap-2 justify-end no-underline">
-                          {expense.status !== "cancelado" && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleCancel(expense)}
-                              title="Cancelar transação"
-                            >
-                              <Ban className="h-4 w-4 text-orange-500" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleTransfer(expense)}
-                            title="Transferir para outra fatura"
-                          >
-                            <ArrowRightLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(expense)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(expense.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    sortedExpenses.map((expense) => {
+                      const categoryName =
+                        categories.find((c) => c.id === expense.category_id)
+                          ?.name ||
+                        expense.category_id ||
+                        "-";
+                      const description = expense.description || "-";
+
+                      return (
+                        <TableRow
+                          key={expense.id}
+                          className={
+                            expense.status === "cancelado"
+                              ? "line-through text-muted-foreground"
+                              : ""
+                          }
+                        >
+                          <TableCell>
+                            {expense.issue_date
+                              ? format(
+                                  parseISO(expense.issue_date),
+                                  "dd/MM/yyyy"
+                                )
+                              : "-"}
+                          </TableCell>
+
+                          <TableCell>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="max-w-full truncate" title={description}>
+                                  {description}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="start" sideOffset={6}>
+                                {description}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+
+                          <TableCell>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className="max-w-[200px] truncate"
+                                  title={categoryName}
+                                >
+                                  {categoryName}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" align="start" sideOffset={6}>
+                                {categoryName}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            {new Intl.NumberFormat("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                            }).format(expense.amount)}
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="flex gap-2 justify-end no-underline">
+                              {expense.status !== "cancelado" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCancel(expense)}
+                                  title="Cancelar transação"
+                                >
+                                  <Ban className="h-4 w-4 text-orange-500" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleTransfer(expense)}
+                                title="Transferir para outra fatura"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(expense)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(expense.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
