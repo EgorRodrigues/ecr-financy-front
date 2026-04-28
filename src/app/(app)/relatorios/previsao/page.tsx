@@ -657,6 +657,7 @@ export default function PrevisaoFinanceiraPage() {
               <TableRow>
                 <TableHead>Mês</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Descrição</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Valor previsto</TableHead>
@@ -665,7 +666,7 @@ export default function PrevisaoFinanceiraPage() {
             <TableBody>
               {dreDetailItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Nenhum lançamento encontrado para esta combinação.
                   </TableCell>
                 </TableRow>
@@ -674,6 +675,9 @@ export default function PrevisaoFinanceiraPage() {
                   <TableRow key={row.id}>
                     <TableCell>{row.month}</TableCell>
                     <TableCell>{row.category}</TableCell>
+                    <TableCell className="min-w-[280px]">
+                      {row.description?.trim() ? row.description : "-"}
+                    </TableCell>
                     <TableCell
                       className={
                         row.type === "income" ? "text-emerald-600" : "text-red-600"

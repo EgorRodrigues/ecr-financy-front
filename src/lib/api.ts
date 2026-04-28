@@ -727,6 +727,7 @@ export type ForecastItem = {
   id: string;
   month: string; // YYYY-MM
   category: string;
+  description?: string | null;
   amount: number;
   status: "projetado" | "confirmado";
   type: "income" | "expense";
