@@ -31,7 +31,6 @@ import {
   SidebarMenuSubItem,
   SidebarMenuSubButton,
   useSidebar,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavUser } from "@/components/layout/nav-user";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,7 +86,7 @@ const data = {
 };
 
 export function AppSidebar() {
-  const { setOpenMobile, isMobile } = useSidebar();
+  const { setOpenMobile, isMobile, state, setOpen } = useSidebar();
   const { user } = useAuth();
   const pathname = usePathname();
   
@@ -95,6 +94,12 @@ export function AppSidebar() {
   const [openMenus, setOpenMenus] = useState<string[]>(["Financeiro"]);
 
   const toggleMenu = (title: string) => {
+    if (!isMobile && state === "collapsed") {
+      setOpen(true);
+      setOpenMenus((prev) => (prev.includes(title) ? prev : [...prev, title]));
+      return;
+    }
+
     setOpenMenus((prev) =>
       prev.includes(title)
         ? prev.filter((item) => item !== title)
@@ -109,13 +114,13 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="none">
+    <Sidebar collapsible="icon">
       <SidebarContent>
         <SidebarGroup>
           <div className="px-4 py-2">
             <h1 className="text-xl font-bold tracking-tight text-primary flex items-center gap-2">
               <LayoutDashboard className="h-6 w-6" />
-              <span>Financy</span>
+              <span className="group-data-[collapsible=icon]:hidden">Financy</span>
             </h1>
           </div>
           <SidebarMenu>
