@@ -201,6 +201,7 @@ export default function PrevisaoFinanceiraPage() {
   );
 
   const chartData = useMemo(() => {
+    let accumulatedBalance = 0;
     return months.map((month) => {
       const monthData = items.filter((item) => item.month === month);
       const income = monthData
@@ -209,13 +210,16 @@ export default function PrevisaoFinanceiraPage() {
       const expense = monthData
         .filter((item) => item.type === "expense")
         .reduce((sum, item) => sum + item.amount, 0);
+      const balance = income - expense;
+      accumulatedBalance += balance;
 
       return {
         month,
         label: formatMonthLabel(month),
         income,
         expense,
-        balance: income - expense,
+        balance,
+        accumulatedBalance,
       };
     });
   }, [items, months]);
@@ -314,7 +318,7 @@ export default function PrevisaoFinanceiraPage() {
       <Card className="p-6">
         <div className="mb-4">
           <h3 className="text-lg font-medium">
-            Fluxo Previsto (Receitas, Despesas e Saldo)
+            Fluxo Previsto (Receitas, Despesas, Saldo e Saldo acumulado)
           </h3>
         </div>
 
@@ -366,6 +370,13 @@ export default function PrevisaoFinanceiraPage() {
                   stroke="#2563eb"
                   strokeWidth={2}
                   strokeDasharray="5 5"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="accumulatedBalance"
+                  name="Saldo acumulado"
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
                 />
               </LineChart>
             </ResponsiveContainer>
