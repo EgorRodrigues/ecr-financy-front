@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getFinancialForecast, type ForecastItem } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer,
   LineChart,
@@ -29,6 +30,96 @@ type DreRow = {
   valuesByMonth: Record<string, number>;
   total: number;
 };
+
+/** Uma interseção da tabela que o usuário clicou para ver os lançamentos. */
+type DreCellSelection =
+  | {
+      kind: "income-category" | "expense-category";
+      category: string;
+      monthScope: string | "__total__";
+    }
+  | {
+      kind: "total-income" | "total-expense" | "balance";
+      monthScope: string | "__total__";
+    };
+
+function dreSelectionMatches(a: DreCellSelection | null, b: DreCellSelection | null) {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  if (a.kind !== b.kind || a.monthScope !== b.monthScope) return false;
+  if ("category" in a && "category" in b) {
+    return a.category === b.category;
+  }
+  if ("category" in a || "category" in b) return false;
+  return true;
+}
+
+function getItemsForDreSelection(
+  selection: DreCellSelection | null,
+  rows: ForecastItem[]
+): ForecastItem[] {
+  if (!selection) return [];
+
+  const byMonth =
+    selection.monthScope === "__total__"
+      ? undefined
+      : selection.monthScope;
+
+  switch (selection.kind) {
+    case "income-category":
+      return rows.filter(
+        (r) =>
+          r.type === "income" &&
+          r.category === selection.category &&
+          (byMonth === undefined || r.month === byMonth)
+      );
+    case "expense-category":
+      return rows.filter(
+        (r) =>
+          r.type === "expense" &&
+          r.category === selection.category &&
+          (byMonth === undefined || r.month === byMonth)
+      );
+    case "total-income":
+      return rows.filter(
+        (r) => r.type === "income" && (byMonth === undefined || r.month === byMonth)
+      );
+    case "total-expense":
+      return rows.filter(
+        (r) => r.type === "expense" && (byMonth === undefined || r.month === byMonth)
+      );
+    case "balance":
+      return rows.filter((r) =>
+        byMonth === undefined ? true : r.month === byMonth
+      );
+    default:
+      return [];
+  }
+}
+
+function describeDreSelection(sel: DreCellSelection): string {
+  const monthLabel = (month: string) =>
+    `${formatMonthLabel(month)} (${month})`;
+
+  const scopeTxt =
+    sel.monthScope === "__total__"
+      ? "todas as colunas de mês neste período"
+      : monthLabel(sel.monthScope);
+
+  if (sel.kind === "income-category") {
+    return `Entradas › ${sel.category} — ${scopeTxt}`;
+  }
+  if (sel.kind === "expense-category") {
+    return `Saídas › ${sel.category} — ${scopeTxt}`;
+  }
+  if (sel.kind === "total-income") {
+    return `Total Entradas — ${scopeTxt}`;
+  }
+  if (sel.kind === "total-expense") {
+    return `Total Saídas — ${scopeTxt}`;
+  }
+  return `Saldo — ${scopeTxt}`;
+}
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -57,6 +148,7 @@ export default function PrevisaoFinanceiraPage() {
   const [endDate, setEndDate] = useState(defaultPeriod.endDate);
   const [items, setItems] = useState<ForecastItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [dreSelection, setDreSelection] = useState<DreCellSelection | null>(null);
 
   const loadData = async () => {
     if (!startDate || !endDate) {
@@ -67,13 +159,36 @@ export default function PrevisaoFinanceiraPage() {
     try {
       const data = await getFinancialForecast(startDate, endDate);
       setItems(data ?? []);
+      setDreSelection(null);
     } catch (error) {
       console.error("Failed to fetch forecast:", error);
       setItems([]);
+      setDreSelection(null);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const pickDreCell = useCallback((sel: DreCellSelection) => {
+    setDreSelection((prev) => (dreSelectionMatches(prev, sel) ? null : sel));
+  }, []);
+
+  const dreDetailItems = useMemo(() => {
+    const filtered = getItemsForDreSelection(dreSelection, items);
+    return [...filtered].sort((a, b) => {
+      if (a.month !== b.month) return a.month.localeCompare(b.month);
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return b.amount - a.amount;
+    });
+  }, [dreSelection, items]);
+
+  useEffect(() => {
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setDreSelection(null);
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, []);
 
   useEffect(() => {
     void loadData();
@@ -261,6 +376,10 @@ export default function PrevisaoFinanceiraPage() {
       <Card className="p-6 overflow-x-auto">
         <div className="mb-4">
           <h3 className="text-lg font-medium">Demonstrativo Financeiro (DRE Mensal)</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Clique em um valor (célula mensal ou coluna Total, linhas de totais e Saldo) para ver os
+            lançamentos que compõem esse somatório.
+          </p>
         </div>
 
         <Table>
@@ -278,7 +397,10 @@ export default function PrevisaoFinanceiraPage() {
           <TableBody>
             {months.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={2} className="py-10 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={months.length + 2}
+                  className="py-10 text-center text-muted-foreground"
+                >
                   Nenhuma previsão encontrada para o período informado.
                 </TableCell>
               </TableRow>
@@ -293,12 +415,45 @@ export default function PrevisaoFinanceiraPage() {
                 {dreData.incomeRows.map((row) => (
                   <TableRow key={`income-${row.category}`}>
                     <TableCell>{row.category}</TableCell>
-                    {months.map((month) => (
-                      <TableCell key={`income-${row.category}-${month}`} className="text-right">
-                        {formatCurrency(row.valuesByMonth[month] ?? 0)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-medium">
+                    {months.map((month) => {
+                      const sel: DreCellSelection = {
+                        kind: "income-category",
+                        category: row.category,
+                        monthScope: month,
+                      };
+                      return (
+                        <TableCell
+                          key={`income-${row.category}-${month}`}
+                          className={cn(
+                            "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                            dreSelectionMatches(dreSelection, sel) &&
+                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          )}
+                          onClick={() => pickDreCell(sel)}
+                          title="Ver lançamentos desta célula"
+                        >
+                          {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium cursor-pointer select-none transition-colors hover:bg-muted/60",
+                        dreSelectionMatches(dreSelection, {
+                          kind: "income-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                      )}
+                      onClick={() =>
+                        pickDreCell({
+                          kind: "income-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        })
+                      }
+                      title="Ver lançamentos no período da coluna Total"
+                    >
                       {formatCurrency(row.total)}
                     </TableCell>
                   </TableRow>
@@ -306,12 +461,39 @@ export default function PrevisaoFinanceiraPage() {
 
                 <TableRow className="bg-muted/20 font-semibold">
                   <TableCell>Total Entradas</TableCell>
-                  {months.map((month) => (
-                    <TableCell key={`total-income-${month}`} className="text-right">
-                      {formatCurrency(dreData.totalIncomeByMonth[month] ?? 0)}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right">
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "total-income",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`total-income-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver todas as receitas previstas neste mês"
+                      >
+                        {formatCurrency(dreData.totalIncomeByMonth[month] ?? 0)}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "total-income",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "total-income", monthScope: "__total__" })
+                    }
+                    title="Ver todas as receitas previstas no período"
+                  >
                     {formatCurrency(dreData.totalIncomeAll)}
                   </TableCell>
                 </TableRow>
@@ -325,12 +507,45 @@ export default function PrevisaoFinanceiraPage() {
                 {dreData.expenseRows.map((row) => (
                   <TableRow key={`expense-${row.category}`}>
                     <TableCell>{row.category}</TableCell>
-                    {months.map((month) => (
-                      <TableCell key={`expense-${row.category}-${month}`} className="text-right">
-                        {formatCurrency(row.valuesByMonth[month] ?? 0)}
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right font-medium">
+                    {months.map((month) => {
+                      const sel: DreCellSelection = {
+                        kind: "expense-category",
+                        category: row.category,
+                        monthScope: month,
+                      };
+                      return (
+                        <TableCell
+                          key={`expense-${row.category}-${month}`}
+                          className={cn(
+                            "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                            dreSelectionMatches(dreSelection, sel) &&
+                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          )}
+                          onClick={() => pickDreCell(sel)}
+                          title="Ver lançamentos desta célula"
+                        >
+                          {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium cursor-pointer select-none transition-colors hover:bg-muted/60",
+                        dreSelectionMatches(dreSelection, {
+                          kind: "expense-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                      )}
+                      onClick={() =>
+                        pickDreCell({
+                          kind: "expense-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        })
+                      }
+                      title="Ver lançamentos no período da coluna Total"
+                    >
                       {formatCurrency(row.total)}
                     </TableCell>
                   </TableRow>
@@ -338,27 +553,81 @@ export default function PrevisaoFinanceiraPage() {
 
                 <TableRow className="bg-muted/20 font-semibold">
                   <TableCell>Total Saídas</TableCell>
-                  {months.map((month) => (
-                    <TableCell key={`total-expense-${month}`} className="text-right">
-                      {formatCurrency(dreData.totalExpenseByMonth[month] ?? 0)}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right">
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "total-expense",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`total-expense-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver todas as despesas previstas neste mês"
+                      >
+                        {formatCurrency(dreData.totalExpenseByMonth[month] ?? 0)}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "total-expense",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "total-expense", monthScope: "__total__" })
+                    }
+                    title="Ver todas as despesas previstas no período"
+                  >
                     {formatCurrency(dreData.totalExpenseAll)}
                   </TableCell>
                 </TableRow>
 
                 <TableRow className="bg-primary/5 font-bold">
                   <TableCell>Saldo</TableCell>
-                  {months.map((month) => (
-                    <TableCell key={`balance-${month}`} className="text-right">
-                      {formatCurrency(
-                        (dreData.totalIncomeByMonth[month] ?? 0) -
-                          (dreData.totalExpenseByMonth[month] ?? 0)
-                      )}
-                    </TableCell>
-                  ))}
-                  <TableCell className="text-right">
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "balance",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`balance-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver receitas e despesas deste mês (lançamentos que formam o saldo)"
+                      >
+                        {formatCurrency(
+                          (dreData.totalIncomeByMonth[month] ?? 0) -
+                            (dreData.totalExpenseByMonth[month] ?? 0)
+                        )}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "balance",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "balance", monthScope: "__total__" })
+                    }
+                    title="Ver todos os lançamentos do período (receitas e despesas)"
+                  >
                     {formatCurrency(dreData.totalIncomeAll - dreData.totalExpenseAll)}
                   </TableCell>
                 </TableRow>
@@ -367,6 +636,67 @@ export default function PrevisaoFinanceiraPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {dreSelection && (
+        <Card className="p-6 overflow-x-auto">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Lançamentos do somatório</h3>
+              <p className="text-sm text-muted-foreground">
+                {describeDreSelection(dreSelection)}{" "}
+                <span className="opacity-75">• Pressione Escape para ocultar</span>
+              </p>
+            </div>
+            <Button variant="outline" size="sm" type="button" onClick={() => setDreSelection(null)}>
+              Limpar seleção
+            </Button>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mês</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Valor previsto</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dreDetailItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    Nenhum lançamento encontrado para esta combinação.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                dreDetailItems.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.month}</TableCell>
+                    <TableCell>{row.category}</TableCell>
+                    <TableCell
+                      className={
+                        row.type === "income" ? "text-emerald-600" : "text-red-600"
+                      }
+                    >
+                      {row.type === "income" ? "Receita" : "Despesa"}
+                    </TableCell>
+                    <TableCell className="capitalize">{row.status}</TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium tabular-nums",
+                        row.type === "income" ? "text-emerald-600" : "text-red-600"
+                      )}
+                    >
+                      {formatCurrency(row.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }
