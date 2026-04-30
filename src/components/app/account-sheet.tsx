@@ -34,25 +34,37 @@ import { Combobox } from "@/components/ui/combobox";
 import {
   createAccount,
   updateAccount,
+  getCategories,
   getContacts,
   type Account,
   type Contact,
 } from "@/lib/api";
 import { ContactSheet } from "./contact-sheet";
 
-const formSchema = z.object({
-  nome: z.string().min(1, "Informe o nome da conta"),
-  tipo: z.enum(["bank", "credit_card", "wallet"]),
-  agencia: z.string().optional(),
-  conta: z.string().optional(),
-  numeroCartao: z.string().optional(),
-  saldoInicial: z.number().optional(),
-  limiteDisponivel: z.number().optional(),
-  diaFechamento: z.number().min(1).max(31).optional(),
-  diaVencimento: z.number().min(1).max(31).optional(),
-  ativo: z.boolean(),
-  contactId: z.string().optional(),
-});
+const formSchema = z
+  .object({
+    nome: z.string().min(1, "Informe o nome da conta"),
+    tipo: z.enum(["bank", "credit_card", "wallet"]),
+    agencia: z.string().optional(),
+    conta: z.string().optional(),
+    numeroCartao: z.string().optional(),
+    categoriaId: z.string().optional(),
+    saldoInicial: z.number().optional(),
+    limiteDisponivel: z.number().optional(),
+    diaFechamento: z.number().min(1).max(31).optional(),
+    diaVencimento: z.number().min(1).max(31).optional(),
+    ativo: z.boolean(),
+    contactId: z.string().optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.tipo === "credit_card" && !values.categoriaId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["categoriaId"],
+        message: "Informe a categoria do cartão",
+      });
+    }
+  });
 
 type AccountSheetProps = {
   open: boolean;
@@ -71,6 +83,7 @@ export function AccountSheet({
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactSheetOpen, setContactSheetOpen] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -80,6 +93,7 @@ export function AccountSheet({
       agencia: "",
       conta: "",
       numeroCartao: "",
+      categoriaId: undefined,
       saldoInicial: 0,
       limiteDisponivel: 0,
       diaFechamento: undefined,
@@ -94,6 +108,7 @@ export function AccountSheet({
   useEffect(() => {
     if (open) {
       getContacts().then(setContacts).catch(console.error);
+      getCategories().then(setCategories).catch(console.error);
     }
   }, [open]);
 
@@ -105,6 +120,7 @@ export function AccountSheet({
         agencia: initialData.agency || "",
         conta: initialData.account || "",
         numeroCartao: formatCard(initialData.card_number || ""),
+        categoriaId: initialData.category_id || undefined,
         saldoInicial: initialData.initial_balance || 0,
         limiteDisponivel: initialData.available_limit || 0,
         diaFechamento: initialData.closing_day || undefined,
@@ -119,6 +135,7 @@ export function AccountSheet({
         agencia: "",
         conta: "",
         numeroCartao: "",
+        categoriaId: undefined,
         saldoInicial: 0,
         limiteDisponivel: 0,
         diaFechamento: undefined,
@@ -152,6 +169,8 @@ export function AccountSheet({
           values.tipo === "credit_card"
             ? values.numeroCartao?.replace(/\D/g, "")
             : undefined,
+        category_id:
+          values.tipo === "credit_card" ? values.categoriaId : undefined,
         initial_balance: values.saldoInicial,
         available_limit:
           values.tipo === "credit_card" ? values.limiteDisponivel : undefined,
@@ -283,6 +302,35 @@ export function AccountSheet({
                           }}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="categoriaId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria do Cartão</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
