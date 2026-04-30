@@ -27,6 +27,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getIncomes,
   deleteIncome,
   getContacts,
@@ -243,7 +248,7 @@ export default function ContasAReceberPage() {
         {view === "tabela" ? (
           <Card className="p-4">
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -267,7 +272,7 @@ export default function ContasAReceberPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => requestSort("vencimento")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[140px] cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       Vencimento{" "}
                       {sortConfig?.key === "vencimento" && (
@@ -275,7 +280,7 @@ export default function ContasAReceberPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[140px] text-right cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => requestSort("valor")}
                     >
                       Valor{" "}
@@ -285,7 +290,7 @@ export default function ContasAReceberPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => requestSort("status")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       Status{" "}
                       {sortConfig?.key === "status" && (
@@ -306,8 +311,11 @@ export default function ContasAReceberPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedItems.map((d) => (
-                      <TableRow key={d.id}>
+                    sortedItems.map((d) => {
+                      const cliente = d.displayCliente || "-";
+
+                      return (
+                        <TableRow key={d.id}>
                         <TableCell>
                           <input
                             type="checkbox"
@@ -316,7 +324,18 @@ export default function ContasAReceberPage() {
                             onChange={() => toggleSelect(d.id)}
                           />
                         </TableCell>
-                        <TableCell>{d.displayCliente}</TableCell>
+                        <TableCell>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="max-w-full truncate" title={cliente}>
+                                {cliente}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="start" sideOffset={6}>
+                              {cliente}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
                         <TableCell>
                           {d.vencimento
                             ? format(parseISO(d.vencimento), "dd/MM/yyyy")
@@ -372,7 +391,8 @@ export default function ContasAReceberPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
                 {selectedIds.size > 0 && (

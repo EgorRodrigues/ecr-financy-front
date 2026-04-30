@@ -25,8 +25,9 @@ export function NavUser({
     avatar?: string;
   };
 }) {
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state } = useSidebar();
   const { signOut } = useAuth();
+  const isCollapsed = state === "collapsed" && !isMobile;
 
   const handleLinkClick = () => {
     if (isMobile) {
@@ -40,17 +41,32 @@ export function NavUser({
         <Popover>
           <PopoverTrigger asChild>
             <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-14 px-3 gap-3"
+              size={isCollapsed ? "default" : "lg"}
+              tooltip={isCollapsed ? user.name : undefined}
+              className={
+                isCollapsed
+                  ? "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground justify-center"
+                  : "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground h-14 px-3 gap-3"
+              }
             >
-              <div className="h-10 w-10 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center">
-                <User className="h-5 w-5" />
+              <div
+                className={
+                  isCollapsed
+                    ? "h-8 w-8 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center shrink-0"
+                    : "h-10 w-10 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center shrink-0"
+                }
+              >
+                <User className={isCollapsed ? "h-4 w-4" : "h-5 w-5"} />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-snug">
-                <span className="truncate font-semibold">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              {!isCollapsed && (
+                <>
+                  <div className="grid flex-1 text-left text-sm leading-snug min-w-0">
+                    <span className="truncate font-semibold">{user.name}</span>
+                    <span className="truncate text-xs">{user.email}</span>
+                  </div>
+                  <ChevronsUpDown className="ml-auto size-4 shrink-0" />
+                </>
+              )}
             </SidebarMenuButton>
           </PopoverTrigger>
           <PopoverContent

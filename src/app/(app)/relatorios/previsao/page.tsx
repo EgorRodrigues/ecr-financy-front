@@ -1,14 +1,9 @@
 "use client";
 
-import { useMemo, useState, useEffect, startTransition } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -17,15 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSort } from "@/hooks/use-sort";
-import { ArrowUpDown, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { getFinancialForecast, type ForecastItem } from "@/lib/api";
-
+import { cn } from "@/lib/utils";
 import {
   ResponsiveContainer,
-  ComposedChart,
+  LineChart,
   Line,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -33,433 +25,693 @@ import {
   Legend,
 } from "recharts";
 
-function ForecastChart({ data }: { data: ForecastItem[] }) {
-  // Aggregate by month and type
-  const aggregated = useMemo(() => {
-    const months = Array.from(new Set(data.map((d) => d.month))).sort();
+type DreRow = {
+  category: string;
+  valuesByMonth: Record<string, number>;
+  total: number;
+};
 
-    return months.map((month) => {
-      const monthData = data.filter((d) => d.month === month);
-      const income = monthData
-        .filter((d) => d.type === "income")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const expense = monthData
-        .filter((d) => d.type === "expense")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const balance = income - expense;
+/** Uma interseção da tabela que o usuário clicou para ver os lançamentos. */
+type DreCellSelection =
+  | {
+      kind: "income-category" | "expense-category";
+      category: string;
+      monthScope: string | "__total__";
+    }
+  | {
+      kind: "total-income" | "total-expense" | "balance";
+      monthScope: string | "__total__";
+    };
 
-      // Format date for display
-      const [y, m] = month.split("-");
-      const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-      const label = date.toLocaleString("pt-BR", {
-        month: "short",
-        year: "2-digit",
-      });
-
-      return {
-        month,
-        label,
-        income,
-        expense,
-        balance,
-      };
-    });
-  }, [data]);
-
-  if (aggregated.length === 0) {
-    return (
-      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Nenhum dado para exibir no gráfico neste período
-      </div>
-    );
+function dreSelectionMatches(a: DreCellSelection | null, b: DreCellSelection | null) {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  if (a.kind !== b.kind || a.monthScope !== b.monthScope) return false;
+  if ("category" in a && "category" in b) {
+    return a.category === b.category;
   }
-
-  return (
-    <div className="w-full h-[450px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart
-          data={aggregated}
-          margin={{
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={10}
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(value) =>
-              value.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                notation: "compact",
-              })
-            }
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <Tooltip
-            formatter={(value: number | undefined) =>
-              Number(value || 0).toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })
-            }
-            contentStyle={{ borderRadius: "8px" }}
-          />
-          <Legend />
-
-          {/* Income Area & Line */}
-          <defs>
-            <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-              <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-
-          <Area
-            type="monotone"
-            dataKey="income"
-            name="Receitas"
-            fill="url(#colorIncome)"
-            stroke="#10b981"
-            strokeWidth={2}
-          />
-          <Area
-            type="monotone"
-            dataKey="expense"
-            name="Despesas"
-            fill="url(#colorExpense)"
-            stroke="#ef4444"
-            strokeWidth={2}
-          />
-          <Line
-            type="monotone"
-            dataKey="balance"
-            name="Saldo"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            dot={{ r: 4, strokeWidth: 2 }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  if ("category" in a || "category" in b) return false;
+  return true;
 }
 
-function AccumulatedBalanceChart({ data }: { data: ForecastItem[] }) {
-  const aggregated = useMemo(() => {
-    const months = Array.from(new Set(data.map((d) => d.month))).sort();
+function getItemsForDreSelection(
+  selection: DreCellSelection | null,
+  rows: ForecastItem[]
+): ForecastItem[] {
+  if (!selection) return [];
 
-    // First calculate monthly balances
-    const monthlyBalances = months.map((month) => {
-      const monthData = data.filter((d) => d.month === month);
-      const income = monthData
-        .filter((d) => d.type === "income")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      const expense = monthData
-        .filter((d) => d.type === "expense")
-        .reduce((acc, curr) => acc + curr.amount, 0);
-      return { month, net: income - expense };
-    });
+  const byMonth =
+    selection.monthScope === "__total__"
+      ? undefined
+      : selection.monthScope;
 
-    // Then calculate running totals using reduce to avoid side effects
-    const result: { month: string; value: number; label: string }[] = [];
-    monthlyBalances.reduce((acc, curr) => {
-      const newVal = acc + curr.net;
-      // Format date for display
-      const [y, m] = curr.month.split("-");
-      const date = new Date(parseInt(y), parseInt(m) - 1, 1);
-      const label = date.toLocaleString("pt-BR", {
-        month: "short",
-        year: "2-digit",
-      });
-
-      result.push({ month: curr.month, value: newVal, label });
-      return newVal;
-    }, 0);
-
-    return result;
-  }, [data]);
-
-  if (aggregated.length === 0) {
-    return (
-      <div className="flex h-[450px] w-full items-center justify-center text-sm text-muted-foreground border rounded-md bg-muted/10">
-        Nenhum dado para exibir no gráfico neste período
-      </div>
-    );
+  switch (selection.kind) {
+    case "income-category":
+      return rows.filter(
+        (r) =>
+          r.type === "income" &&
+          r.category === selection.category &&
+          (byMonth === undefined || r.month === byMonth)
+      );
+    case "expense-category":
+      return rows.filter(
+        (r) =>
+          r.type === "expense" &&
+          r.category === selection.category &&
+          (byMonth === undefined || r.month === byMonth)
+      );
+    case "total-income":
+      return rows.filter(
+        (r) => r.type === "income" && (byMonth === undefined || r.month === byMonth)
+      );
+    case "total-expense":
+      return rows.filter(
+        (r) => r.type === "expense" && (byMonth === undefined || r.month === byMonth)
+      );
+    case "balance":
+      return rows.filter((r) =>
+        byMonth === undefined ? true : r.month === byMonth
+      );
+    default:
+      return [];
   }
+}
 
-  return (
-    <div className="w-full h-[450px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <ComposedChart
-          data={aggregated}
-          margin={{
-            top: 20,
-            right: 20,
-            bottom: 20,
-            left: 20,
-          }}
-        >
-          <defs>
-            <linearGradient id="gradient-acc" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis
-            dataKey="label"
-            tickLine={false}
-            axisLine={false}
-            tickMargin={10}
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <YAxis
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(value) =>
-              value.toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-                notation: "compact",
-              })
-            }
-            fontSize={12}
-            stroke="#6b7280"
-          />
-          <Tooltip
-            formatter={(value: number | undefined) =>
-              Number(value || 0).toLocaleString("pt-BR", {
-                style: "currency",
-                currency: "BRL",
-              })
-            }
-            contentStyle={{ borderRadius: "8px" }}
-          />
-          <Legend />
+function describeDreSelection(sel: DreCellSelection): string {
+  const monthLabel = (month: string) =>
+    `${formatMonthLabel(month)} (${month})`;
 
-          <Area
-            type="monotone"
-            dataKey="value"
-            name="Saldo Acumulado"
-            fill="url(#gradient-acc)"
-            stroke="#8b5cf6"
-            strokeWidth={3}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  const scopeTxt =
+    sel.monthScope === "__total__"
+      ? "todas as colunas de mês neste período"
+      : monthLabel(sel.monthScope);
+
+  if (sel.kind === "income-category") {
+    return `Entradas › ${sel.category} — ${scopeTxt}`;
+  }
+  if (sel.kind === "expense-category") {
+    return `Saídas › ${sel.category} — ${scopeTxt}`;
+  }
+  if (sel.kind === "total-income") {
+    return `Total Entradas — ${scopeTxt}`;
+  }
+  if (sel.kind === "total-expense") {
+    return `Total Saídas — ${scopeTxt}`;
+  }
+  return `Saldo — ${scopeTxt}`;
+}
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function formatMonthLabel(month: string) {
+  const [year, numericMonth] = month.split("-");
+  const date = new Date(Number(year), Number(numericMonth) - 1, 1);
+  return date.toLocaleString("pt-BR", { month: "short", year: "2-digit" });
+}
+
+function buildDefaultPeriod() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 5, 0);
+  const toIsoDate = (date: Date) => date.toISOString().split("T")[0];
+  return { startDate: toIsoDate(start), endDate: toIsoDate(end) };
 }
 
 export default function PrevisaoFinanceiraPage() {
+  const defaultPeriod = useMemo(() => buildDefaultPeriod(), []);
+  const [startDate, setStartDate] = useState(defaultPeriod.startDate);
+  const [endDate, setEndDate] = useState(defaultPeriod.endDate);
   const [items, setItems] = useState<ForecastItem[]>([]);
-  const [monthsRange, setMonthsRange] = useState("6");
+  const [isLoading, setIsLoading] = useState(false);
+  const [dreSelection, setDreSelection] = useState<DreCellSelection | null>(null);
 
-  const { items: sortedItems, requestSort, sortConfig } = useSort(items);
+  const loadData = async () => {
+    if (!startDate || !endDate) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const data = await getFinancialForecast(startDate, endDate);
+      setItems(data ?? []);
+      setDreSelection(null);
+    } catch (error) {
+      console.error("Failed to fetch forecast:", error);
+      setItems([]);
+      setDreSelection(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const pickDreCell = useCallback((sel: DreCellSelection) => {
+    setDreSelection((prev) => (dreSelectionMatches(prev, sel) ? null : sel));
+  }, []);
+
+  const dreDetailItems = useMemo(() => {
+    const filtered = getItemsForDreSelection(dreSelection, items);
+    return [...filtered].sort((a, b) => {
+      if (a.month !== b.month) return a.month.localeCompare(b.month);
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return b.amount - a.amount;
+    });
+  }, [dreSelection, items]);
 
   useEffect(() => {
-    // Calculate date range: current month to selected months ahead
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(
-      now.getFullYear(),
-      now.getMonth() + parseInt(monthsRange),
-      0
-    ); // Last day of target month
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setDreSelection(null);
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, []);
 
-    const formatDate = (d: Date) => d.toISOString().split("T")[0];
+  useEffect(() => {
+    void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    getFinancialForecast(formatDate(start), formatDate(end))
-      .then((data) => {
-        if (data) {
-          startTransition(() => setItems(data));
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch forecast:", err);
-      });
-  }, [monthsRange]);
+  const months = useMemo(
+    () => Array.from(new Set(items.map((item) => item.month))).sort(),
+    [items]
+  );
+
+  const chartData = useMemo(() => {
+    let accumulatedBalance = 0;
+    return months.map((month) => {
+      const monthData = items.filter((item) => item.month === month);
+      const income = monthData
+        .filter((item) => item.type === "income")
+        .reduce((sum, item) => sum + item.amount, 0);
+      const expense = monthData
+        .filter((item) => item.type === "expense")
+        .reduce((sum, item) => sum + item.amount, 0);
+      const balance = income - expense;
+      accumulatedBalance += balance;
+
+      return {
+        month,
+        label: formatMonthLabel(month),
+        income,
+        expense,
+        balance,
+        accumulatedBalance,
+      };
+    });
+  }, [items, months]);
+
+  const dreData = useMemo(() => {
+    const incomes: Record<string, Record<string, number>> = {};
+    const expenses: Record<string, Record<string, number>> = {};
+
+    items.forEach((item) => {
+      const target = item.type === "income" ? incomes : expenses;
+      if (!target[item.category]) {
+        target[item.category] = {};
+      }
+      target[item.category][item.month] =
+        (target[item.category][item.month] ?? 0) + item.amount;
+    });
+
+    const mapToRows = (source: Record<string, Record<string, number>>): DreRow[] =>
+      Object.entries(source)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([category, valuesByMonth]) => {
+          const total = months.reduce(
+            (sum, month) => sum + (valuesByMonth[month] ?? 0),
+            0
+          );
+          return { category, valuesByMonth, total };
+        });
+
+    const incomeRows = mapToRows(incomes);
+    const expenseRows = mapToRows(expenses);
+
+    const totalIncomeByMonth = months.reduce<Record<string, number>>(
+      (acc, month) => {
+        acc[month] = incomeRows.reduce(
+          (sum, row) => sum + (row.valuesByMonth[month] ?? 0),
+          0
+        );
+        return acc;
+      },
+      {}
+    );
+
+    const totalExpenseByMonth = months.reduce<Record<string, number>>(
+      (acc, month) => {
+        acc[month] = expenseRows.reduce(
+          (sum, row) => sum + (row.valuesByMonth[month] ?? 0),
+          0
+        );
+        return acc;
+      },
+      {}
+    );
+
+    const totalIncomeAll = incomeRows.reduce((sum, row) => sum + row.total, 0);
+    const totalExpenseAll = expenseRows.reduce((sum, row) => sum + row.total, 0);
+
+    return {
+      incomeRows,
+      expenseRows,
+      totalIncomeByMonth,
+      totalExpenseByMonth,
+      totalIncomeAll,
+      totalExpenseAll,
+    };
+  }, [items, months]);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold tracking-tight">
-          Previsão Financeira
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Período:</span>
-          <Select value={monthsRange} onValueChange={setMonthsRange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecione o período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="3">3 meses</SelectItem>
-              <SelectItem value="6">6 meses</SelectItem>
-              <SelectItem value="9">9 meses</SelectItem>
-              <SelectItem value="12">12 meses</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Previsão Financeira</h2>
+          <p className="text-sm text-muted-foreground">
+            Modelo novo inspirado no protótipo, mantendo o layout do sistema.
+          </p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium">
-              Fluxo Previsto (Receitas vs Despesas)
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              Comparativo de entradas e saídas previstas para os próximos meses.
-            </p>
-          </div>
-          <ForecastChart data={items} />
-        </Card>
-
-        <Card className="p-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-medium">Saldo Acumulado</h3>
-            <p className="text-sm text-muted-foreground">
-              Evolução do saldo acumulado ao longo do período.
-            </p>
-          </div>
-          <AccumulatedBalanceChart data={items} />
-        </Card>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="w-full sm:w-[170px]"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="w-full sm:w-[170px]"
+          />
+          <Button onClick={() => void loadData()} disabled={isLoading}>
+            {isLoading ? "Carregando..." : "Carregar"}
+          </Button>
+        </div>
       </div>
 
       <Card className="p-6">
         <div className="mb-4">
-          <h3 className="text-lg font-medium">Detalhamento</h3>
+          <h3 className="text-lg font-medium">
+            Fluxo Previsto (Receitas, Despesas, Saldo e Saldo acumulado)
+          </h3>
         </div>
+
+        {chartData.length === 0 ? (
+          <div className="flex h-[360px] items-center justify-center rounded-md border bg-muted/10 text-sm text-muted-foreground">
+            Nenhum dado para o período selecionado.
+          </div>
+        ) : (
+          <div className="h-[360px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) =>
+                    Number(value).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                      notation: "compact",
+                    })
+                  }
+                />
+                <Tooltip
+                  formatter={(value: number | undefined) =>
+                    formatCurrency(Number(value ?? 0))
+                  }
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  name="Receitas"
+                  stroke="#16a34a"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expense"
+                  name="Despesas"
+                  stroke="#dc2626"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  name="Saldo"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="accumulatedBalance"
+                  name="Saldo acumulado"
+                  stroke="#8b5cf6"
+                  strokeWidth={3}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6 overflow-x-auto">
+        <div className="mb-4">
+          <h3 className="text-lg font-medium">Demonstrativo Financeiro (DRE Mensal)</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Clique em um valor (célula mensal ou coluna Total, linhas de totais e Saldo) para ver os
+            lançamentos que compõem esse somatório.
+          </p>
+        </div>
+
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead
-                onClick={() => requestSort("month")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Mês{" "}
-                {sortConfig?.key === "month" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("type")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Tipo{" "}
-                {sortConfig?.key === "type" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("category")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Categoria{" "}
-                {sortConfig?.key === "category" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                onClick={() => requestSort("status")}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-              >
-                Status{" "}
-                {sortConfig?.key === "status" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
-              <TableHead
-                className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => requestSort("amount")}
-              >
-                Valor Previsto{" "}
-                {sortConfig?.key === "amount" && (
-                  <ArrowUpDown className="ml-2 h-4 w-4 inline" />
-                )}
-              </TableHead>
+              <TableHead>Categoria</TableHead>
+              {months.map((month) => (
+                <TableHead key={`head-${month}`} className="text-right min-w-[120px]">
+                  {formatMonthLabel(month)}
+                </TableHead>
+              ))}
+              <TableHead className="text-right min-w-[120px]">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedItems.length === 0 ? (
+            {months.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
-                  className="text-center py-8 text-muted-foreground"
+                  colSpan={months.length + 2}
+                  className="py-10 text-center text-muted-foreground"
                 >
-                  Nenhuma previsão encontrada para o período.
+                  Nenhuma previsão encontrada para o período informado.
                 </TableCell>
               </TableRow>
             ) : (
-              sortedItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.month}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {item.type === "income" ? (
-                        <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-                      ) : (
-                        <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                      )}
-                      <span
-                        className={
-                          item.type === "income"
-                            ? "text-emerald-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {item.type === "income" ? "Receita" : "Despesa"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.category}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        item.status === "confirmado"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-blue-100 text-blue-700"
-                      }`}
-                    >
-                      {item.status === "confirmado"
-                        ? "Confirmado"
-                        : "Projetado"}
-                    </span>
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-medium ${item.type === "income" ? "text-emerald-600" : "text-red-600"}`}
-                  >
-                    {item.type === "expense" ? "- " : "+ "}
-                    {item.amount.toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
+              <>
+                <TableRow className="bg-muted/40">
+                  <TableCell className="font-semibold" colSpan={months.length + 2}>
+                    Entradas
                   </TableCell>
                 </TableRow>
-              ))
+
+                {dreData.incomeRows.map((row) => (
+                  <TableRow key={`income-${row.category}`}>
+                    <TableCell>{row.category}</TableCell>
+                    {months.map((month) => {
+                      const sel: DreCellSelection = {
+                        kind: "income-category",
+                        category: row.category,
+                        monthScope: month,
+                      };
+                      return (
+                        <TableCell
+                          key={`income-${row.category}-${month}`}
+                          className={cn(
+                            "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                            dreSelectionMatches(dreSelection, sel) &&
+                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          )}
+                          onClick={() => pickDreCell(sel)}
+                          title="Ver lançamentos desta célula"
+                        >
+                          {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium cursor-pointer select-none transition-colors hover:bg-muted/60",
+                        dreSelectionMatches(dreSelection, {
+                          kind: "income-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                      )}
+                      onClick={() =>
+                        pickDreCell({
+                          kind: "income-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        })
+                      }
+                      title="Ver lançamentos no período da coluna Total"
+                    >
+                      {formatCurrency(row.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow className="bg-muted/20 font-semibold">
+                  <TableCell>Total Entradas</TableCell>
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "total-income",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`total-income-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver todas as receitas previstas neste mês"
+                      >
+                        {formatCurrency(dreData.totalIncomeByMonth[month] ?? 0)}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "total-income",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "total-income", monthScope: "__total__" })
+                    }
+                    title="Ver todas as receitas previstas no período"
+                  >
+                    {formatCurrency(dreData.totalIncomeAll)}
+                  </TableCell>
+                </TableRow>
+
+                <TableRow className="bg-muted/40">
+                  <TableCell className="font-semibold" colSpan={months.length + 2}>
+                    Saídas
+                  </TableCell>
+                </TableRow>
+
+                {dreData.expenseRows.map((row) => (
+                  <TableRow key={`expense-${row.category}`}>
+                    <TableCell>{row.category}</TableCell>
+                    {months.map((month) => {
+                      const sel: DreCellSelection = {
+                        kind: "expense-category",
+                        category: row.category,
+                        monthScope: month,
+                      };
+                      return (
+                        <TableCell
+                          key={`expense-${row.category}-${month}`}
+                          className={cn(
+                            "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                            dreSelectionMatches(dreSelection, sel) &&
+                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          )}
+                          onClick={() => pickDreCell(sel)}
+                          title="Ver lançamentos desta célula"
+                        >
+                          {formatCurrency(row.valuesByMonth[month] ?? 0)}
+                        </TableCell>
+                      );
+                    })}
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium cursor-pointer select-none transition-colors hover:bg-muted/60",
+                        dreSelectionMatches(dreSelection, {
+                          kind: "expense-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                      )}
+                      onClick={() =>
+                        pickDreCell({
+                          kind: "expense-category",
+                          category: row.category,
+                          monthScope: "__total__",
+                        })
+                      }
+                      title="Ver lançamentos no período da coluna Total"
+                    >
+                      {formatCurrency(row.total)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+
+                <TableRow className="bg-muted/20 font-semibold">
+                  <TableCell>Total Saídas</TableCell>
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "total-expense",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`total-expense-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver todas as despesas previstas neste mês"
+                      >
+                        {formatCurrency(dreData.totalExpenseByMonth[month] ?? 0)}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "total-expense",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "total-expense", monthScope: "__total__" })
+                    }
+                    title="Ver todas as despesas previstas no período"
+                  >
+                    {formatCurrency(dreData.totalExpenseAll)}
+                  </TableCell>
+                </TableRow>
+
+                <TableRow className="bg-primary/5 font-bold">
+                  <TableCell>Saldo</TableCell>
+                  {months.map((month) => {
+                    const sel: DreCellSelection = {
+                      kind: "balance",
+                      monthScope: month,
+                    };
+                    return (
+                      <TableCell
+                        key={`balance-${month}`}
+                        className={cn(
+                          "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                          dreSelectionMatches(dreSelection, sel) &&
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                        )}
+                        onClick={() => pickDreCell(sel)}
+                        title="Ver receitas e despesas deste mês (lançamentos que formam o saldo)"
+                      >
+                        {formatCurrency(
+                          (dreData.totalIncomeByMonth[month] ?? 0) -
+                            (dreData.totalExpenseByMonth[month] ?? 0)
+                        )}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell
+                    className={cn(
+                      "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
+                      dreSelectionMatches(dreSelection, {
+                        kind: "balance",
+                        monthScope: "__total__",
+                      }) && "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                    )}
+                    onClick={() =>
+                      pickDreCell({ kind: "balance", monthScope: "__total__" })
+                    }
+                    title="Ver todos os lançamentos do período (receitas e despesas)"
+                  >
+                    {formatCurrency(dreData.totalIncomeAll - dreData.totalExpenseAll)}
+                  </TableCell>
+                </TableRow>
+              </>
             )}
           </TableBody>
         </Table>
       </Card>
+
+      {dreSelection && (
+        <Card className="p-6 overflow-x-auto">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Lançamentos do somatório</h3>
+              <p className="text-sm text-muted-foreground">
+                {describeDreSelection(dreSelection)}{" "}
+                <span className="opacity-75">• Pressione Escape para ocultar</span>
+              </p>
+            </div>
+            <Button variant="outline" size="sm" type="button" onClick={() => setDreSelection(null)}>
+              Limpar seleção
+            </Button>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Mês</TableHead>
+                <TableHead>Categoria</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Valor previsto</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dreDetailItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Nenhum lançamento encontrado para esta combinação.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                dreDetailItems.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.month}</TableCell>
+                    <TableCell>{row.category}</TableCell>
+                    <TableCell className="min-w-[280px]">
+                      {row.description?.trim() ? row.description : "-"}
+                    </TableCell>
+                    <TableCell
+                      className={
+                        row.type === "income" ? "text-emerald-600" : "text-red-600"
+                      }
+                    >
+                      {row.type === "income" ? "Receita" : "Despesa"}
+                    </TableCell>
+                    <TableCell className="capitalize">{row.status}</TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium tabular-nums",
+                        row.type === "income" ? "text-emerald-600" : "text-red-600"
+                      )}
+                    >
+                      {formatCurrency(row.amount)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

@@ -424,6 +424,7 @@ export type AccountInput = {
   agency?: string;
   account?: string;
   card_number?: string;
+  category_id?: string;
   initial_balance?: number;
   available_limit?: number;
   closing_day?: number;
@@ -439,6 +440,7 @@ export type Account = {
   agency?: string | null;
   account?: string | null;
   card_number?: string | null;
+  category_id?: string | null;
   initial_balance?: number | null;
   available_limit?: number | null;
   closing_day?: number | null;
@@ -727,6 +729,7 @@ export type ForecastItem = {
   id: string;
   month: string; // YYYY-MM
   category: string;
+  description?: string | null;
   amount: number;
   status: "projetado" | "confirmado";
   type: "income" | "expense";

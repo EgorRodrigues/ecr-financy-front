@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   getAccounts,
+  getAccount,
   deleteAccount,
   type Account,
 } from "@/lib/api";
@@ -49,10 +50,15 @@ export default function CadastroContasPage() {
     setSheetOpen(true);
   }
 
-  function openEdit(id: string) {
-    const account = items.find((i) => i.id === id) || null;
-    setSelectedAccount(account);
+  async function openEdit(id: string) {
+    setSelectedAccount(null);
     setSheetOpen(true);
+    try {
+      const account = await getAccount(id);
+      setSelectedAccount(account);
+    } catch {
+      setSelectedAccount(items.find((i) => i.id === id) || null);
+    }
   }
 
   async function remove(id: string) {
@@ -183,7 +189,7 @@ export default function CadastroContasPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => openEdit(i.id)}
+                        onClick={() => void openEdit(i.id)}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>

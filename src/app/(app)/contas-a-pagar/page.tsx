@@ -27,6 +27,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getExpenses,
   deleteExpense,
   getContacts,
@@ -235,7 +240,7 @@ export default function ContasAPagarPage() {
         {view === "tabela" ? (
           <Card className="p-4">
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px]">
@@ -259,7 +264,7 @@ export default function ContasAPagarPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => requestSort("vencimento")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[140px] cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       Vencimento{" "}
                       {sortConfig?.key === "vencimento" && (
@@ -267,7 +272,7 @@ export default function ContasAPagarPage() {
                       )}
                     </TableHead>
                     <TableHead
-                      className="text-right cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[140px] text-right cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => requestSort("valor")}
                     >
                       Valor{" "}
@@ -277,14 +282,14 @@ export default function ContasAPagarPage() {
                     </TableHead>
                     <TableHead
                       onClick={() => requestSort("status")}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      className="w-[120px] cursor-pointer hover:bg-muted/50 transition-colors"
                     >
                       Status{" "}
                       {sortConfig?.key === "status" && (
                         <ArrowUpDown className="ml-2 h-4 w-4 inline" />
                       )}
                     </TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="w-[140px] text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -298,8 +303,11 @@ export default function ContasAPagarPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedItems.map((d) => (
-                      <TableRow key={d.id}>
+                    sortedItems.map((d) => {
+                      const fornecedor = d.displayFornecedor || "-";
+
+                      return (
+                        <TableRow key={d.id}>
                         <TableCell>
                           <input
                             type="checkbox"
@@ -308,7 +316,18 @@ export default function ContasAPagarPage() {
                             onChange={() => toggleSelect(d.id)}
                           />
                         </TableCell>
-                        <TableCell>{d.displayFornecedor}</TableCell>
+                        <TableCell>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="max-w-full truncate" title={fornecedor}>
+                                {fornecedor}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="start" sideOffset={6}>
+                              {fornecedor}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
                         <TableCell>
                           {d.vencimento
                             ? format(parseISO(d.vencimento), "dd/MM/yyyy")
@@ -364,7 +383,8 @@ export default function ContasAPagarPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
                 {selectedIds.size > 0 && (

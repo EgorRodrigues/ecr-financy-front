@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Previsão Financeira</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 30px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        td:first-child,
+        th:first-child {
+            text-align: left;
+        }
+
+        .group-title th {
+            background: #e8e8e8;
+            font-size: 16px;
+        }
+
+        .total {
+            font-weight: bold;
+            background: #fafafa;
+        }
+
+        .balance {
+            font-weight: bold;
+            border-top: 2px solid black;
+            background: #f3f3f3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Previsão Financeira</h2>
+
+        <div class="filters">
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+            <button onclick="loadData()">Carregar</button>
+        </div>
+
+        <canvas id="chart"></canvas>
+
+        <h3>Demonstrativo Financeiro (DRE Mensal)</h3>
+        <div id="table-container"></div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8000/financial-forecast/";
+        const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiRWdvciIsImVtYWlsIjoiZWdvci5yb2RyaWd1ZXNAZ21haWwuY29tIiwic3ViIjoiYjI0Mjc2YTAtY2MzZi00ZDNhLTkwZTktZGEzYjBkYmFhZmMzIiwiaWF0IjoxNzc3MjE5MTE5LCJleHAiOjE3NzcyMTk3MTl9.Y6GiSAaoKqNmrESf2cVXleVgWPirTbORB8XAAsFoVO8"; // coloque seu token aqui
+
+        let chart;
+
+        async function loadData() {
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+
+            if (!startDate || !endDate) {
+                alert("Selecione as datas");
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}?startDate=${startDate}&endDate=${endDate}`, {
+                    headers: {
+                        "Authorization": `Bearer ${TOKEN}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const data = await response.json();
+
+                renderChart(data);
+                renderTable(data);
+
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao carregar dados");
+            }
+        }
+
+        // -------- GRAFICO --------
+        function renderChart(data) {
+            const grouped = {};
+
+            data.forEach(item => {
+                if (!grouped[item.month]) {
+                    grouped[item.month] = { income: 0, expense: 0 };
+                }
+
+                if (item.type === "income") {
+                    grouped[item.month].income += item.amount;
+                } else {
+                    grouped[item.month].expense += item.amount;
+                }
+            });
+
+            const months = Object.keys(grouped).sort();
+
+            const incomes = [];
+            const expenses = [];
+            const balances = [];
+
+            months.forEach(m => {
+                const inc = grouped[m].income;
+                const exp = grouped[m].expense;
+
+                incomes.push(inc);
+                expenses.push(exp);
+                balances.push(inc - exp);
+            });
+
+            const ctx = document.getElementById("chart");
+
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: months,
+                    datasets: [
+                        { label: "Receitas", data: incomes },
+                        { label: "Despesas", data: expenses },
+                        { label: "Saldo", data: balances }
+                    ]
+                }
+            });
+        }
+
+        // -------- TABELA DRE --------
+        function renderTable(data) {
+            const monthsSet = new Set();
+            const income = {};
+            const expense = {};
+
+            data.forEach(item => {
+                const { month, category, type, amount } = item;
+
+                monthsSet.add(month);
+
+                const target = type === "income" ? income : expense;
+
+                if (!target[category]) target[category] = {};
+                if (!target[category][month]) target[category][month] = 0;
+
+                target[category][month] += amount;
+            });
+
+            const months = Array.from(monthsSet).sort();
+
+            let html = "<table>";
+
+            // HEADER
+            html += "<tr><th>Categoria</th>";
+            months.forEach(m => html += `<th>${m}</th>`);
+            html += "<th>Total</th></tr>";
+
+            // -------- ENTRADAS --------
+            html += `<tr class="group-title"><th colspan="${months.length + 2}">Entradas</th></tr>`;
+
+            let totalIncomeByMonth = {};
+            let totalIncomeAll = 0;
+
+            Object.keys(income).forEach(cat => {
+                let rowTotal = 0;
+
+                html += `<tr><td>${cat}</td>`;
+
+                months.forEach(m => {
+                    const value = income[cat][m] || 0;
+
+                    rowTotal += value;
+                    totalIncomeByMonth[m] = (totalIncomeByMonth[m] || 0) + value;
+
+                    html += `<td>${format(value)}</td>`;
+                });
+
+                totalIncomeAll += rowTotal;
+
+                html += `<td><strong>${format(rowTotal)}</strong></td></tr>`;
+            });
+
+            html += `<tr class="total"><td>Total Entradas</td>`;
+            months.forEach(m => html += `<td>${format(totalIncomeByMonth[m] || 0)}</td>`);
+            html += `<td>${format(totalIncomeAll)}</td></tr>`;
+
+            // -------- SAÍDAS --------
+            html += `<tr class="group-title"><th colspan="${months.length + 2}">Saídas</th></tr>`;
+
+            let totalExpenseByMonth = {};
+            let totalExpenseAll = 0;
+
+            Object.keys(expense).forEach(cat => {
+                let rowTotal = 0;
+
+                html += `<tr><td>${cat}</td>`;
+
+                months.forEach(m => {
+                    const value = expense[cat][m] || 0;
+
+                    rowTotal += value;
+                    totalExpenseByMonth[m] = (totalExpenseByMonth[m] || 0) + value;
+
+                    html += `<td>${format(value)}</td>`;
+                });
+
+                totalExpenseAll += rowTotal;
+
+                html += `<td><strong>${format(rowTotal)}</strong></td></tr>`;
+            });
+
+            html += `<tr class="total"><td>Total Saídas</td>`;
+            months.forEach(m => html += `<td>${format(totalExpenseByMonth[m] || 0)}</td>`);
+            html += `<td>${format(totalExpenseAll)}</td></tr>`;
+
+            // -------- SALDO --------
+            html += `<tr class="balance"><td>Saldo</td>`;
+
+            months.forEach(m => {
+                const balance = (totalIncomeByMonth[m] || 0) - (totalExpenseByMonth[m] || 0);
+                html += `<td>${format(balance)}</td>`;
+            });
+
+            html += `<td>${format(totalIncomeAll - totalExpenseAll)}</td></tr>`;
+
+            html += "</table>";
+
+            document.getElementById("table-container").innerHTML = html;
+        }
+
+        function format(value) {
+            return value.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+            });
+        }
+
+        // default
+        document.getElementById("startDate").value = "2026-04-01";
+        document.getElementById("endDate").value = "2026-06-30";
+
+    </script>
+
+</body>
+
+</html>
