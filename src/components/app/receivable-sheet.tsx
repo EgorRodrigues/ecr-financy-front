@@ -7,12 +7,12 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -48,6 +48,14 @@ import { SubcategorySheet } from "@/components/app/subcategory-sheet";
 import { CostCenterSheet } from "@/components/app/cost-center-sheet";
 import { Combobox } from "@/components/ui/combobox";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const formSchema = z.object({
   valor: z.number().min(0.01, "Informe o valor"),
@@ -112,6 +120,25 @@ export function ReceivableSheet({
   const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false);
   const [costCenterSheetOpen, setCostCenterSheetOpen] = useState(false);
+  const [createdGroup, setCreatedGroup] = useState<{
+    id: string;
+    description?: string;
+    amount_total: string;
+    installments_total: number;
+    issue_date: string;
+    first_due_date: string;
+  } | null>(null);
+  const [createdIncomes, setCreatedIncomes] = useState<
+    Array<{
+      id: string;
+      due_date?: string | null;
+      amount: string | number;
+      status: string;
+      installment_number?: number | null;
+      installments_total?: number | null;
+      description?: string | null;
+    }>
+  >([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -160,6 +187,8 @@ export function ReceivableSheet({
   useEffect(() => {
     if (open) {
       loadDependencies();
+      setCreatedGroup(null);
+      setCreatedIncomes([]);
     }
   }, [open]);
 
@@ -312,7 +341,7 @@ export function ReceivableSheet({
 
         if (shouldCreateInstallments) {
           const n = Math.max(2, values.parcelas);
-          await createIncomeInstallments({
+          const res = await createIncomeInstallments({
             amount_total: Math.abs(values.valor),
             installments_total: n,
             issue_date: values.dataEmissao,
@@ -341,6 +370,21 @@ export function ReceivableSheet({
             notes: values.observacoes || undefined,
             active: true,
           });
+          setCreatedGroup(res.group);
+          setCreatedIncomes(
+            res.incomes.map((i) => ({
+              id: i.id,
+              due_date: i.due_date ?? null,
+              amount: (i as unknown as { amount: string | number }).amount,
+              status: i.status,
+              installment_number: (i as unknown as { installment_number?: number | null })
+                .installment_number,
+              installments_total: (i as unknown as { installments_total?: number | null })
+                .installments_total,
+              description: i.description ?? null,
+            }))
+          );
+          onSuccess?.();
         } else {
           const payload: TransactionInput = {
             amount: values.valor,
@@ -373,12 +417,17 @@ export function ReceivableSheet({
             active: true,
           };
           await createIncome(payload);
+          form.reset();
+          onSuccess?.();
+          onOpenChange(false);
         }
       }
 
-      form.reset();
-      onSuccess?.();
-      onOpenChange(false);
+      if (initialData) {
+        form.reset();
+        onSuccess?.();
+        onOpenChange(false);
+      }
     } catch (error) {
       console.error("Failed to save income", error);
     } finally {
@@ -386,16 +435,29 @@ export function ReceivableSheet({
     }
   }
 
+  function formatCurrency(value: string | number) {
+    const n = typeof value === "number" ? value : Number(value);
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number.isFinite(n) ? n : 0);
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-[540px] w-full">
-        <SheetHeader>
-          <SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="fixed left-[50%] top-[50%] z-50 grid w-[95vw] max-w-none h-[95dvh] translate-x-[-50%] translate-y-[-50%] gap-0 border bg-background p-0 shadow-lg sm:w-[80vw] sm:h-[80dvh] sm:rounded-lg overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col">
+          <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6">
+            <DialogTitle>
             {initialData ? "Editar Receita" : "Nova Receita"}
-          </SheetTitle>
-        </SheetHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4 p-4 sm:p-6"
+              >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -855,14 +917,59 @@ export function ReceivableSheet({
               )}
             />
 
-            <SheetFooter>
-              <Button type="submit" disabled={loading}>
+            {!initialData && createdGroup && createdIncomes.length > 0 && (
+              <div className="space-y-3 rounded-md border bg-muted/20 p-4">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-semibold">
+                    Parcelas criadas ({createdGroup.installments_total})
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total: {formatCurrency(createdGroup.amount_total)} • Grupo:{" "}
+                    {createdGroup.id}
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Parcela</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {createdIncomes.map((i) => (
+                      <TableRow key={i.id}>
+                        <TableCell className="tabular-nums">
+                          {i.installment_number && i.installments_total
+                            ? `${i.installment_number}/${i.installments_total}`
+                            : "-"}
+                        </TableCell>
+                        <TableCell>{i.due_date || "-"}</TableCell>
+                        <TableCell className="capitalize">{i.status}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatCurrency(i.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading || (!initialData && !!createdGroup)}>
                 {loading ? "Salvando..." : "Salvar"}
               </Button>
-            </SheetFooter>
+            </DialogFooter>
           </form>
         </Form>
-      </SheetContent>
+          </div>
+        </div>
 
       <ContactSheet
         open={contactSheetOpen}
@@ -890,6 +997,7 @@ export function ReceivableSheet({
         onOpenChange={setCostCenterSheetOpen}
         onSuccess={loadCostCenters}
       />
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
