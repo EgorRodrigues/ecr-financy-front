@@ -36,6 +36,7 @@ import {
   getContacts,
   getAccounts,
   createExpense,
+  createExpenseInstallments,
   updateExpense,
   type ExpenseRecord,
   type TransactionInput,
@@ -313,54 +314,36 @@ export function PayableSheet({
         await updateExpense(initialData.id, payload);
       } else {
         // Create mode
-        const isParcelado = values.parcelado && values.parcelas > 1;
+        const shouldCreateInstallments = values.parcelado && values.parcelas > 1;
 
-        if (isParcelado) {
+        if (shouldCreateInstallments) {
           const n = Math.max(2, values.parcelas);
-          const total = Math.abs(values.valor);
-          const base = Math.floor((total * 100) / n);
-          const amounts: number[] = Array.from({ length: n }, (_, i) =>
-            i < n - 1 ? base : total * 100 - base * (n - 1)
-          ).map((c) => c / 100);
-          const start = values.dataVencimento;
-          const startDate = new Date(start);
-
-          const requests: Promise<unknown>[] = [];
-          for (let i = 0; i < n; i++) {
-            const d = new Date(
-              startDate.getFullYear(),
-              startDate.getMonth() + i,
-              startDate.getDate()
-            );
-            const due = d.toISOString().slice(0, 10);
-
-            const payload: TransactionInput = {
-              amount: Math.abs(amounts[i]),
-              status: values.status,
-              issue_date: values.dataEmissao,
-              due_date: due,
-              category_id: values.categoriaId || undefined,
-              subcategory_id: values.subcategoriaId || undefined,
-              cost_center_id: values.centroCustoId || undefined,
-              contact_id: values.fornecedorClienteId || undefined,
-              description: values.descricao ? `${values.descricao} (${i + 1}/${n})` : values.descricao,
-              document: values.documento
-                ? `${values.documento}-${i + 1}/${n}`
-                : undefined,
-              payment_method: values.formaPagamento || undefined,
-              account_id: values.contaId || undefined,
-              recurrence: values.recorrencia,
-              competence: values.competencia || undefined,
-              project: values.projeto || undefined,
-              tags: values.tags
-                ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
-                : [],
-              notes: values.observacoes || undefined,
-              active: true,
-            };
-            requests.push(createExpense(payload));
-          }
-          await Promise.all(requests);
+          await createExpenseInstallments({
+            amount_total: Math.abs(values.valor),
+            installments_total: n,
+            issue_date: values.dataEmissao,
+            first_due_date: values.dataVencimento,
+            contact_id: values.fornecedorClienteId || undefined,
+            description: values.descricao,
+            account_id: values.contaId || undefined,
+            status: values.status,
+            payment_date: values.status === "pago" ? values.dataPagamento : undefined,
+            interest: values.status === "pago" ? values.juros : undefined,
+            fine: values.status === "pago" ? values.multa : undefined,
+            discount: values.status === "pago" ? values.desconto : undefined,
+            category_id: values.categoriaId || undefined,
+            subcategory_id: values.subcategoriaId || undefined,
+            cost_center_id: values.centroCustoId || undefined,
+            document: values.documento || undefined,
+            payment_method: values.formaPagamento || undefined,
+            competence: values.competencia || undefined,
+            project: values.projeto || undefined,
+            tags: values.tags
+              ? values.tags.split(",").map((s) => s.trim()).filter(Boolean)
+              : [],
+            notes: values.observacoes || undefined,
+            active: true,
+          });
         } else {
           const payload: TransactionInput = {
             amount: values.valor,

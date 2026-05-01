@@ -35,6 +35,7 @@ import {
   getContacts,
   getAccounts,
   createIncome,
+  createIncomeInstallments,
   updateIncome,
   type IncomeRecord,
   type TransactionInput,
@@ -181,7 +182,7 @@ export function ReceivableSheet({
           centroCustoId: initialData.cost_center_id || "",
           fornecedorClienteId: initialData.contact_id || "",
           documento: initialData.document || "",
-          formaRecebimento: initialData.payment_method || "",
+          formaRecebimento: initialData.receiving_method || initialData.payment_method || "",
           contaId: initialData.account_id || "",
           competencia: initialData.competence || "",
           projeto: initialData.project || "",
@@ -290,7 +291,7 @@ export function ReceivableSheet({
           contact_id: values.fornecedorClienteId || undefined,
           description: values.descricao,
           document: values.documento || undefined,
-          payment_method: values.formaRecebimento || undefined,
+          receiving_method: values.formaRecebimento || undefined,
           account_id: values.contaId || undefined,
           recurrence: values.recorrencia,
           competence: values.competencia || undefined,
@@ -307,64 +308,39 @@ export function ReceivableSheet({
         await updateIncome(initialData.id, payload);
       } else {
         // Create mode
-        const isParcelado = values.parcelado && values.parcelas > 1;
+        const shouldCreateInstallments = values.parcelado && values.parcelas > 1;
 
-        if (isParcelado) {
+        if (shouldCreateInstallments) {
           const n = Math.max(2, values.parcelas);
-          const total = Math.abs(values.valor);
-          const base = Math.floor((total * 100) / n);
-          const amounts: number[] = Array.from({ length: n }, (_, i) =>
-            i < n - 1 ? base : total * 100 - base * (n - 1)
-          ).map((c) => c / 100);
-          const start = values.dataVencimento;
-          const startDate = new Date(start);
-
-          const requests: Promise<unknown>[] = [];
-          for (let i = 0; i < n; i++) {
-            const d = new Date(
-              startDate.getFullYear(),
-              startDate.getMonth() + i,
-              startDate.getDate()
-            );
-            const due = d.toISOString().slice(0, 10);
-
-            const payload: TransactionInput = {
-              amount: Math.abs(amounts[i]),
-              status: values.status,
-              issue_date: values.dataEmissao,
-              due_date: due,
-              receipt_date: values.status === "recebido" ? values.dataRecebimento : undefined,
-              interest: values.status === "recebido" ? values.juros : undefined,
-              fine: values.status === "recebido" ? values.multa : undefined,
-              discount: values.status === "recebido" ? values.desconto : undefined,
-              total_received: values.status === "recebido" ? values.totalRecebido : undefined,
-              category_id: values.categoriaId || undefined,
-              subcategory_id: values.subcategoriaId || undefined,
-              cost_center_id: values.centroCustoId || undefined,
-              contact_id: values.fornecedorClienteId || undefined,
-              description: [values.descricao, `(parcela ${i + 1}/${n})`]
-                .filter(Boolean)
-                .join(" "),
-              document: values.documento
-                ? `${values.documento}-${i + 1}/${n}`
-                : undefined,
-              payment_method: values.formaRecebimento || undefined,
-              account_id: values.contaId || undefined,
-              recurrence: values.recorrencia,
-              competence: values.competencia || undefined,
-              project: values.projeto || undefined,
-              tags: values.tags
-                ? values.tags
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                : [],
-              notes: values.observacoes || undefined,
-              active: true,
-            };
-            requests.push(createIncome(payload));
-          }
-          await Promise.all(requests);
+          await createIncomeInstallments({
+            amount_total: Math.abs(values.valor),
+            installments_total: n,
+            issue_date: values.dataEmissao,
+            first_due_date: values.dataVencimento,
+            contact_id: values.fornecedorClienteId || undefined,
+            description: values.descricao,
+            account_id: values.contaId || undefined,
+            status: values.status,
+            receipt_date: values.status === "recebido" ? values.dataRecebimento : undefined,
+            interest: values.status === "recebido" ? values.juros : undefined,
+            fine: values.status === "recebido" ? values.multa : undefined,
+            discount: values.status === "recebido" ? values.desconto : undefined,
+            category_id: values.categoriaId || undefined,
+            subcategory_id: values.subcategoriaId || undefined,
+            cost_center_id: values.centroCustoId || undefined,
+            document: values.documento || undefined,
+            receiving_method: values.formaRecebimento || undefined,
+            competence: values.competencia || undefined,
+            project: values.projeto || undefined,
+            tags: values.tags
+              ? values.tags
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+            notes: values.observacoes || undefined,
+            active: true,
+          });
         } else {
           const payload: TransactionInput = {
             amount: values.valor,
@@ -382,7 +358,7 @@ export function ReceivableSheet({
             contact_id: values.fornecedorClienteId || undefined,
             description: values.descricao,
             document: values.documento || undefined,
-            payment_method: values.formaRecebimento || undefined,
+            receiving_method: values.formaRecebimento || undefined,
             account_id: values.contaId || undefined,
             recurrence: values.recorrencia,
             competence: values.competencia || undefined,

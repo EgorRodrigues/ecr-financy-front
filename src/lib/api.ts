@@ -504,6 +504,7 @@ export type TransactionInput = {
   description?: string;
   document?: string;
   payment_method?: string;
+  receiving_method?: string;
   account_id?: string;
   recurrence?: boolean;
   competence?: string;
@@ -522,6 +523,96 @@ export async function createExpense(input: TransactionInput) {
 
 export async function createIncome(input: TransactionInput) {
   return apiFetch(`/incomes/`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export type InstallmentGroup = {
+  id: string;
+  description?: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpenseInstallmentsInput = {
+  amount_total: number;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  contact_id?: string;
+  description?: string;
+  account_id?: string;
+  status: "pendente" | "pago" | "cancelado";
+  payment_date?: string;
+  interest?: number;
+  fine?: number;
+  discount?: number;
+  category_id?: string;
+  subcategory_id?: string;
+  cost_center_id?: string;
+  document?: string;
+  payment_method?: string;
+  competence?: string;
+  project?: string;
+  tags?: string[];
+  notes?: string;
+  active?: boolean;
+};
+
+export type IncomeInstallmentsInput = {
+  amount_total: number;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  contact_id?: string;
+  description?: string;
+  account_id?: string;
+  status: "pendente" | "recebido" | "cancelado";
+  receipt_date?: string;
+  interest?: number;
+  fine?: number;
+  discount?: number;
+  category_id?: string;
+  subcategory_id?: string;
+  cost_center_id?: string;
+  document?: string;
+  receiving_method?: string;
+  competence?: string;
+  project?: string;
+  tags?: string[];
+  notes?: string;
+  active?: boolean;
+};
+
+export type ExpenseInstallmentsResponse = {
+  group: InstallmentGroup;
+  expenses: Array<ExpenseRecord & { installment_group_id?: string }>;
+};
+
+export type IncomeInstallmentsResponse = {
+  group: InstallmentGroup;
+  incomes: Array<IncomeRecord & { installment_group_id?: string }>;
+};
+
+export async function createExpenseInstallments(
+  input: ExpenseInstallmentsInput
+) {
+  return apiFetch<ExpenseInstallmentsResponse>(`/expenses/installments`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createIncomeInstallments(input: IncomeInstallmentsInput) {
+  return apiFetch<IncomeInstallmentsResponse>(`/incomes/installments`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export async function getExpenses(params?: {
