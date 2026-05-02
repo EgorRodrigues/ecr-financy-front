@@ -4,12 +4,12 @@ import { useState, useEffect, startTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -393,16 +393,21 @@ export function CreditCardExpenseSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-[540px] w-full">
-        <SheetHeader>
-          <SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="fixed left-[50%] top-[50%] z-50 grid w-[95vw] max-w-none h-[95dvh] translate-x-[-50%] translate-y-[-50%] gap-0 border bg-background p-0 shadow-lg sm:w-[80vw] sm:h-[80dvh] sm:rounded-lg overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col">
+          <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6">
+            <DialogTitle>
             {initialData ? "Editar Despesa" : "Nova Despesa"} - {cardName}
-          </SheetTitle>
-        </SheetHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 p-4">
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4 p-4 sm:p-6"
+              >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -763,7 +768,7 @@ export function CreditCardExpenseSheet({
               </div>
             )}
 
-            <SheetFooter>
+            <DialogFooter>
               <Button
                 variant="outline"
                 type="button"
@@ -778,10 +783,11 @@ export function CreditCardExpenseSheet({
                   ? "Atualizar Despesa"
                   : "Salvar Despesa"}
               </Button>
-            </SheetFooter>
+            </DialogFooter>
           </form>
         </Form>
-      </SheetContent>
+          </div>
+        </div>
       <ContactSheet
         open={contactSheetOpen}
         onOpenChange={setContactSheetOpen}
@@ -804,6 +810,7 @@ export function CreditCardExpenseSheet({
         onOpenChange={setCostCenterSheetOpen}
         onSuccess={loadCostCenters}
       />
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
