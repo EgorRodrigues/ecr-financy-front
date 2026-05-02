@@ -63,7 +63,7 @@ import {
 } from "@/components/ui/dialog";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Badge } from "@/components/ui/badge";
-import { updateCreditCardInvoice, updateCreditCardTransaction } from "@/lib/api";
+import { createTransfer, updateCreditCardInvoice, updateCreditCardTransaction } from "@/lib/api";
 
 function InvoiceStatusBadge({ invoice }: { invoice: Invoice }) {
   const isPaid = invoice.status === "pago" || (invoice.amount > 0 && (invoice.total_paid || 0) >= invoice.amount);
@@ -885,6 +885,8 @@ function InvoicePaymentSheet({
   const [interest, setInterest] = useState(0);
   const [fine, setFine] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [bankAccounts, setBankAccounts] = useState<Account[]>([]);
+  const [bankAccountId, setBankAccountId] = useState<string>("");
 
   useEffect(() => {
     if (open && invoice) {
@@ -897,20 +899,43 @@ function InvoicePaymentSheet({
     }
   }, [open, invoice]);
 
+  useEffect(() => {
+    if (!open) return;
+    getAccounts({ account_type: "bank" })
+      .then((list) => {
+        const activeBanks = list.filter((a) => a.active);
+        setBankAccounts(activeBanks);
+        setBankAccountId((prev) => prev || activeBanks[0]?.id || "");
+      })
+      .catch(() => {
+        setBankAccounts([]);
+        setBankAccountId("");
+      });
+  }, [open]);
+
   const baseAmount = invoice?.amount || 0;
   const totalPaid = baseAmount + (interest || 0) + (fine || 0) - (discount || 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!invoice) return;
+    if (!bankAccountId) return;
     setSaving(true);
     try {
+      await createTransfer({
+        source_account_id: bankAccountId,
+        destination_account_id: invoice.account_id,
+        amount: totalPaid,
+        date: paymentDate,
+        description: "Pagamento de fatura do cartão",
+      });
       await updateCreditCardInvoice(invoice.id, {
         payment_date: paymentDate,
         interest,
         fine,
         discount,
         total_paid: totalPaid,
+        status: "paid",
       });
       onSuccess();
       onOpenChange(false);
@@ -975,6 +1000,24 @@ function InvoicePaymentSheet({
                 </div>
               </div>
 
+              <div>
+                <label className="text-xs font-medium mb-1 block">
+                  Conta bancária
+                </label>
+                <Select value={bankAccountId} onValueChange={setBankAccountId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-medium mb-1 block">
@@ -1004,7 +1047,7 @@ function InvoicePaymentSheet({
             </>
           )}
           <SheetFooter>
-            <Button type="submit" disabled={!invoice || saving}>
+            <Button type="submit" disabled={!invoice || !bankAccountId || saving}>
               {saving ? "Salvando..." : "Confirmar Pagamento"}
             </Button>
           </SheetFooter>
