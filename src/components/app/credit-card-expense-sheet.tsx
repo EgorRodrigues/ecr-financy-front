@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import {
   createCreditCardTransaction,
+  createCreditCardTransactionInstallments,
   updateCreditCardTransaction,
   getCategories,
   getSubcategories,
@@ -46,6 +47,14 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const formSchema = z.object({
   valor: z.number().min(0.01, "Informe o valor"),
@@ -100,6 +109,24 @@ export function CreditCardExpenseSheet({
   const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [subcategorySheetOpen, setSubcategorySheetOpen] = useState(false);
   const [costCenterSheetOpen, setCostCenterSheetOpen] = useState(false);
+  const [createdGroup, setCreatedGroup] = useState<{
+    id: string;
+    description: string;
+    amount_total: string;
+    installments_total: number;
+    issue_date: string;
+    first_due_date: string;
+  } | null>(null);
+  const [createdTransactions, setCreatedTransactions] = useState<
+    Array<{
+      id: string;
+      due_date?: string | null;
+      amount: string;
+      status: string;
+      installment_number?: number | null;
+      installments_total?: number | null;
+    }>
+  >([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -135,6 +162,8 @@ export function CreditCardExpenseSheet({
   useEffect(() => {
     if (open) {
       loadDependencies();
+      setCreatedGroup(null);
+      setCreatedTransactions([]);
       if (initialData) {
         form.reset({
           valor: initialData.amount,
@@ -262,72 +291,55 @@ export function CreditCardExpenseSheet({
           active: true,
         };
         await updateCreditCardTransaction(initialData.id, payload);
+        onSuccess?.();
+        onOpenChange(false);
       } else {
         // Create mode
         const isParcelado = values.parcelado && values.parcelas > 1;
 
         if (isParcelado) {
           const n = Math.max(2, values.parcelas);
-          const total = Math.abs(values.valor);
-          const base = Math.floor((total * 100) / n);
-          const amounts: number[] = Array.from({ length: n }, (_, i) =>
-            i < n - 1 ? base : total * 100 - base * (n - 1)
-          ).map((c) => c / 100);
-          const start =
-            values.dataEmissao || new Date().toISOString().slice(0, 10);
-          
-          const [sYear, sMonth, sDay] = start.split("-").map(Number);
-          const startDate = new Date(sYear, sMonth - 1, sDay);
-
-          const requests: Promise<unknown>[] = [];
-          for (let i = 0; i < n; i++) {
-            const d = new Date(
-              startDate.getFullYear(),
-              startDate.getMonth() + i,
-              startDate.getDate()
-            );
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, "0");
-            const day = String(d.getDate()).padStart(2, "0");
-            const dateStr = `${year}-${month}-${day}`;
-
-            const payload: CreditCardTransactionInput = {
-              amount: Math.abs(amounts[i]),
-              status: "pendente",
-              issue_date: values.dataEmissao,
-              due_date: dateStr,
-              payment_date: values.dataEmissao,
-              original_amount: Math.abs(amounts[i]),
-              interest: 0,
-              fine: 0,
-              discount: 0,
-              total_paid: 0,
-              category_id: values.categoriaId,
-              subcategory_id: values.subcategoriaId,
-              cost_center_id: values.centroCustoId,
-              contact_id: values.fornecedorClienteId,
-              description: [values.descricao || "", `(parcela ${i + 1}/${n})`]
-                .filter(Boolean)
-                .join(" "),
-              document: values.documento
-                ? `${values.documento}-${i + 1}/${n}`
-                : undefined,
-              account_id: cardId,
-              recurrence: values.recorrencia,
-              competence: values.competencia,
-              project: values.projeto,
-              tags: values.tags
-                ? values.tags
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-                : [],
-              notes: values.observacoes,
-              active: true,
-            };
-            requests.push(createCreditCardTransaction(payload));
-          }
-          await Promise.all(requests);
+          const res = await createCreditCardTransactionInstallments({
+            amount_total: Math.abs(values.valor),
+            installments_total: n,
+            issue_date: values.dataEmissao,
+            first_due_date: values.dataEmissao,
+            account_id: cardId,
+            status: "pendente",
+            contact_id: values.fornecedorClienteId || null,
+            description: values.descricao || null,
+            payment_date: null,
+            interest: 0,
+            fine: 0,
+            discount: 0,
+            category_id: values.categoriaId || null,
+            subcategory_id: values.subcategoriaId || null,
+            cost_center_id: values.centroCustoId || null,
+            document: values.documento || null,
+            payment_method: "credit_card",
+            competence: values.competencia || null,
+            project: values.projeto || null,
+            tags: values.tags
+              ? values.tags
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : null,
+            notes: values.observacoes || null,
+            active: true,
+          });
+          setCreatedGroup(res.group);
+          setCreatedTransactions(
+            res.transactions.map((t) => ({
+              id: t.id,
+              due_date: t.due_date ?? null,
+              amount: t.amount,
+              status: t.status,
+              installment_number: t.installment_number ?? null,
+              installments_total: t.installments_total ?? null,
+            }))
+          );
+          onSuccess?.();
         } else {
           const payload: CreditCardTransactionInput = {
             amount: values.valor,
@@ -361,16 +373,23 @@ export function CreditCardExpenseSheet({
             active: true,
           };
           await createCreditCardTransaction(payload);
+          onSuccess?.();
+          onOpenChange(false);
         }
       }
-
-      onSuccess?.();
-      onOpenChange(false);
     } catch (error) {
       console.error("Failed to create credit card transaction", error);
     } finally {
       setLoading(false);
     }
+  }
+
+  function formatCurrency(value: string) {
+    const n = Number(value);
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number.isFinite(n) ? n : 0);
   }
 
   return (
@@ -703,6 +722,47 @@ export function CreditCardExpenseSheet({
               )}
             />
 
+            {!initialData && createdGroup && createdTransactions.length > 0 && (
+              <div className="space-y-3 rounded-md border bg-muted/20 p-4">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-semibold">
+                    Parcelas criadas ({createdGroup.installments_total})
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Total: {formatCurrency(createdGroup.amount_total)} • Grupo:{" "}
+                    {createdGroup.id}
+                  </div>
+                </div>
+
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Parcela</TableHead>
+                      <TableHead>Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {createdTransactions.map((t) => (
+                      <TableRow key={t.id}>
+                        <TableCell className="tabular-nums">
+                          {t.installment_number && t.installments_total
+                            ? `${t.installment_number}/${t.installments_total}`
+                            : "-"}
+                        </TableCell>
+                        <TableCell>{t.due_date || "-"}</TableCell>
+                        <TableCell className="capitalize">{t.status}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {formatCurrency(t.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
             <SheetFooter>
               <Button
                 variant="outline"
@@ -711,7 +771,7 @@ export function CreditCardExpenseSheet({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button type="submit" disabled={loading || (!initialData && !!createdGroup)}>
                 {loading
                   ? "Salvando..."
                   : initialData
