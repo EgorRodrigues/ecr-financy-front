@@ -34,14 +34,14 @@ type DreRow = {
 /** Uma interseção da tabela que o usuário clicou para ver os lançamentos. */
 type DreCellSelection =
   | {
-      kind: "income-category" | "expense-category";
-      category: string;
-      monthScope: string | "__total__";
-    }
+    kind: "income-category" | "expense-category";
+    category: string;
+    monthScope: string | "__total__";
+  }
   | {
-      kind: "total-income" | "total-expense" | "balance";
-      monthScope: string | "__total__";
-    };
+    kind: "total-income" | "total-expense" | "balance";
+    monthScope: string | "__total__";
+  };
 
 function dreSelectionMatches(a: DreCellSelection | null, b: DreCellSelection | null) {
   if (a === null && b === null) return true;
@@ -201,23 +201,33 @@ export default function PrevisaoFinanceiraPage() {
   );
 
   const chartData = useMemo(() => {
+    const grouped: Record<string, { income: number; expense: number }> = {};
+
+    // Agrupa tudo em uma única passada
+    items.forEach((item) => {
+      if (!grouped[item.month]) {
+        grouped[item.month] = { income: 0, expense: 0 };
+      }
+
+      if (item.type === "income") {
+        grouped[item.month].income += item.amount;
+      } else {
+        grouped[item.month].expense += item.amount;
+      }
+    });
+
     let accumulatedBalance = 0;
+
     return months.map((month) => {
-      const monthData = items.filter((item) => item.month === month);
-      const income = monthData
-        .filter((item) => item.type === "income")
-        .reduce((sum, item) => sum + item.amount, 0);
-      const expense = monthData
-        .filter((item) => item.type === "expense")
-        .reduce((sum, item) => sum + item.amount, 0);
-      const balance = income - expense;
+      const data = grouped[month] || { income: 0, expense: 0 };
+      const balance = data.income - data.expense;
       accumulatedBalance += balance;
 
       return {
         month,
         label: formatMonthLabel(month),
-        income,
-        expense,
+        income: data.income,
+        expense: data.expense,
         balance,
         accumulatedBalance,
       };
@@ -368,15 +378,16 @@ export default function PrevisaoFinanceiraPage() {
                   dataKey="balance"
                   name="Saldo"
                   stroke="#2563eb"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
+                  strokeWidth={1}
+                // strokeDasharray="5 5"
                 />
                 <Line
                   type="monotone"
                   dataKey="accumulatedBalance"
                   name="Saldo acumulado"
                   stroke="#8b5cf6"
-                  strokeWidth={3}
+                  strokeWidth={1}
+                  strokeDasharray="3 10"
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -438,7 +449,7 @@ export default function PrevisaoFinanceiraPage() {
                           className={cn(
                             "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
                             dreSelectionMatches(dreSelection, sel) &&
-                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
                           )}
                           onClick={() => pickDreCell(sel)}
                           title="Ver lançamentos desta célula"
@@ -483,7 +494,7 @@ export default function PrevisaoFinanceiraPage() {
                         className={cn(
                           "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
                           dreSelectionMatches(dreSelection, sel) &&
-                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          "bg-primary/10 ring-2 ring-inset ring-primary/35"
                         )}
                         onClick={() => pickDreCell(sel)}
                         title="Ver todas as receitas previstas neste mês"
@@ -530,7 +541,7 @@ export default function PrevisaoFinanceiraPage() {
                           className={cn(
                             "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
                             dreSelectionMatches(dreSelection, sel) &&
-                              "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
                           )}
                           onClick={() => pickDreCell(sel)}
                           title="Ver lançamentos desta célula"
@@ -575,7 +586,7 @@ export default function PrevisaoFinanceiraPage() {
                         className={cn(
                           "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
                           dreSelectionMatches(dreSelection, sel) &&
-                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          "bg-primary/10 ring-2 ring-inset ring-primary/35"
                         )}
                         onClick={() => pickDreCell(sel)}
                         title="Ver todas as despesas previstas neste mês"
@@ -614,14 +625,14 @@ export default function PrevisaoFinanceiraPage() {
                         className={cn(
                           "text-right cursor-pointer select-none transition-colors hover:bg-muted/60",
                           dreSelectionMatches(dreSelection, sel) &&
-                            "bg-primary/10 ring-2 ring-inset ring-primary/35"
+                          "bg-primary/10 ring-2 ring-inset ring-primary/35"
                         )}
                         onClick={() => pickDreCell(sel)}
                         title="Ver receitas e despesas deste mês (lançamentos que formam o saldo)"
                       >
                         {formatCurrency(
                           (dreData.totalIncomeByMonth[month] ?? 0) -
-                            (dreData.totalExpenseByMonth[month] ?? 0)
+                          (dreData.totalExpenseByMonth[month] ?? 0)
                         )}
                       </TableCell>
                     );
