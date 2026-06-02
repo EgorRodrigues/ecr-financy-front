@@ -504,6 +504,7 @@ export type TransactionInput = {
   description?: string;
   document?: string;
   payment_method?: string;
+  receiving_method?: string;
   account_id?: string;
   recurrence?: boolean;
   competence?: string;
@@ -522,6 +523,315 @@ export async function createExpense(input: TransactionInput) {
 
 export async function createIncome(input: TransactionInput) {
   return apiFetch(`/incomes/`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export type InstallmentGroupOut = {
+  id: string;
+  description: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpenseInstallmentOut = {
+  id: string;
+  amount: string;
+  status: "pendente" | "pago" | "cancelado";
+  issue_date: string;
+  contact_id: string;
+  description: string;
+  account_id: string;
+  due_date?: string | null;
+  payment_date?: string | null;
+  interest?: string | null;
+  fine?: string | null;
+  discount?: string | null;
+  total_paid?: string | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  cost_center_id?: string | null;
+  document?: string | null;
+  payment_method?: string | null;
+  competence?: string | null;
+  project?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  transfer_id?: string | null;
+  installment_group_id?: string | null;
+  installment_number?: number | null;
+  installments_total?: number | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IncomeInstallmentOut = {
+  id: string;
+  amount: string;
+  status: "pendente" | "recebido" | "cancelado";
+  issue_date: string;
+  contact_id: string;
+  description: string;
+  account_id: string;
+  due_date?: string | null;
+  receipt_date?: string | null;
+  interest?: string | null;
+  fine?: string | null;
+  discount?: string | null;
+  total_received?: string | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  cost_center_id?: string | null;
+  document?: string | null;
+  receiving_method?: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro" | null;
+  competence?: string | null;
+  project?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  transfer_id?: string | null;
+  installment_group_id?: string | null;
+  installment_number?: number | null;
+  installments_total?: number | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ExpenseInstallmentsInput = {
+  amount_total: number;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  contact_id?: string;
+  description?: string;
+  account_id?: string;
+  status: "pendente" | "pago" | "cancelado";
+  payment_date?: string;
+  interest?: number;
+  fine?: number;
+  discount?: number;
+  category_id?: string;
+  subcategory_id?: string;
+  cost_center_id?: string;
+  document?: string;
+  payment_method?: string;
+  competence?: string;
+  project?: string;
+  tags?: string[];
+  notes?: string;
+  active?: boolean;
+};
+
+export type IncomeInstallmentsInput = {
+  amount_total: number;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  contact_id?: string;
+  description?: string;
+  account_id?: string;
+  status: "pendente" | "recebido" | "cancelado";
+  receipt_date?: string;
+  interest?: number;
+  fine?: number;
+  discount?: number;
+  category_id?: string;
+  subcategory_id?: string;
+  cost_center_id?: string;
+  document?: string;
+  receiving_method?: string;
+  competence?: string;
+  project?: string;
+  tags?: string[];
+  notes?: string;
+  active?: boolean;
+};
+
+export type ExpenseInstallmentsResponse = {
+  group: InstallmentGroupOut;
+  expenses: ExpenseInstallmentOut[];
+};
+
+export type IncomeInstallmentsResponse = {
+  group: InstallmentGroupOut;
+  incomes: IncomeInstallmentOut[];
+};
+
+export async function createExpenseInstallments(
+  input: ExpenseInstallmentsInput
+) {
+  return apiFetch<ExpenseInstallmentsResponse>(`/expenses/installments`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createIncomeInstallments(input: IncomeInstallmentsInput) {
+  return apiFetch<IncomeInstallmentsResponse>(`/incomes/installments`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export type ExpenseInstallmentGroupSummaryOut = {
+  id: string;
+  description: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id: string;
+  active: boolean;
+  expenses_count: number;
+  pending_count: number;
+  paid_count: number;
+  canceled_count: number;
+  total_paid: string;
+  next_due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type IncomeInstallmentGroupSummaryOut = {
+  id: string;
+  description: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id: string;
+  active: boolean;
+  incomes_count: number;
+  pending_count: number;
+  received_count: number;
+  canceled_count: number;
+  total_received: string;
+  next_due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InstallmentGroupUpdate = {
+  description?: string | null;
+  active?: boolean | null;
+};
+
+export type ExpenseInstallmentGroupWithExpensesOut = {
+  group: InstallmentGroupOut;
+  expenses: ExpenseInstallmentOut[];
+};
+
+export type IncomeInstallmentGroupWithIncomesOut = {
+  group: InstallmentGroupOut;
+  incomes: IncomeInstallmentOut[];
+};
+
+export async function getExpenseInstallmentGroups(params?: {
+  limit?: number;
+  account_id?: string;
+  contact_id?: string;
+  active?: boolean;
+}): Promise<ExpenseInstallmentGroupSummaryOut[]> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.append("limit", params.limit.toString());
+  if (params?.account_id) query.append("account_id", params.account_id);
+  if (params?.contact_id) query.append("contact_id", params.contact_id);
+  if (typeof params?.active === "boolean") {
+    query.append("active", params.active ? "true" : "false");
+  }
+  const qs = query.toString();
+  return apiFetch(`/expenses/installment-groups${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+  });
+}
+
+export async function getExpenseInstallmentGroup(groupId: string) {
+  return apiFetch<ExpenseInstallmentGroupWithExpensesOut>(
+    `/expenses/installment-groups/${groupId}`,
+    { method: "GET" }
+  );
+}
+
+export async function updateExpenseInstallmentGroup(
+  groupId: string,
+  input: InstallmentGroupUpdate
+) {
+  return apiFetch<InstallmentGroupOut>(`/expenses/installment-groups/${groupId}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelExpenseInstallmentGroup(groupId: string) {
+  return apiFetch<ExpenseInstallmentGroupWithExpensesOut>(
+    `/expenses/installment-groups/${groupId}/cancel`,
+    { method: "POST" }
+  );
+}
+
+export async function deactivateExpenseInstallmentGroup(groupId: string) {
+  return apiFetch<ExpenseInstallmentGroupWithExpensesOut>(
+    `/expenses/installment-groups/${groupId}/deactivate`,
+    { method: "POST" }
+  );
+}
+
+export async function getIncomeInstallmentGroups(params?: {
+  limit?: number;
+  account_id?: string;
+  contact_id?: string;
+  active?: boolean;
+}): Promise<IncomeInstallmentGroupSummaryOut[]> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.append("limit", params.limit.toString());
+  if (params?.account_id) query.append("account_id", params.account_id);
+  if (params?.contact_id) query.append("contact_id", params.contact_id);
+  if (typeof params?.active === "boolean") {
+    query.append("active", params.active ? "true" : "false");
+  }
+  const qs = query.toString();
+  return apiFetch(`/incomes/installment-groups${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+  });
+}
+
+export async function getIncomeInstallmentGroup(groupId: string) {
+  return apiFetch<IncomeInstallmentGroupWithIncomesOut>(
+    `/incomes/installment-groups/${groupId}`,
+    { method: "GET" }
+  );
+}
+
+export async function updateIncomeInstallmentGroup(
+  groupId: string,
+  input: InstallmentGroupUpdate
+) {
+  return apiFetch<InstallmentGroupOut>(`/incomes/installment-groups/${groupId}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function cancelIncomeInstallmentGroup(groupId: string) {
+  return apiFetch<IncomeInstallmentGroupWithIncomesOut>(
+    `/incomes/installment-groups/${groupId}/cancel`,
+    { method: "POST" }
+  );
+}
+
+export async function deactivateIncomeInstallmentGroup(groupId: string) {
+  return apiFetch<IncomeInstallmentGroupWithIncomesOut>(
+    `/incomes/installment-groups/${groupId}/deactivate`,
+    { method: "POST" }
+  );
 }
 
 export async function getExpenses(params?: {
@@ -650,6 +960,182 @@ export async function transferCreditCardTransaction(
     method: "POST",
     body: JSON.stringify({ new_invoice_id: newInvoiceId }),
   });
+}
+
+export type CreditCardTransactionOut = {
+  id: string;
+  amount: string;
+  status: "pendente" | "pago" | "cancelado";
+  issue_date?: string | null;
+  due_date?: string | null;
+  payment_date?: string | null;
+  interest?: string | null;
+  fine?: string | null;
+  discount?: string | null;
+  total_paid?: string | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  cost_center_id?: string | null;
+  contact_id?: string | null;
+  description?: string | null;
+  document?: string | null;
+  payment_method?: string | null;
+  account_id?: string | null;
+  competence?: string | null;
+  project?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  installment_group_id?: string | null;
+  installment_number?: number | null;
+  installments_total?: number | null;
+  invoice_id?: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreditCardTransactionInstallmentGroupOut = {
+  id: string;
+  description: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id?: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreditCardTransactionInstallmentGroupWithTransactionsOut = {
+  group: CreditCardTransactionInstallmentGroupOut;
+  transactions: CreditCardTransactionOut[];
+};
+
+export type CreditCardTransactionInstallmentGroupSummaryOut = {
+  id: string;
+  description: string;
+  amount_total: string;
+  installments_total: number;
+  issue_date: string;
+  first_due_date: string;
+  account_id: string;
+  contact_id?: string | null;
+  active: boolean;
+  transactions_count: number;
+  pending_count: number;
+  paid_count: number;
+  canceled_count: number;
+  total_invoiced: string;
+  next_due_date: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreditCardTransactionInstallmentGroupUpdate = {
+  description?: string | null;
+  active?: boolean | null;
+};
+
+export type CreditCardTransactionInstallmentPlanInput = {
+  amount_total: number;
+  installments_total: number;
+  issue_date: string;
+  first_due_date?: string | null;
+  account_id: string;
+  status?: "pendente" | "pago" | "cancelado";
+  contact_id?: string | null;
+  description?: string | null;
+  payment_date?: string | null;
+  interest?: number | null;
+  fine?: number | null;
+  discount?: number | null;
+  category_id?: string | null;
+  subcategory_id?: string | null;
+  cost_center_id?: string | null;
+  document?: string | null;
+  payment_method?:
+    | "pix"
+    | "boleto"
+    | "cartao"
+    | "transferencia"
+    | "dinheiro"
+    | "credit_card"
+    | null;
+  competence?: string | null;
+  project?: string | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  active?: boolean;
+};
+
+export async function createCreditCardTransactionInstallments(
+  input: CreditCardTransactionInstallmentPlanInput
+) {
+  return apiFetch<CreditCardTransactionInstallmentGroupWithTransactionsOut>(
+    `/credit-card-transactions/installments`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export async function getCreditCardTransactionInstallmentGroups(params?: {
+  limit?: number;
+  account_id?: string;
+  active?: boolean;
+}): Promise<CreditCardTransactionInstallmentGroupSummaryOut[]> {
+  const query = new URLSearchParams();
+  if (params?.limit) query.append("limit", params.limit.toString());
+  if (params?.account_id) query.append("account_id", params.account_id);
+  if (typeof params?.active === "boolean") {
+    query.append("active", params.active ? "true" : "false");
+  }
+  const qs = query.toString();
+  return apiFetch(
+    `/credit-card-transactions/installment-groups${qs ? `?${qs}` : ""}`,
+    { method: "GET" }
+  );
+}
+
+export async function getCreditCardTransactionInstallmentGroup(groupId: string) {
+  return apiFetch<CreditCardTransactionInstallmentGroupWithTransactionsOut>(
+    `/credit-card-transactions/installment-groups/${groupId}`,
+    { method: "GET" }
+  );
+}
+
+export async function updateCreditCardTransactionInstallmentGroup(
+  groupId: string,
+  input: CreditCardTransactionInstallmentGroupUpdate
+) {
+  return apiFetch<CreditCardTransactionInstallmentGroupOut>(
+    `/credit-card-transactions/installment-groups/${groupId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export async function cancelCreditCardTransactionInstallmentGroup(
+  groupId: string
+) {
+  return apiFetch<CreditCardTransactionInstallmentGroupWithTransactionsOut>(
+    `/credit-card-transactions/installment-groups/${groupId}/cancel`,
+    { method: "POST" }
+  );
+}
+
+export async function deactivateCreditCardTransactionInstallmentGroup(
+  groupId: string
+) {
+  return apiFetch<CreditCardTransactionInstallmentGroupWithTransactionsOut>(
+    `/credit-card-transactions/installment-groups/${groupId}/deactivate`,
+    { method: "POST" }
+  );
 }
 
 export type Invoice = {
